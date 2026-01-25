@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test MathLearning API</title>
+</head>
+<body>
+    <h1>Testing MathLearning API</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <button onclick="testRoot()">Test Root</button>
+    <div id="results"></div>
+
+    <script>
+        async function testRoot() {
+            try {
+                const response = await fetch('https://mathlearning-api.fly.dev/');
+                const text = await response.text();
+                document.getElementById('results').innerHTML = `Root: ${response.status} - ${text}`;
+            } catch (e) {
+                document.getElementById('results').innerHTML = `Root Error: ${e}`;
+            }
+        }
+
+        async function testLogin() {
+            try {
+                const response = await fetch('https://mathlearning-api.fly.dev/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'test',
+                        password: 'test'
+                    })
+                });
+                const text = await response.text();
+                document.getElementById('results').innerHTML = `Login: ${response.status} - ${text}`;
+            } catch (e) {
+                document.getElementById('results').innerHTML = `Login Error: ${e}`;
+            }
+        }
+    </script>
+</body>
+</html>
