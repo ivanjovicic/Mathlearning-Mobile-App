@@ -4,8 +4,7 @@ import '../state/progress_provider.dart';
 import '../state/badge_provider.dart';
 import '../state/auth_provider.dart';
 import '../widgets/animated_xp_bar.dart';
-import '../services/user_service.dart';
-import '../models/user_profile.dart';
+// user_service and user_profile imports removed (unused)
 import 'user_search_screen.dart';
 
 class ProfileScreen extends StatelessWidget {

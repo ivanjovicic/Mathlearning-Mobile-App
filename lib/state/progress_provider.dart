@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../models/topic_dto.dart';
 import '../services/offline_storage_service.dart';
 
 class ProgressProvider extends ChangeNotifier {
@@ -93,9 +94,15 @@ class ProgressProvider extends ChangeNotifier {
       if (token?.startsWith('demo_token') != true) {
         final data = await api.get("/api/progress/topics", token);
         if (data != null) {
-          topics = (data as List)
-              .map((e) => TopicProgress.fromJson(e))
-              .toList();
+          topics = (data as List).map((e) {
+            final dto = TopicDto.fromJson(e);
+            return TopicProgress(
+              name: dto.name,
+              requiredLevel: 1,
+              unlocked: dto.unlocked,
+              topicId: dto.id,
+            );
+          }).toList();
           notifyListeners();
           return;
         }

@@ -1,11 +1,22 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../models/progress_overview.dart';
-import '../utils/config.dart';
 import 'auth_service.dart';
 
 class ApiService {
+    /// Fetches topic progress for the user
+    Future<List<Map<String, dynamic>>?> getTopicsProgress() async {
+      try {
+        final response = await _dio.get('/api/progress/topics');
+        if (response.data != null && response.data is List) {
+          return List<Map<String, dynamic>>.from(response.data);
+        }
+        return null;
+      } catch (e) {
+        debugPrint('Error fetching topics progress: $e');
+        return null;
+      }
+    }
   late Dio _dio;
 
   ApiService() {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state/coin_provider.dart';
-import '../models/hint_models.dart';
 
 class HintButton extends StatefulWidget {
   final String hintType;
