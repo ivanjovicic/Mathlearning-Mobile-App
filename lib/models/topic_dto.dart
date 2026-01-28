@@ -13,22 +13,22 @@ class TopicDto {
 
   factory TopicDto.fromJson(Map<String, dynamic> json) {
     final int id = (json['id'] ?? json['topicId'] ?? 0) as int;
-    final String name = (json['name'] ?? json['topicName'] ?? json['topic_name'] ?? '').toString();
-    final double accuracy = ((json['accuracy'] ?? json['progress'] ?? 0) as num).toDouble();
-    final bool unlocked = json['unlocked'] == null ? true : (json['unlocked'] as bool);
+    final String name =
+        (json['name'] ?? json['topicName'] ?? json['topic_name'] ?? '')
+            .toString();
+    final double accuracy = ((json['accuracy'] ?? json['progress'] ?? 0) as num)
+        .toDouble();
+    final bool unlocked = json['unlocked'] == null
+        ? true
+        : (json['unlocked'] as bool);
 
-    return TopicDto(
-      id: id,
-      name: name,
-      accuracy: accuracy,
-      unlocked: unlocked,
-    );
+    return TopicDto(id: id, name: name, accuracy: accuracy, unlocked: unlocked);
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'accuracy': accuracy,
-        'unlocked': unlocked,
-      };
+    'id': id,
+    'name': name,
+    'accuracy': accuracy,
+    'unlocked': unlocked,
+  };
 }

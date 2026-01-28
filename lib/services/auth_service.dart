@@ -7,14 +7,12 @@ import '../utils/config.dart';
 class AuthService {
   static AuthService? _instance;
   static AuthService get instance => _instance ??= AuthService._();
-  
+
   AuthService._();
 
   // Secure storage for refresh token
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
 
   // Keys for storage
@@ -32,14 +30,14 @@ class AuthService {
   late Dio _dio;
 
   void initialize() {
-    _dio = Dio(BaseOptions(
-      baseUrl: Config.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    ));
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: Config.apiBaseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+        headers: {'Content-Type': 'application/json'},
+      ),
+    );
 
     // Add auto-refresh interceptor
     _dio.interceptors.add(
@@ -54,13 +52,13 @@ class AuthService {
         onError: (error, handler) async {
           if (error.response?.statusCode == 401) {
             debugPrint('🔄 Token expired, attempting refresh...');
-            
+
             final refreshed = await _refreshTokens();
             if (refreshed) {
               // Retry original request with new token
               final opts = error.requestOptions;
               opts.headers['Authorization'] = 'Bearer $_accessToken';
-              
+
               try {
                 final response = await _dio.fetch(opts);
                 return handler.resolve(response);
@@ -81,10 +79,10 @@ class AuthService {
   // Login with username/password
   Future<AuthResult> login(String username, String password) async {
     try {
-      final response = await _dio.post('/api/auth/login', data: {
-        'username': username,
-        'password': password,
-      });
+      final response = await _dio.post(
+        '/api/auth/login',
+        data: {'username': username, 'password': password},
+      );
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -99,13 +97,15 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('❌ Login failed: $e');
-      
+
       // Demo mode fallback - allow specific test credentials
       if (_isDemoCredentials(username, password)) {
         debugPrint('🎯 Using demo mode credentials');
         await _storeTokens(
-          accessToken: 'demo_access_token_${DateTime.now().millisecondsSinceEpoch}',
-          refreshToken: 'demo_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
+          accessToken:
+              'demo_access_token_${DateTime.now().millisecondsSinceEpoch}',
+          refreshToken:
+              'demo_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
           userId: '1',
           username: username,
         );
@@ -125,27 +125,30 @@ class AuthService {
       {'username': 'user', 'password': '123'},
       {'username': 'alex', 'password': 'password'},
     ];
-    
-    return demoCredentials.any((cred) => 
-      cred['username'] == username && cred['password'] == password
+
+    return demoCredentials.any(
+      (cred) => cred['username'] == username && cred['password'] == password,
     );
   }
 
   // Register new user
-  Future<AuthResult> register(String username, String password, String email) async {
+  Future<AuthResult> register(
+    String username,
+    String password,
+    String email,
+  ) async {
     try {
-      final response = await _dio.post('/api/auth/register', data: {
-        'username': username,
-        'password': password,
-        'email': email,
-      });
+      final response = await _dio.post(
+        '/api/auth/register',
+        data: {'username': username, 'password': password, 'email': email},
+      );
 
       if (response.statusCode == 201) {
         return AuthResult(success: true);
       }
     } catch (e) {
       debugPrint('❌ Register failed: $e');
-      
+
       // Demo mode fallback - allow registration with any credentials
       debugPrint('🎯 Using demo mode registration');
       return AuthResult(success: true);
@@ -162,41 +165,53 @@ class AuthService {
     required String displayName,
   }) async {
     try {
-      final response = await _dio.post('/auth/mobile/register', data: {
-        'username': username,
-        'email': email,
-        'password': password,
-        'displayName': displayName,
-      });
+      final response = await _dio.post(
+        '/auth/mobile/register',
+        data: {
+          'username': username,
+          'email': email,
+          'password': password,
+          'displayName': displayName,
+        },
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
-        
+
         // Store tokens and profile data from registration response
         await _storeTokens(
           accessToken: data['accessToken'] ?? data['access_token'],
           refreshToken: data['refreshToken'] ?? data['refresh_token'],
-          userId: data['user']?['id']?.toString() ?? data['profile']?['id']?.toString(),
-          username: data['user']?['username'] ?? data['profile']?['username'] ?? username,
+          userId:
+              data['user']?['id']?.toString() ??
+              data['profile']?['id']?.toString(),
+          username:
+              data['user']?['username'] ??
+              data['profile']?['username'] ??
+              username,
         );
 
-        debugPrint('✅ Mobile registration successful with ${data['profile']?['coins'] ?? 100} coins');
+        debugPrint(
+          '✅ Mobile registration successful with ${data['profile']?['coins'] ?? 100} coins',
+        );
         return AuthResult(success: true, userData: data);
       }
     } catch (e) {
       debugPrint('❌ Mobile register failed: $e');
-      
+
       // Demo mode fallback - simulate successful registration with 100 coins
       debugPrint('🎯 Using demo mode mobile registration');
       await _storeTokens(
-        accessToken: 'demo_access_token_${DateTime.now().millisecondsSinceEpoch}',
-        refreshToken: 'demo_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
+        accessToken:
+            'demo_access_token_${DateTime.now().millisecondsSinceEpoch}',
+        refreshToken:
+            'demo_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
         userId: '1',
         username: username,
       );
-      
+
       return AuthResult(
-        success: true, 
+        success: true,
         userData: {
           'profile': {
             'id': '1',
@@ -206,8 +221,8 @@ class AuthService {
             'coins': 100,
             'xp': 0,
             'level': 1,
-          }
-        }
+          },
+        },
       );
     }
 
@@ -252,9 +267,10 @@ class AuthService {
         return false;
       }
 
-      final response = await _dio.post('/api/auth/refresh', data: {
-        'refreshToken': refreshToken,
-      });
+      final response = await _dio.post(
+        '/api/auth/refresh',
+        data: {'refreshToken': refreshToken},
+      );
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -288,7 +304,7 @@ class AuthService {
     // Store access token in SharedPreferences (faster access)
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_accessTokenKey, accessToken);
-    
+
     if (userId != null) {
       await prefs.setString(_userIdKey, userId);
     }
@@ -315,7 +331,7 @@ class AuthService {
 
     // Clear all stored data
     await _secureStorage.delete(key: _refreshTokenKey);
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_accessTokenKey);
     await prefs.remove(_userIdKey);
@@ -344,9 +360,5 @@ class AuthResult {
   final String? error;
   final Map<String, dynamic>? userData;
 
-  AuthResult({
-    required this.success, 
-    this.error,
-    this.userData,
-  });
+  AuthResult({required this.success, this.error, this.userData});
 }

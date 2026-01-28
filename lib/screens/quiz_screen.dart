@@ -47,11 +47,15 @@ class _QuizScreenState extends State<QuizScreen> {
       MaterialPageRoute(
         builder: (_) => GamifiedQuizScreen(
           questionText: question.text,
-          options: question.options.map((o) => OptionItem(
-            id: o.id.toString(),
-            text: o.text,
-            isCorrect: false,
-          )).toList(),
+          options: question.options
+              .map(
+                (o) => OptionItem(
+                  id: o.id.toString(),
+                  text: o.text,
+                  isCorrect: false,
+                ),
+              )
+              .toList(),
           onSubmit: (answerId) async {
             final quiz = Provider.of<QuizProvider>(context, listen: false);
             await quiz.answer(answerId, context);
@@ -82,7 +86,12 @@ class _QuizScreenState extends State<QuizScreen> {
     }
     return const Scaffold(
       backgroundColor: Color(0xFF101820),
-      body: Center(child: Text('No questions available', style: TextStyle(color: Colors.white))),
+      body: Center(
+        child: Text(
+          'No questions available',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
     );
   }
 }

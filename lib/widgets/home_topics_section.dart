@@ -4,10 +4,7 @@ import '../models/topic_item.dart';
 class HomeTopicsSection extends StatelessWidget {
   final List<TopicItem> topics;
 
-  const HomeTopicsSection({
-    super.key,
-    required this.topics,
-  });
+  const HomeTopicsSection({super.key, required this.topics});
 
   @override
   Widget build(BuildContext context) {
@@ -52,17 +49,13 @@ class HomeTopicsSection extends StatelessWidget {
                   color: t.color.withValues(alpha: 0.4),
                   blurRadius: 14,
                   offset: const Offset(0, 6),
-                )
+                ),
             ],
           ),
           child: Row(
             children: [
               // Ikonica
-              Icon(
-                t.icon,
-                color: Colors.white,
-                size: 32,
-              ),
+              Icon(t.icon, color: Colors.white, size: 32),
               const SizedBox(width: 15),
 
               // Naziv + accuracy ili locked text

@@ -44,11 +44,15 @@ class _GamifiedQuizFlowState extends State<GamifiedQuizFlow> {
     final question = widget.questions[current];
     return GamifiedQuizScreen(
       questionText: question.text,
-      options: question.options.map((o) => OptionItem(
-        id: o.id.toString(),
-        text: o.text,
-        isCorrect: false, // backend NE šalje correct ovde
-      )).toList(),
+      options: question.options
+          .map(
+            (o) => OptionItem(
+              id: o.id.toString(),
+              text: o.text,
+              isCorrect: false, // backend NE šalje correct ovde
+            ),
+          )
+          .toList(),
       onSubmit: (answerId) async {
         // Submit answer to backend when possible. We don't have quizId here,
         // so supply empty quizId and 0 timeSpentSeconds as placeholders.

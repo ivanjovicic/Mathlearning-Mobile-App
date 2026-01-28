@@ -8,7 +8,8 @@ class MobileRegistrationScreen extends StatefulWidget {
   const MobileRegistrationScreen({super.key});
 
   @override
-  State<MobileRegistrationScreen> createState() => _MobileRegistrationScreenState();
+  State<MobileRegistrationScreen> createState() =>
+      _MobileRegistrationScreenState();
 }
 
 class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
@@ -18,7 +19,7 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _displayNameController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -112,7 +113,7 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
-                
+
                 // Header
                 Column(
                   children: [
@@ -140,16 +141,13 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     const SizedBox(height: 8),
                     const Text(
                       'Join the math learning community!',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Display Name
                 TextFormField(
                   controller: _displayNameController,
@@ -172,9 +170,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Username
                 TextFormField(
                   controller: _usernameController,
@@ -200,9 +198,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Email
                 TextFormField(
                   controller: _emailController,
@@ -220,15 +218,17 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value.trim())) {
                       return 'Please enter a valid email address';
                     }
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Password
                 TextFormField(
                   controller: _passwordController,
@@ -238,7 +238,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                       onPressed: () {
                         setState(() {
@@ -262,9 +264,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Confirm Password
                 TextFormField(
                   controller: _confirmPasswordController,
@@ -274,7 +276,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                        _obscureConfirmPassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                       onPressed: () {
                         setState(() {
@@ -298,9 +302,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Error Message
                 if (_errorMessage.isNotEmpty)
                   Container(
@@ -324,7 +328,7 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                       ],
                     ),
                   ),
-                
+
                 // Register Button
                 ElevatedButton(
                   onPressed: _isLoading ? null : _registerUser,
@@ -343,7 +347,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text(
@@ -354,9 +360,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                           ),
                         ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Sign in link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -379,9 +385,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Bonus info
                 Container(
                   padding: const EdgeInsets.all(16),

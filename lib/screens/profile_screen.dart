@@ -50,10 +50,9 @@ class ProfileScreen extends StatelessWidget {
             onPressed: () async {
               await auth.logout();
               if (context.mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/login', 
-                  (route) => false,
-                );
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/login', (route) => false);
               }
             },
             icon: const Icon(Icons.logout, color: Colors.red),
@@ -74,16 +73,10 @@ class ProfileScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(alpha: 0.1),
-                  border: Border.all(
-                    color: Colors.yellow.shade400,
-                    width: 3,
-                  ),
+                  border: Border.all(color: Colors.yellow.shade400, width: 3),
                 ),
                 alignment: Alignment.center,
-                child: const Text(
-                  "🧠",
-                  style: TextStyle(fontSize: 70),
-                ),
+                child: const Text("🧠", style: TextStyle(fontSize: 70)),
               ),
             ),
 
@@ -157,10 +150,7 @@ class ProfileScreen extends StatelessWidget {
             children: [
               const Text(
                 "Rank",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
               Text(
                 "$rank",
@@ -171,7 +161,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -194,10 +184,7 @@ class ProfileScreen extends StatelessWidget {
             children: [
               const Text(
                 "Streak",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
               Text(
                 "${progress.streak} days",
@@ -208,7 +195,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -269,7 +256,7 @@ class ProfileScreen extends StatelessWidget {
               );
             }).toList(),
           ),
-        )
+        ),
       ],
     );
   }

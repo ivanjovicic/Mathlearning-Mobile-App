@@ -37,10 +37,7 @@ class _HintButtonState extends State<HintButton>
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -67,7 +64,7 @@ class _HintButtonState extends State<HintButton>
       builder: (context, coinProvider, child) {
         final canAfford = coinProvider.canAffordHint(widget.hintType);
         final costText = coinProvider.getHintCostText(widget.hintType);
-        
+
         return AnimatedBuilder(
           animation: _scaleAnimation,
           builder: (context, child) {
@@ -79,19 +76,24 @@ class _HintButtonState extends State<HintButton>
                 onTapCancel: _onTapCancel,
                 onTap: canAfford && !widget.isLoading ? widget.onPressed : null,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: canAfford 
-                      ? Colors.yellow.shade400
-                      : Colors.grey.shade300,
+                    color: canAfford
+                        ? Colors.yellow.shade400
+                        : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(25),
-                    boxShadow: canAfford ? [
-                      BoxShadow(
-                        color: Colors.yellow.shade200,
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ] : [],
+                    boxShadow: canAfford
+                        ? [
+                            BoxShadow(
+                              color: Colors.yellow.shade200,
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -109,7 +111,9 @@ class _HintButtonState extends State<HintButton>
                         Icon(
                           widget.icon,
                           size: 18,
-                          color: canAfford ? Colors.black : Colors.grey.shade600,
+                          color: canAfford
+                              ? Colors.black
+                              : Colors.grey.shade600,
                         ),
                       ],
                       const SizedBox(width: 8),
@@ -122,14 +126,18 @@ class _HintButtonState extends State<HintButton>
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: canAfford ? Colors.black : Colors.grey.shade600,
+                              color: canAfford
+                                  ? Colors.black
+                                  : Colors.grey.shade600,
                             ),
                           ),
                           Text(
                             costText,
                             style: TextStyle(
                               fontSize: 10,
-                              color: canAfford ? Colors.black54 : Colors.grey.shade500,
+                              color: canAfford
+                                  ? Colors.black54
+                                  : Colors.grey.shade500,
                             ),
                           ),
                         ],

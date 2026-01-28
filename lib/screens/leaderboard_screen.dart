@@ -57,13 +57,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 value: range,
                 items: const [
                   DropdownMenuItem(
-                      value: "weekly",
-                      child: Text("Weekly",
-                          style: TextStyle(color: Colors.white))),
+                    value: "weekly",
+                    child: Text(
+                      "Weekly",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
                   DropdownMenuItem(
-                      value: "allTime",
-                      child: Text("All time",
-                          style: TextStyle(color: Colors.white))),
+                    value: "allTime",
+                    child: Text(
+                      "All time",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
                 ],
                 onChanged: (v) {
                   if (v == null) return;
@@ -78,22 +84,30 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         ),
         body: TabBarView(
           children: [
-            _buildList(leaderboard.global, leaderboard.isLoading, auth.userId != null ? int.tryParse(auth.userId!) : null),
-            _buildList(leaderboard.friends, leaderboard.isLoading, auth.userId != null ? int.tryParse(auth.userId!) : null),
+            _buildList(
+              leaderboard.global,
+              leaderboard.isLoading,
+              auth.userId != null ? int.tryParse(auth.userId!) : null,
+            ),
+            _buildList(
+              leaderboard.friends,
+              leaderboard.isLoading,
+              auth.userId != null ? int.tryParse(auth.userId!) : null,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildList(
-      List<LeaderboardEntry> items, bool loading, int? myUserId) {
+  Widget _buildList(List<LeaderboardEntry> items, bool loading, int? myUserId) {
     if (loading) {
       return const Center(
-          child: CircularProgressIndicator(color: Colors.white));
+        child: CircularProgressIndicator(color: Colors.white),
+      );
     }
 
-      if (items.isEmpty) {
+    if (items.isEmpty) {
       return Center(
         child: Text(
           "Nema podataka.",
@@ -124,10 +138,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         color: bg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: isMe
-                ? Colors.greenAccent
-                : Colors.white.withValues(alpha: 0.12),
-            width: 2),
+          color: isMe
+              ? Colors.greenAccent
+              : Colors.white.withValues(alpha: 0.12),
+          width: 2,
+        ),
       ),
       child: Row(
         children: [

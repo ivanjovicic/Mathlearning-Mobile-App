@@ -73,7 +73,7 @@ class ProgressProvider extends ChangeNotifier {
     accuracy = 75.0;
     streak = 3;
     xp = calculateXp(totalAttempts, accuracy);
-    
+
     notifyListeners();
   }
 
@@ -84,7 +84,7 @@ class ProgressProvider extends ChangeNotifier {
 
   // Topics list
   List<TopicProgress> topics = [];
-  
+
   // Daily progress for heatmap
   Map<String, int> dailyProgress = {};
 
@@ -111,7 +111,7 @@ class ProgressProvider extends ChangeNotifier {
       // API failed, use demo topics
       debugPrint('Topics API failed: $e');
     }
-    
+
     // Fallback demo topics (when using demo token or API fails)
     topics = [
       TopicProgress(
@@ -151,16 +151,16 @@ class ProgressProvider extends ChangeNotifier {
   // Test method to manually add XP
   void addXP(int amount) {
     xp += amount;
-    
+
     // Check for level-up
     while (xp >= xpToNextLevel) {
       xp -= xpToNextLevel;
       level++;
-      
+
       // TRIGGER LEVEL UP ANIMACIJE
       if (onLevelUp != null) onLevelUp!();
     }
-    
+
     notifyListeners();
   }
 
@@ -180,8 +180,8 @@ class TopicProgress {
   final int topicId; // Add missing topicId
 
   TopicProgress({
-    required this.name, 
-    required this.requiredLevel, 
+    required this.name,
+    required this.requiredLevel,
     required this.unlocked,
     required this.topicId,
   });

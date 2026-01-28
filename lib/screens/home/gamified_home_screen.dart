@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../quiz/pick_topic_screen.dart';
@@ -7,7 +6,6 @@ import '../../models/progress_overview.dart';
 import '../../models/topic_dto.dart';
 import '../../models/topic_item.dart';
 import '../../widgets/home_topics_section.dart';
-
 
 class GamifiedHomeScreen extends StatefulWidget {
   const GamifiedHomeScreen({super.key});
@@ -40,7 +38,9 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
         : <TopicDto>[];
 
     setState(() {
-      userProfile = profileData != null ? UserProfile.fromJson(profileData) : null;
+      userProfile = profileData != null
+          ? UserProfile.fromJson(profileData)
+          : null;
       progressOverview = overview;
       topics = parsedTopics;
       loading = false;
@@ -57,14 +57,19 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
           final icon = Icons.auto_stories;
           final color = Colors.primaries[id % Colors.primaries.length];
           final unlocked = topic.unlocked;
-          return TopicItem(id: id, name: name, icon: icon, color: color, accuracy: accuracy, locked: !unlocked);
+          return TopicItem(
+            id: id,
+            name: name,
+            icon: icon,
+            color: color,
+            accuracy: accuracy,
+            locked: !unlocked,
+          );
         }).toList();
 
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => PickTopicScreen(topics: mapped),
-          ),
+          MaterialPageRoute(builder: (_) => PickTopicScreen(topics: mapped)),
         );
       });
     }
@@ -82,7 +87,9 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
     final xp = userProfile?.xp ?? 0;
     final nextLevelXp = ((userProfile?.level ?? 1) * 100); // primer logike
     final streak = progressOverview?.completedQuizzes ?? 0; // primer logike
-    final userName = userProfile?.displayName.isNotEmpty == true ? userProfile!.displayName : (userProfile?.username ?? "");
+    final userName = userProfile?.displayName.isNotEmpty == true
+        ? userProfile!.displayName
+        : (userProfile?.username ?? "");
     final accuracy = progressOverview?.averageScore ?? 0.0;
     double progress = nextLevelXp > 0 ? xp / nextLevelXp : 0.0;
 
@@ -117,7 +124,7 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
 
@@ -131,21 +138,23 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.blueAccent.withValues(alpha: 0.3),
+                      color: Colors.blueAccent.withValues(alpha: 0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
-                    )
+                    ),
                   ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("XP Progress",
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        )),
+                    Text(
+                      "XP Progress",
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
 
                     const SizedBox(height: 10),
 
@@ -186,8 +195,11 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
               // Streak display
               Row(
                 children: [
-                  const Icon(Icons.local_fire_department,
-                      color: Colors.orange, size: 32),
+                  const Icon(
+                    Icons.local_fire_department,
+                    color: Colors.orange,
+                    size: 32,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     "$streak day streak 🔥",
@@ -196,13 +208,13 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
-                  )
+                  ),
                 ],
               ),
 
               const SizedBox(height: 35),
 
-                Text(
+              Text(
                 "Continue learning",
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.9),
@@ -224,7 +236,9 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      vertical: 22, horizontal: 20),
+                    vertical: 22,
+                    horizontal: 20,
+                  ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
@@ -235,7 +249,7 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                         color: Colors.blueAccent,
                         blurRadius: 15,
                         offset: Offset(0, 5),
-                      )
+                      ),
                     ],
                   ),
                   child: const Center(
@@ -255,14 +269,22 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
 
               GestureDetector(
                 onTap: () {
-                    final mapped = topics.map((topic) {
+                  final mapped = topics.map((topic) {
                     final id = topic.id;
                     final name = topic.name;
                     final accuracy = topic.accuracy;
                     final icon = Icons.auto_stories;
-                    final color = Colors.primaries[id % Colors.primaries.length];
+                    final color =
+                        Colors.primaries[id % Colors.primaries.length];
                     final unlocked = topic.unlocked;
-                    return TopicItem(id: id, name: name, icon: icon, color: color, accuracy: accuracy, locked: !unlocked);
+                    return TopicItem(
+                      id: id,
+                      name: name,
+                      icon: icon,
+                      color: color,
+                      accuracy: accuracy,
+                      locked: !unlocked,
+                    );
                   }).toList();
 
                   Navigator.push(

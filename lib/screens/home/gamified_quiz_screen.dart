@@ -22,7 +22,6 @@ class GamifiedQuizScreen extends StatefulWidget {
 
 class _GamifiedQuizScreenState extends State<GamifiedQuizScreen>
     with SingleTickerProviderStateMixin {
-
   bool answered = false;
   String selectedAnswer = "";
   bool isCorrect = false;
@@ -48,7 +47,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen>
                 duration: const Duration(milliseconds: 400),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      vertical: 8, horizontal: 22),
+                    vertical: 8,
+                    horizontal: 22,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.greenAccent.shade400,
                     borderRadius: BorderRadius.circular(30),
@@ -78,8 +79,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen>
                 color: Colors.blueAccent.shade700,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
-                    BoxShadow(
-                      color: Colors.blueAccent.withValues(alpha: 0.3),
+                  BoxShadow(
+                    color: Colors.blueAccent.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 5),
                   ),
@@ -101,7 +102,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen>
             // 🟩 ODGOVORI (GameButton)
             ...widget.options.map((opt) {
               bool correct = answered && opt.isCorrect;
-              bool wrong = answered && selectedAnswer == opt.id && !opt.isCorrect;
+              bool wrong =
+                  answered && selectedAnswer == opt.id && !opt.isCorrect;
 
               return GameButton(
                 text: opt.text,
@@ -141,7 +143,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen>
                     ),
                   ),
                 ),
-              )
+              ),
           ],
         ),
       ),
@@ -204,9 +206,5 @@ class OptionItem {
   final String text;
   final bool isCorrect;
 
-  OptionItem({
-    required this.id,
-    required this.text,
-    required this.isCorrect,
-  });
+  OptionItem({required this.id, required this.text, required this.isCorrect});
 }

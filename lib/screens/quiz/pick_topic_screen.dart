@@ -4,10 +4,7 @@ import '../../models/topic_item.dart';
 class PickTopicScreen extends StatelessWidget {
   final List<TopicItem> topics;
 
-  const PickTopicScreen({
-    super.key,
-    required this.topics,
-  });
+  const PickTopicScreen({super.key, required this.topics});
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +53,7 @@ class PickTopicScreen extends StatelessWidget {
                   color: t.color.withValues(alpha: 0.4),
                   blurRadius: 14,
                   offset: const Offset(0, 6),
-                )
+                ),
             ],
           ),
           child: Row(
@@ -116,11 +113,11 @@ class PickTopicScreen extends StatelessWidget {
                         child: Text(
                           "Complete previous topic to unlock",
                           style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 14,
-                            ),
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 14,
+                          ),
                         ),
-                      )
+                      ),
                   ],
                 ),
               ),
@@ -128,8 +125,11 @@ class PickTopicScreen extends StatelessWidget {
               const SizedBox(width: 10),
 
               if (!t.locked)
-                const Icon(Icons.arrow_forward_ios,
-                    color: Colors.white, size: 20),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.white,
+                  size: 20,
+                ),
             ],
           ),
         ),
