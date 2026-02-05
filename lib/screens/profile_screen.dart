@@ -196,9 +196,7 @@ class ProfileScreen extends StatelessWidget {
               Text(
                 "Rang",
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withAlpha(
-                    (0.7 * 255).round(),
-                  ),
+                  color: colorScheme.onSurface.withAlpha((0.7 * 255).round()),
                   fontSize: 16,
                 ),
               ),
@@ -238,9 +236,7 @@ class ProfileScreen extends StatelessWidget {
               Text(
                 "Niz",
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withAlpha(
-                    (0.7 * 255).round(),
-                  ),
+                  color: colorScheme.onSurface.withAlpha((0.7 * 255).round()),
                   fontSize: 16,
                 ),
               ),
@@ -268,7 +264,7 @@ class ProfileScreen extends StatelessWidget {
       children: [
         Text(
           "🎖 Bedževi",
-            style: theme.textTheme.headlineMedium?.copyWith(
+          style: theme.textTheme.headlineMedium?.copyWith(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.bold,
             fontSize: 22,

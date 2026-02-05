@@ -186,7 +186,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                         : colorScheme.errorContainer.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isCorrect ? colorScheme.tertiary : colorScheme.error,
+                      color: isCorrect
+                          ? colorScheme.tertiary
+                          : colorScheme.error,
                     ),
                   ),
                   child: Row(
@@ -194,7 +196,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                     children: [
                       Icon(
                         isCorrect ? Icons.check_circle : Icons.cancel,
-                        color: isCorrect ? colorScheme.tertiary : colorScheme.error,
+                        color: isCorrect
+                            ? colorScheme.tertiary
+                            : colorScheme.error,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -219,7 +223,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: colorScheme.secondaryContainer.withValues(alpha: 0.55),
+                      color: colorScheme.secondaryContainer.withValues(
+                        alpha: 0.55,
+                      ),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
@@ -247,9 +253,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
               if (quizProvider.isCooldown)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 24),
-                  child: Center(
-                    child: CooldownCircle(seconds: 1),
-                  ),
+                  child: Center(child: CooldownCircle(seconds: 1)),
                 )
               else if (answered)
                 Padding(
@@ -341,14 +345,16 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       decoration: BoxDecoration(
         color: colorScheme.tertiaryContainer,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: colorScheme.tertiary.withValues(alpha: 0.55),
-        ),
+        border: Border.all(color: colorScheme.tertiary.withValues(alpha: 0.55)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.bolt_rounded, size: 16, color: colorScheme.onTertiaryContainer),
+          Icon(
+            Icons.bolt_rounded,
+            size: 16,
+            color: colorScheme.onTertiaryContainer,
+          ),
           const SizedBox(width: 6),
           Text(
             text,

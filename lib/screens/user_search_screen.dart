@@ -119,7 +119,8 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
               ),
             ),
           Expanded(
-            child: _searchResults.isEmpty &&
+            child:
+                _searchResults.isEmpty &&
                     !_isLoading &&
                     _searchController.text.isNotEmpty
                 ? Center(

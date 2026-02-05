@@ -51,116 +51,122 @@ class _ProgressScreenState extends State<ProgressScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _progress == null
-              ? const Center(
-                  child: Text(
-                    'Nema dostupnih podataka o napretku',
-                    style: TextStyle(fontSize: 16),
+          ? const Center(
+              child: Text(
+                'Nema dostupnih podataka o napretku',
+                style: TextStyle(fontSize: 16),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ukupan napredak',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatCard(
+                                'Ukupno kvizova',
+                                '${_progress!.totalQuizzes}',
+                                Icons.quiz,
+                                colorScheme.primary,
+                              ),
+                              _buildStatCard(
+                                'Zavrseno',
+                                '${_progress!.completedQuizzes}',
+                                Icons.check_circle,
+                                colorScheme.tertiary,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Rezultati',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              Text(
-                                'Ukupan napredak',
-                                style: Theme.of(context).textTheme.headlineSmall,
+                              _buildStatCard(
+                                'Prosecan rezultat',
+                                '${(_progress!.averageScore * 100).toStringAsFixed(1)}%',
+                                Icons.analytics,
+                                colorScheme.secondary,
                               ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  _buildStatCard(
-                                    'Ukupno kvizova',
-                                    '${_progress!.totalQuizzes}',
-                                    Icons.quiz,
-                                    colorScheme.primary,
-                                  ),
-                                  _buildStatCard(
-                                    'Zavrseno',
-                                    '${_progress!.completedQuizzes}',
-                                    Icons.check_circle,
-                                    colorScheme.tertiary,
-                                  ),
-                                ],
+                              _buildStatCard(
+                                'Najbolji rezultat',
+                                '${(_progress!.bestScore * 100).toStringAsFixed(1)}%',
+                                Icons.star,
+                                colorScheme.primary,
                               ),
                             ],
                           ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Rezultati',
-                                style: Theme.of(context).textTheme.headlineSmall,
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  _buildStatCard(
-                                    'Prosecan rezultat',
-                                    '${(_progress!.averageScore * 100).toStringAsFixed(1)}%',
-                                    Icons.analytics,
-                                    colorScheme.secondary,
-                                  ),
-                                  _buildStatCard(
-                                    'Najbolji rezultat',
-                                    '${(_progress!.bestScore * 100).toStringAsFixed(1)}%',
-                                    Icons.star,
-                                    colorScheme.primary,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Stopa zavrsetka',
-                                style: Theme.of(context).textTheme.headlineSmall,
-                              ),
-                              const SizedBox(height: 16),
-                              LinearProgressIndicator(
-                                value: _progress!.totalQuizzes > 0
-                                    ? _progress!.completedQuizzes / _progress!.totalQuizzes
-                                    : 0,
-                                minHeight: 8,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${_progress!.completedQuizzes}/${_progress!.totalQuizzes} kvizova zavrseno',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Stopa zavrsetka',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 16),
+                          LinearProgressIndicator(
+                            value: _progress!.totalQuizzes > 0
+                                ? _progress!.completedQuizzes /
+                                      _progress!.totalQuizzes
+                                : 0,
+                            minHeight: 8,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${_progress!.completedQuizzes}/${_progress!.totalQuizzes} kvizova zavrseno',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, size: 32, color: color),

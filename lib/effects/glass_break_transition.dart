@@ -135,7 +135,9 @@ class _GlassBreakPainter extends CustomPainter {
         ..lineTo(6, 2)
         ..close();
 
-      shardPaint.color = Colors.white.withAlpha((s.opacity * (1 - t) * 255).round());
+      shardPaint.color = Colors.white.withAlpha(
+        (s.opacity * (1 - t) * 255).round(),
+      );
 
       canvas.drawPath(path, shardPaint);
 

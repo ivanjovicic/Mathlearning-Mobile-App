@@ -4,7 +4,7 @@ import '../models/hint_models.dart';
 
 class CoinProvider extends ChangeNotifier {
   final ApiService _api = ApiService();
-  
+
   int _coins = 0;
   UserDailyHints? _dailyHints;
   bool _isLoading = false;
@@ -33,10 +33,7 @@ class CoinProvider extends ChangeNotifier {
       debugPrint('Error loading coins and hints: $e');
       // Fallback values
       _coins = 10; // Demo coins
-      _dailyHints = UserDailyHints(
-        userId: 'demo',
-        date: DateTime.now(),
-      );
+      _dailyHints = UserDailyHints(userId: 'demo', date: DateTime.now());
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -45,23 +42,23 @@ class CoinProvider extends ChangeNotifier {
 
   bool canAffordHint(String hintType) {
     final cost = HintCosts.getCost(hintType);
-    
+
     // Check if user has free hints available
     if (_dailyHints?.canUseFreeHint(hintType) == true) {
       return true;
     }
-    
+
     // Check if user has enough coins
     return _coins >= cost;
   }
 
   String getHintCostText(String hintType) {
     final cost = HintCosts.getCost(hintType);
-    
+
     if (_dailyHints?.canUseFreeHint(hintType) == true) {
       return 'BESPLATNO';
     }
-    
+
     return '$cost coina';
   }
 
@@ -102,7 +99,7 @@ class CoinProvider extends ChangeNotifier {
         );
         break;
     }
-    
+
     notifyListeners();
   }
 

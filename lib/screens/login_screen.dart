@@ -54,9 +54,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.of(context).pushReplacementNamed("/home");
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.loginFailed)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.loginFailed)));
     }
   }
 
@@ -134,7 +134,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           Expanded(
                             child: Text(
                               authProvider.error!,
-                              style: TextStyle(color: colorScheme.onErrorContainer),
+                              style: TextStyle(
+                                color: colorScheme.onErrorContainer,
+                              ),
                             ),
                           ),
                         ],
@@ -179,12 +181,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? SizedBox(
                               height: 20,
                               width: 20,
-                          child: CircularProgressIndicator(
+                              child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 color: colorScheme.onPrimary,
                               ),
                             )
-                          : Text(t.signIn, style: const TextStyle(fontSize: 16)),
+                          : Text(
+                              t.signIn,
+                              style: const TextStyle(fontSize: 16),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 20),

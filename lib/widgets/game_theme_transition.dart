@@ -90,7 +90,8 @@ class GameThemeTransitionState extends State<GameThemeTransition>
               widget.child,
               MeteorParticles(
                 count: 12,
-                color: Color.lerp(
+                color:
+                    Color.lerp(
                       oldPrimary,
                       newPrimary,
                       _controller.value,

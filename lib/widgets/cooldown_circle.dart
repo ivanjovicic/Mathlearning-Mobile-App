@@ -4,11 +4,7 @@ class CooldownCircle extends StatefulWidget {
   final int seconds;
   final VoidCallback? onComplete;
 
-  const CooldownCircle({
-    super.key,
-    required this.seconds,
-    this.onComplete,
-  });
+  const CooldownCircle({super.key, required this.seconds, this.onComplete});
 
   @override
   State<CooldownCircle> createState() => _CooldownCircleState();

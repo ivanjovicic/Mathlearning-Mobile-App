@@ -78,9 +78,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openTopicPicker(ProgressProvider progress) {
     if (progress.topics.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.t.noTopicsAvailable())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.t.noTopicsAvailable())));
       return;
     }
 
@@ -236,10 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 6),
               Text(
                 "${progress.xp} / ${progress.xpToNextLevel} XP",
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: colorScheme.onSurface, fontSize: 16),
               ),
               const SizedBox(height: 10),
               AnimatedXpBar(
@@ -251,8 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: recommendedTopic != null
                     ? t.continueLearning
                     : t.readyForNewRound,
-                subtitle:
-                    recommendedTopic?.name ?? t.pickTopicAndStart,
+                subtitle: recommendedTopic?.name ?? t.pickTopicAndStart,
                 onTap: () {
                   Navigator.pushNamed(
                     context,
@@ -287,7 +283,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: LinearProgressIndicator(
                   value: dailyDone / _dailyGoalTarget,
-                  backgroundColor: colorScheme.onSurface.withValues(alpha: 0.12),
+                  backgroundColor: colorScheme.onSurface.withValues(
+                    alpha: 0.12,
+                  ),
                   valueColor: AlwaysStoppedAnimation(colorScheme.primary),
                   minHeight: 12,
                 ),
@@ -295,10 +293,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               Text(
                 t.todayProgress(dailyDone, _dailyGoalTarget),
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: colorScheme.onSurface, fontSize: 13),
               ),
               const SizedBox(height: 14),
               ThemeAccessibilityMiniPreview(
@@ -382,11 +377,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                       locked
                                           ? t.unlockAtLevel(topic.requiredLevel)
                                           : t.readyForQuiz,
-                                    style: TextStyle(
-                                      color: colorScheme.onSurface,
-                                      fontSize: 14,
+                                      style: TextStyle(
+                                        color: colorScheme.onSurface,
+                                        fontSize: 14,
+                                      ),
                                     ),
-                                  ),
                                   ],
                                 ),
                               ),

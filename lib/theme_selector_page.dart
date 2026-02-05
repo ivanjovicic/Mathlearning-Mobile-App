@@ -74,10 +74,7 @@ class _ThemePreviewCard extends StatelessWidget {
   final ThemeData theme;
   final bool highContrast;
 
-  const _ThemePreviewCard({
-    required this.theme,
-    required this.highContrast,
-  });
+  const _ThemePreviewCard({required this.theme, required this.highContrast});
 
   @override
   Widget build(BuildContext context) {
@@ -90,10 +87,7 @@ class _ThemePreviewCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: colorScheme.outline),
           gradient: LinearGradient(
-            colors: [
-              colorScheme.surface,
-              colorScheme.surfaceContainerHighest,
-            ],
+            colors: [colorScheme.surface, colorScheme.surfaceContainerHighest],
           ),
         ),
         child: Column(
@@ -222,7 +216,9 @@ class _ThemePreviewCard extends StatelessWidget {
                       color: highContrast
                           ? colorScheme.onSurface
                           : colorScheme.error,
-                      fontWeight: highContrast ? FontWeight.w600 : FontWeight.w700,
+                      fontWeight: highContrast
+                          ? FontWeight.w600
+                          : FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 4),

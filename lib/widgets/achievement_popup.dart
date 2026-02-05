@@ -43,7 +43,8 @@ class _AchievementPopupState extends State<AchievementPopup>
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_didScheduleClose) return;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (reduceMotion) {
       _scaleController.value = 1;
       _fadeController.value = 1;
@@ -102,12 +103,11 @@ class _AchievementPopupState extends State<AchievementPopup>
                   padding: const EdgeInsets.all(22),
                   margin: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: accent,
-                      width: 2,
+                    color: colorScheme.surfaceContainerHigh.withValues(
+                      alpha: 0.8,
                     ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: accent, width: 2),
                     boxShadow: [
                       BoxShadow(
                         color: accent.withValues(alpha: 0.3),

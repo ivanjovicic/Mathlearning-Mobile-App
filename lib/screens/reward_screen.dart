@@ -49,7 +49,9 @@ class _RewardScreenState extends State<RewardScreen> {
             margin: const EdgeInsets.all(24),
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+              color: colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.35,
+              ),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: colorScheme.secondary, width: 2),
             ),
@@ -106,10 +108,7 @@ class _RewardScreenState extends State<RewardScreen> {
                 const SizedBox(height: 20),
                 Text(
                   "Novi nivo: $newLevel",
-                  style: TextStyle(
-                    fontSize: 22,
-                    color: colorScheme.onSurface,
-                  ),
+                  style: TextStyle(fontSize: 22, color: colorScheme.onSurface),
                 ),
                 const SizedBox(height: 20),
                 Container(

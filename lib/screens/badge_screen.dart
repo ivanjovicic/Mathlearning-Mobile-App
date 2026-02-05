@@ -31,7 +31,8 @@ class BadgesScreen extends StatelessWidget {
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
         ),
-        itemBuilder: (context, index) => _buildBadgeCard(context, badges[index]),
+        itemBuilder: (context, index) =>
+            _buildBadgeCard(context, badges[index]),
       ),
     );
   }
@@ -63,18 +64,13 @@ class BadgesScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            badge.icon,
-            style: const TextStyle(fontSize: 46),
-          ),
+          Text(badge.icon, style: const TextStyle(fontSize: 46)),
           const SizedBox(height: 10),
           Text(
             badge.name,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: unlocked
-                  ? colorScheme.onSurface
-                  : colorScheme.onSurface,
+              color: unlocked ? colorScheme.onSurface : colorScheme.onSurface,
               fontWeight: FontWeight.w600,
               fontSize: 16,
             ),

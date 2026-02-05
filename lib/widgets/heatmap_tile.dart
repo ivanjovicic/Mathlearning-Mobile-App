@@ -33,10 +33,10 @@ class _HeatmapTileState extends State<HeatmapTile>
       duration: const Duration(milliseconds: 350),
     );
 
-    _scale = Tween<double>(begin: 0.6, end: 1.0)
-        .chain(CurveTween(curve: Curves.easeOutBack))
-        .animate(_controller);
-
+    _scale = Tween<double>(
+      begin: 0.6,
+      end: 1.0,
+    ).chain(CurveTween(curve: Curves.easeOutBack)).animate(_controller);
   }
 
   @override
@@ -56,8 +56,11 @@ class _HeatmapTileState extends State<HeatmapTile>
 
   @override
   Widget build(BuildContext context) {
-    final heatmapProvider = Provider.of<HeatmapProvider>(context, listen: false);
-    
+    final heatmapProvider = Provider.of<HeatmapProvider>(
+      context,
+      listen: false,
+    );
+
     return ScaleTransition(
       scale: _scale,
       child: Container(
