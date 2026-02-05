@@ -19,13 +19,16 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     
     try {
-      final success = await _authService.autoLogin();
+      final success = await _authService
+          .autoLogin()
+          .timeout(const Duration(seconds: 8), onTimeout: () => false);
       if (success) {
         notifyListeners();
         return true;
       }
     } catch (e) {
-      _setError('Auto-login failed');
+      // Silent fallback to login screen (without noisy startup error).
+      debugPrint('Auto-login fallback: $e');
     } finally {
       _setLoading(false);
     }
@@ -45,11 +48,11 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        _setError(result.error ?? 'Login failed');
+        _setError(_localizeAuthError(result.error, fallback: 'Prijava nije uspela'));
         return false;
       }
     } catch (e) {
-      _setError('Network error occurred');
+      _setError('Doslo je do greske u mrezi');
       return false;
     } finally {
       _setLoading(false);
@@ -67,11 +70,13 @@ class AuthProvider extends ChangeNotifier {
       if (result.success) {
         return true;
       } else {
-        _setError(result.error ?? 'Registration failed');
+        _setError(
+          _localizeAuthError(result.error, fallback: 'Registracija nije uspela'),
+        );
         return false;
       }
     } catch (e) {
-      _setError('Network error occurred');
+      _setError('Doslo je do greske u mrezi');
       return false;
     } finally {
       _setLoading(false);
@@ -97,5 +102,32 @@ class AuthProvider extends ChangeNotifier {
 
   void _clearError() {
     _error = null;
+  }
+
+  String _localizeAuthError(String? rawError, {required String fallback}) {
+    final raw = (rawError ?? '').trim();
+    if (raw.isEmpty) return fallback;
+
+    final value = raw.toLowerCase();
+    if (value.contains('invalid credentials') ||
+        value.contains('wrong password') ||
+        value.contains('unauthorized')) {
+      return 'Pogresni podaci za prijavu.';
+    }
+    if (value.contains('username') &&
+        (value.contains('exists') || value.contains('taken'))) {
+      return 'Korisnicko ime je zauzeto.';
+    }
+    if (value.contains('email') &&
+        (value.contains('exists') || value.contains('taken'))) {
+      return 'Imejl adresa je vec zauzeta.';
+    }
+    if (value.contains('network') ||
+        value.contains('timeout') ||
+        value.contains('connection') ||
+        value.contains('socket')) {
+      return 'Doslo je do greske u mrezi.';
+    }
+    return fallback;
   }
 }

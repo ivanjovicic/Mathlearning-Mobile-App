@@ -1,147 +1,161 @@
 import 'package:flutter/material.dart';
-import 'package:mathlearning/widgets/level_up_animation.dart';
 import 'package:provider/provider.dart';
-import '../state/progress_provider.dart';
-import '../state/coin_provider.dart';
 
-class RewardScreen extends StatelessWidget {
+import '../state/coin_provider.dart';
+import '../state/progress_provider.dart';
+import '../widgets/level_up_animation.dart';
+
+class RewardScreen extends StatefulWidget {
   const RewardScreen({super.key});
+
+  @override
+  State<RewardScreen> createState() => _RewardScreenState();
+}
+
+class _RewardScreenState extends State<RewardScreen> {
+  bool _coinsAwarded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_coinsAwarded) return;
+
+    final progress = Provider.of<ProgressProvider>(context, listen: false);
+    final coinProvider = Provider.of<CoinProvider>(context, listen: false);
+    final coinReward = _calculateCoinReward(progress.accuracy);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _coinsAwarded) return;
+      coinProvider.addCoins(coinReward);
+      _coinsAwarded = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final progress = Provider.of<ProgressProvider>(context);
-    final coinProvider = Provider.of<CoinProvider>(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
-    final int gainedXp = progress.xp;          // realni XP
-    final int newLevel = progress.level;       // pravi level
-    final String badge = progress.getBadgeName();
-    
-    // Calculate coin reward based on performance
-    final int coinReward = _calculateCoinReward(progress.accuracy);
-    
-    // Award coins (this will be called once when screen is built)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      coinProvider.addCoins(coinReward);
-    });
+    final gainedXp = progress.xp;
+    final newLevel = progress.level;
+    final badge = progress.getBadgeName();
+    final coinReward = _calculateCoinReward(progress.accuracy);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E2E),
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Center(
           child: Container(
             margin: const EdgeInsets.all(24),
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: Colors.yellow.shade400,
-                width: 2,
-              ),
+              border: Border.all(color: colorScheme.secondary, width: 2),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  "🎉 Level Completed!",
+                Text(
+                  "Nivo zavrsen!",
                   style: TextStyle(
                     fontSize: 28,
-                    color: Colors.white,
+                    color: colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Coin reward
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.yellow.shade400,
+                    color: colorScheme.secondaryContainer,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.monetization_on, color: Colors.black, size: 20),
+                      Icon(
+                        Icons.monetization_on,
+                        color: colorScheme.onSecondaryContainer,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
-                        "+$coinReward coins",
-                        style: const TextStyle(
+                        "+$coinReward coina",
+                        style: TextStyle(
                           fontSize: 16,
-                          color: Colors.black,
+                          color: colorScheme.onSecondaryContainer,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 Text(
                   "+$gainedXp XP",
                   style: TextStyle(
                     fontSize: 24,
-                    color: Colors.yellow.shade300,
+                    color: colorScheme.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 Text(
-                  "New Level: $newLevel",
-                  style: const TextStyle(
+                  "Novi nivo: $newLevel",
+                  style: TextStyle(
                     fontSize: 22,
-                    color: Colors.white,
+                    color: colorScheme.onSurface,
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      vertical: 10, horizontal: 16),
+                    vertical: 10,
+                    horizontal: 16,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.purple.withValues(alpha: 0.5),
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text("🏅 ", style: TextStyle(fontSize: 22)),
+                      const Text("Bedz: ", style: TextStyle(fontSize: 18)),
                       Text(
                         badge,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
-                          color: Colors.white,
+                          color: colorScheme.onPrimaryContainer,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 30),
-
                 ElevatedButton(
-  onPressed: () {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => Center(
-        child: LevelUpAnimation(
-          level: progress.level,
-          onFinished: () {
-            Navigator.of(context)
-                .popUntil((route) => route.settings.name == "/home");
-          },
-        ),
-      ),
-    );
-  },
-  child: const Text("Nastavi"),
-)
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => Center(
+                        child: LevelUpAnimation(
+                          level: progress.level,
+                          onFinished: () {
+                            Navigator.of(context).popUntil(
+                              (route) => route.settings.name == "/home",
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text("Nastavi"),
+                ),
               ],
             ),
           ),
@@ -151,18 +165,14 @@ class RewardScreen extends StatelessWidget {
   }
 
   int _calculateCoinReward(double accuracy) {
-    // Base reward
-    int baseReward = 3;
-    
-    // Accuracy bonus
+    var baseReward = 3;
     if (accuracy >= 90) {
-      baseReward += 5; // Perfect accuracy bonus
+      baseReward += 5;
     } else if (accuracy >= 75) {
-      baseReward += 3; // Good accuracy bonus
+      baseReward += 3;
     } else if (accuracy >= 50) {
-      baseReward += 1; // Decent accuracy bonus
+      baseReward += 1;
     }
-    
     return baseReward;
   }
 }

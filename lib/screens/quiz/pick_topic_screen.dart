@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/topic_item.dart';
 
 class PickTopicScreen extends StatelessWidget {
@@ -8,15 +9,16 @@ class PickTopicScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFF101820),
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: colorScheme.surface.withValues(alpha: 0),
         elevation: 0,
-        title: const Text(
-          "Choose a Topic",
+        title: Text(
+          "Choose a topic",
           style: TextStyle(
-            color: Colors.white,
+            color: colorScheme.onSurface,
             fontSize: 26,
             fontWeight: FontWeight.bold,
           ),
@@ -31,111 +33,111 @@ class PickTopicScreen extends StatelessWidget {
   }
 
   Widget _topicCard(BuildContext context, TopicItem t) {
-    double progress = t.accuracy / 100;
+    final colorScheme = Theme.of(context).colorScheme;
+    final onCardColor =
+        ThemeData.estimateBrightnessForColor(t.color) == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+    final progress = t.accuracy / 100;
 
-    return GestureDetector(
-      onTap: t.locked
-          ? null
-          : () {
-              Navigator.pushNamed(context, '/quiz', arguments: t.id);
-            },
-      child: Opacity(
-        opacity: t.locked ? 0.45 : 1,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 18),
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: t.color.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              if (!t.locked)
-                BoxShadow(
-                  color: t.color.withValues(alpha: 0.4),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Icon(t.icon, color: Colors.white, size: 36),
-              const SizedBox(width: 20),
-
-              // TEXT + ACCURACY
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: t.locked
+            ? null
+            : () => Navigator.pushNamed(context, '/quiz', arguments: t.id),
+        child: Opacity(
+          opacity: t.locked ? 0.45 : 1,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 18),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: t.color.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                if (!t.locked)
+                  BoxShadow(
+                    color: t.color.withValues(alpha: 0.4),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(t.icon, color: onCardColor, size: 36),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            t.name,
+                            style: TextStyle(
+                              color: onCardColor,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          if (t.locked)
+                            Icon(
+                              Icons.lock,
+                              color: onCardColor,
+                              size: 22,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      if (!t.locked) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 8,
+                            backgroundColor: onCardColor.withValues(alpha: 0.24),
+                            color: colorScheme.secondary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
                         Text(
-                          t.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        if (t.locked)
-                          const Icon(Icons.lock, color: Colors.white, size: 22),
-                      ],
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Accuracy bar (samo ako nije locked)
-                    if (!t.locked) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 8,
-                          backgroundColor: Colors.white24,
-                          color: Colors.greenAccent,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        "${t.accuracy.toStringAsFixed(1)}% accuracy",
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-
-                    // Tooltip za zaključane
-                    if (t.locked)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          "Complete previous topic to unlock",
+                          "${t.accuracy.toStringAsFixed(1)}% accuracy",
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: onCardColor.withValues(alpha: 0.9),
                             fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
-                  ],
+                      ],
+                      if (t.locked)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            "Complete previous topic to unlock",
+                            style: TextStyle(
+                              color: onCardColor.withValues(alpha: 0.85),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-
-              const SizedBox(width: 10),
-
-              if (!t.locked)
-                const Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.white,
-                  size: 20,
-                ),
-            ],
+                const SizedBox(width: 10),
+                if (!t.locked)
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: onCardColor,
+                    size: 20,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
-
-// TopicItem model is defined in lib/models/topic_item.dart

@@ -22,6 +22,7 @@ class _HeatmapTileState extends State<HeatmapTile>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scale;
+  bool _reduceMotion = false;
 
   @override
   void initState() {
@@ -36,9 +37,21 @@ class _HeatmapTileState extends State<HeatmapTile>
         .chain(CurveTween(curve: Curves.easeOutBack))
         .animate(_controller);
 
-    Future.delayed(Duration(milliseconds: widget.delay), () {
-      if (mounted) _controller.forward();
-    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (_reduceMotion) {
+      _controller.value = 1;
+      return;
+    }
+    if (_controller.value == 0) {
+      Future.delayed(Duration(milliseconds: widget.delay), () {
+        if (mounted) _controller.forward();
+      });
+    }
   }
 
   @override
@@ -56,5 +69,11 @@ class _HeatmapTileState extends State<HeatmapTile>
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }

@@ -59,10 +59,10 @@ class CoinProvider extends ChangeNotifier {
     final cost = HintCosts.getCost(hintType);
     
     if (_dailyHints?.canUseFreeHint(hintType) == true) {
-      return 'FREE';
+      return 'BESPLATNO';
     }
     
-    return '$cost coins';
+    return '$cost coina';
   }
 
   void _spendCoins(int amount) {

@@ -1,29 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_i18n.dart';
 import '../state/auth_provider.dart';
+import '../theme/theme_controller.dart';
+import '../screens/home/gamified_home_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/login_screen.dart';
 
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({Key? key}) : super(key: key);
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
+    return Consumer2<AuthProvider, ThemeController>(
+      builder: (context, authProvider, _, child) {
+        final t = context.t;
         // Show loading screen while checking auth status
         if (authProvider.isLoading) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF1E1E2E),
+          final colorScheme = Theme.of(context).colorScheme;
+          return Scaffold(
+            backgroundColor: colorScheme.surface,
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
+                  CircularProgressIndicator(color: colorScheme.primary),
+                  const SizedBox(height: 16),
                   Text(
-                    'Loading...',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    t.loading,
+                    style: TextStyle(
+                      color: colorScheme.onSurface,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -32,18 +40,33 @@ class AuthWrapper extends StatelessWidget {
         }
 
         // Navigate based on auth status
-        return authProvider.isAuthenticated 
-          ? const HomeScreen() 
-          : const LoginScreen();
+        return authProvider.isAuthenticated
+            ? const HomeEntryScreen()
+            : const LoginScreen();
       },
     );
   }
 }
 
+class HomeEntryScreen extends StatelessWidget {
+  const HomeEntryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final useGamifiedHome = context.select<ThemeController, bool>(
+      (controller) => controller.useGamifiedHome,
+    );
+
+    return useGamifiedHome
+        ? const GamifiedHomeScreen()
+        : const HomeScreen();
+  }
+}
+
 class AuthCheckWidget extends StatefulWidget {
   final Widget child;
-  
-  const AuthCheckWidget({Key? key, required this.child}) : super(key: key);
+
+  const AuthCheckWidget({super.key, required this.child});
 
   @override
   State<AuthCheckWidget> createState() => _AuthCheckWidgetState();

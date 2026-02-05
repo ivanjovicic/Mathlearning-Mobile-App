@@ -10,6 +10,7 @@ import '../widgets/achievement_popup.dart';
 import '../widgets/formula_hint_bottom_sheet.dart';
 import 'progress_provider.dart';
 import 'coin_provider.dart';
+import 'settings_provider.dart';
 
 class QuizProvider extends ChangeNotifier {
   final api = ApiService();
@@ -26,11 +27,19 @@ class QuizProvider extends ChangeNotifier {
   String? _currentClue;
   List<String> _eliminatedOptions = [];
   bool _isLoadingHint = false;
+  bool _usedHintForCurrentQuestion = false;
+
+  // Cooldown system state
+  bool _isCooldown = false;
 
   bool get isOnline => _offline.isOnline;
   String? get currentClue => _currentClue;
   List<String> get eliminatedOptions => _eliminatedOptions;
   bool get isLoadingHint => _isLoadingHint;
+  bool get usedHintForCurrentQuestion => _usedHintForCurrentQuestion;
+  bool get isCooldown => _isCooldown;
+  int get totalQuestions => _allQuestions.length;
+  int get currentQuestionNumber => _currentQuestionIndex + 1;
 
   Future<bool> startQuiz(int subtopicId, int count) async {
     try {
@@ -41,15 +50,19 @@ class QuizProvider extends ChangeNotifier {
       _resetHints();
 
       // Try to get questions (online first, fallback to cache)
-      final questionsData = await _offline.getQuestions(subtopicId, count, token);
-      
+      final questionsData = await _offline.getQuestions(
+        subtopicId,
+        count,
+        token,
+      );
+
       if (questionsData != null && questionsData.isNotEmpty) {
         // Convert to Question objects
         _allQuestions = questionsData.map((q) => Question.fromJson(q)).toList();
-        
+
         // Generate quiz ID
         quizId = "quiz-${DateTime.now().millisecondsSinceEpoch}";
-        
+
         // Set first question
         currentQuestion = _allQuestions[0];
         notifyListeners();
@@ -58,7 +71,7 @@ class QuizProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Start quiz failed: $e');
     }
-    
+
     // Use fallback questions for demo mode
     return await _startFallbackQuiz();
   }
@@ -66,7 +79,7 @@ class QuizProvider extends ChangeNotifier {
   Future<bool> _startFallbackQuiz() async {
     // Demo quiz for offline use with multiple questions
     quizId = "demo-quiz-${DateTime.now().millisecondsSinceEpoch}";
-    
+
     _allQuestions = [
       Question(
         id: 1,
@@ -124,10 +137,10 @@ class QuizProvider extends ChangeNotifier {
         ],
       ),
     ];
-    
+
     _currentQuestionIndex = 0;
     currentQuestion = _allQuestions[0];
-    
+
     debugPrint('✅ Demo quiz started with ${_allQuestions.length} questions');
     notifyListeners();
     return true;
@@ -136,9 +149,15 @@ class QuizProvider extends ChangeNotifier {
   Future<void> answer(String answer, BuildContext context) async {
     if (currentQuestion == null) return;
 
-    // Find the selected option to get its ID
+    final selectedOptionId = int.tryParse(answer);
+
+    // Find selected option by ID (preferred) or fallback to option text
     Option? selectedOption;
     for (final option in currentQuestion!.options) {
+      if (selectedOptionId != null && option.id == selectedOptionId) {
+        selectedOption = option;
+        break;
+      }
       if (option.text == answer) {
         selectedOption = option;
         break;
@@ -146,16 +165,20 @@ class QuizProvider extends ChangeNotifier {
     }
 
     // Calculate if answer is correct by comparing option ID
-    bool isCorrect = selectedOption != null && selectedOption.id == currentQuestion!.correctAnswerId;
+    bool isCorrect =
+        selectedOption != null &&
+        selectedOption.id == currentQuestion!.correctAnswerId;
 
-    debugPrint('🎯 Answer: "$answer" (ID: ${selectedOption?.id}) | Correct ID: ${currentQuestion!.correctAnswerId} | Is Correct: $isCorrect');
+    debugPrint(
+      '🎯 Answer: "$answer" (ID: ${selectedOption?.id}) | Correct ID: ${currentQuestion!.correctAnswerId} | Is Correct: $isCorrect',
+    );
 
     try {
       // Submit answer (online or queue for offline sync)
       await _offline.submitAnswer(
         quizId: quizId!,
         questionId: currentQuestion!.id,
-        answer: answer,
+        answer: selectedOption?.text ?? answer,
         timeSpentSeconds: 3, // Could be calculated dynamically
         isCorrect: isCorrect,
         token: token,
@@ -170,17 +193,24 @@ class QuizProvider extends ChangeNotifier {
     // Check if quiz is finished
     if (questionsAnsweredInSession >= _allQuestions.length) {
       // Quiz completed - show results
+      if (!context.mounted) return;
       await _handleQuizCompletion(context);
       return;
     }
 
-    // Move to next question
+    // Move to next question with cooldown
+    _isCooldown = true;
+    notifyListeners();
+  }
+
+  Future<void> goToNextQuestion() async {
     _currentQuestionIndex++;
     if (_currentQuestionIndex < _allQuestions.length) {
       currentQuestion = _allQuestions[_currentQuestionIndex];
       _resetHints(); // Reset hints for new question
-      notifyListeners();
     }
+    _isCooldown = false;
+    notifyListeners();
   }
 
   Future<void> _handleQuizCompletion(BuildContext context) async {
@@ -188,14 +218,18 @@ class QuizProvider extends ChangeNotifier {
     final progress = Provider.of<ProgressProvider>(context, listen: false);
     final oldLevel = progress.level;
     final oldAccuracy = progress.accuracy;
-    
+
     await progress.loadProgress(); // Refresh progress data
+    if (!context.mounted) return;
 
     // Check for level up after progress refresh
     if (progress.level > oldLevel) {
       // Check if there's also an accuracy achievement
-      bool hasAccuracyAchievement = _checkAccuracyAchievement(oldAccuracy, progress.accuracy);
-      
+      bool hasAccuracyAchievement = _checkAccuracyAchievement(
+        oldAccuracy,
+        progress.accuracy,
+      );
+
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -204,12 +238,12 @@ class QuizProvider extends ChangeNotifier {
             level: progress.level,
             onFinished: () {
               Navigator.pop(context); // Close level-up dialog
-              
+
               // Show accuracy achievement after level-up if applicable
               if (hasAccuracyAchievement) {
                 _showAccuracyAchievement(context, progress.accuracy);
               }
-              
+
               Navigator.pushNamed(context, "/reward");
             },
           ),
@@ -220,36 +254,41 @@ class QuizProvider extends ChangeNotifier {
       if (_checkAccuracyAchievement(oldAccuracy, progress.accuracy)) {
         _showAccuracyAchievement(context, progress.accuracy);
       }
-      Navigator.pushNamed(context, "/reward");  // Direct to reward if no level up
+      Navigator.pushNamed(
+        context,
+        "/reward",
+      ); // Direct to reward if no level up
     }
 
     questionsAnsweredInSession = 0;
     _currentQuestionIndex = 0;
     _allQuestions = [];
+    currentQuestion = null;
+    notifyListeners();
   }
 
   bool _checkAccuracyAchievement(double oldAccuracy, double newAccuracy) {
     // Check if any accuracy threshold was crossed
     return (oldAccuracy < 90 && newAccuracy >= 90) ||
-           (oldAccuracy < 75 && newAccuracy >= 75) ||
-           (oldAccuracy < 50 && newAccuracy >= 50);
+        (oldAccuracy < 75 && newAccuracy >= 75) ||
+        (oldAccuracy < 50 && newAccuracy >= 50);
   }
 
   void _showAccuracyAchievement(BuildContext context, double accuracy) {
     String title, subtitle, icon;
-    
+
     if (accuracy >= 90) {
-      title = "Accuracy 90%";
-      subtitle = "Snajper preciznost 🎯";
-      icon = "🎯";
+      title = "Tacnost 90%";
+      subtitle = "Vrhunska preciznost";
+      icon = "90%";
     } else if (accuracy >= 75) {
-      title = "Accuracy 75%";
-      subtitle = "Odličan rezultat ⚡";
-      icon = "⚡";
+      title = "Tacnost 75%";
+      subtitle = "Odlican rezultat";
+      icon = "75%";
     } else if (accuracy >= 50) {
-      title = "Accuracy 50%";
-      subtitle = "Polovinu si pogodio 📘";
-      icon = "📘";
+      title = "Tacnost 50%";
+      subtitle = "Polovina pogodaka";
+      icon = "50%";
     } else {
       return; // No achievement to show
     }
@@ -258,11 +297,8 @@ class QuizProvider extends ChangeNotifier {
       context: context,
       barrierColor: Colors.transparent,
       barrierDismissible: false,
-      builder: (_) => AchievementPopup(
-        title: title,
-        subtitle: subtitle,
-        icon: icon,
-      ),
+      builder: (_) =>
+          AchievementPopup(title: title, subtitle: subtitle, icon: icon),
     );
   }
 
@@ -277,12 +313,13 @@ class QuizProvider extends ChangeNotifier {
   }
 
   // HINT SYSTEM METHODS
-  
+
   Future<void> showFormulaHint(BuildContext context) async {
     if (currentQuestion == null) return;
+    if (!_isHintEnabled(context, HintType.formula)) return;
 
     final coinProvider = Provider.of<CoinProvider>(context, listen: false);
-    
+
     // Check if user can afford the hint
     if (!coinProvider.canAffordHint(HintType.formula)) {
       _showInsufficientCoinsDialog(context, HintType.formula);
@@ -294,11 +331,13 @@ class QuizProvider extends ChangeNotifier {
 
     try {
       final formula = await api.fetchFormulaHint(currentQuestion!.id);
-      
+
       if (formula != null) {
         // Deduct cost
         await coinProvider.useHint(HintType.formula);
-        
+        _usedHintForCurrentQuestion = true;
+        notifyListeners();
+
         // Show formula in bottom sheet
         if (context.mounted) {
           FormulaHintBottomSheet.show(context, formula);
@@ -321,9 +360,10 @@ class QuizProvider extends ChangeNotifier {
 
   Future<void> showClueHint(BuildContext context) async {
     if (currentQuestion == null) return;
+    if (!_isHintEnabled(context, HintType.clue)) return;
 
     final coinProvider = Provider.of<CoinProvider>(context, listen: false);
-    
+
     // Check if user can afford the hint
     if (!coinProvider.canAffordHint(HintType.clue)) {
       _showInsufficientCoinsDialog(context, HintType.clue);
@@ -335,15 +375,16 @@ class QuizProvider extends ChangeNotifier {
 
     try {
       final clue = await api.fetchClueHint(currentQuestion!.id);
-      
+
       if (clue != null) {
         // Deduct cost
         await coinProvider.useHint(HintType.clue);
-        
+        _usedHintForCurrentQuestion = true;
+
         // Show clue
         _currentClue = clue;
         notifyListeners();
-        
+
         // Hide clue after 10 seconds
         Future.delayed(const Duration(seconds: 10), () {
           _currentClue = null;
@@ -367,9 +408,10 @@ class QuizProvider extends ChangeNotifier {
 
   Future<void> eliminateWrongOption(BuildContext context) async {
     if (currentQuestion == null) return;
+    if (!_isHintEnabled(context, HintType.eliminate)) return;
 
     final coinProvider = Provider.of<CoinProvider>(context, listen: false);
-    
+
     // Check if user can afford the hint
     if (!coinProvider.canAffordHint(HintType.eliminate)) {
       _showInsufficientCoinsDialog(context, HintType.eliminate);
@@ -381,15 +423,20 @@ class QuizProvider extends ChangeNotifier {
 
     try {
       final remainingOptions = await api.eliminateOption(currentQuestion!.id);
-      
+
       if (remainingOptions != null) {
         // Deduct cost
         await coinProvider.useHint(HintType.eliminate);
-        
+        _usedHintForCurrentQuestion = true;
+
         // Find eliminated options
-        final allOptions = currentQuestion!.options.map((o) => o.id.toString()).toList();
-        _eliminatedOptions = allOptions.where((opt) => !remainingOptions.contains(opt)).toList();
-        
+        final allOptions = currentQuestion!.options
+            .map((o) => o.id.toString())
+            .toList();
+        _eliminatedOptions = allOptions
+            .where((opt) => !remainingOptions.contains(opt))
+            .toList();
+
         notifyListeners();
       } else {
         if (context.mounted) {
@@ -412,12 +459,14 @@ class QuizProvider extends ChangeNotifier {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Insufficient Coins'),
-        content: Text('You need $cost coins to use this hint. Earn more coins by completing quizzes!'),
+        title: const Text('Nedovoljno coina'),
+        content: Text(
+          'Potrebno je $cost coina za ovu pomoc. Osvoji jos coina kroz kvizove.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: const Text('U redu'),
           ),
         ],
       ),
@@ -428,16 +477,52 @@ class QuizProvider extends ChangeNotifier {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hint Unavailable'),
-        content: const Text('This hint is not available right now. Please try again later.'),
+        title: const Text('Pomoc nije dostupna'),
+        content: const Text(
+          'Pomoc trenutno nije dostupna. Pokusaj ponovo kasnije.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: const Text('U redu'),
           ),
         ],
       ),
     );
+  }
+
+  bool _isHintEnabled(BuildContext context, String hintType) {
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    if (settings.isHintTypeEnabled(hintType)) {
+      return true;
+    }
+    final parentContext = context;
+
+    final message = !settings.hintsEnabled
+        ? 'Hint opcije su trenutno iskljucene u podesavanjima.'
+        : 'Ovaj hint je iskljucen u podesavanjima.';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hint je iskljucen'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('U redu'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Navigator.pushNamed(parentContext, '/settings');
+            },
+            child: const Text('Podesavanja'),
+          ),
+        ],
+      ),
+    );
+    return false;
   }
 
   // Reset hints when starting new question
@@ -445,5 +530,6 @@ class QuizProvider extends ChangeNotifier {
     _currentClue = null;
     _eliminatedOptions = [];
     _isLoadingHint = false;
+    _usedHintForCurrentQuestion = false;
   }
 }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../state/quiz_provider.dart';
+
 import '../services/connectivity_service.dart';
+import '../state/quiz_provider.dart';
 
 class OfflineStatusWidget extends StatefulWidget {
-  const OfflineStatusWidget({Key? key}) : super(key: key);
+  const OfflineStatusWidget({super.key});
 
   @override
   State<OfflineStatusWidget> createState() => _OfflineStatusWidgetState();
@@ -22,15 +23,13 @@ class _OfflineStatusWidgetState extends State<OfflineStatusWidget> {
     _isOnline = _connectivity.isOnline;
     _loadPendingCount();
 
-    // Listen to connectivity changes
     _connectivity.onConnectivityChanged.listen((isOnline) {
-      if (mounted) {
-        setState(() {
-          _isOnline = isOnline;
-        });
-        if (isOnline) {
-          _loadPendingCount();
-        }
+      if (!mounted) return;
+      setState(() {
+        _isOnline = isOnline;
+      });
+      if (isOnline) {
+        _loadPendingCount();
       }
     });
   }
@@ -38,30 +37,35 @@ class _OfflineStatusWidgetState extends State<OfflineStatusWidget> {
   Future<void> _loadPendingCount() async {
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
     final count = await quizProvider.getPendingAnswersCount();
-    if (mounted) {
-      setState(() {
-        _pendingAnswers = count;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _pendingAnswers = count;
+    });
   }
 
   Future<void> _syncNow() async {
     if (!_isOnline) return;
 
+    final colorScheme = Theme.of(context).colorScheme;
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('🔄 Syncing offline data...')),
+      SnackBar(
+        content: const Text('Sinhronizujem offline podatke...'),
+        backgroundColor: colorScheme.primary,
+      ),
     );
 
     await quizProvider.syncOfflineData();
     await _loadPendingCount();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Sync completed!')),
-      );
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Sinhronizacija zavrsena!'),
+        backgroundColor: colorScheme.tertiary,
+      ),
+    );
   }
 
   @override
@@ -70,11 +74,15 @@ class _OfflineStatusWidgetState extends State<OfflineStatusWidget> {
       return const SizedBox.shrink();
     }
 
+    final colorScheme = Theme.of(context).colorScheme;
+    final statusBg = _isOnline ? colorScheme.secondary : colorScheme.error;
+    final statusFg = _isOnline ? colorScheme.onSecondary : colorScheme.onError;
+
     return Container(
       margin: const EdgeInsets.all(8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: _isOnline ? Colors.orange : Colors.red,
+        color: statusBg,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -82,29 +90,25 @@ class _OfflineStatusWidgetState extends State<OfflineStatusWidget> {
         children: [
           Icon(
             _isOnline ? Icons.cloud_sync : Icons.cloud_off,
-            color: Colors.white,
+            color: statusFg,
             size: 16,
           ),
           const SizedBox(width: 4),
           Text(
-            _isOnline 
-              ? 'Pending: $_pendingAnswers'
-              : 'Offline Mode',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
+            _isOnline ? 'Na cekanju: $_pendingAnswers' : 'Offline rezim',
+            style: TextStyle(
+              color: statusFg,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
           if (_isOnline && _pendingAnswers > 0) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: _syncNow,
-              child: const Icon(
-                Icons.sync,
-                color: Colors.white,
-                size: 16,
-              ),
+            IconButton(
+              onPressed: _syncNow,
+              tooltip: 'Sinhronizuj',
+              icon: Icon(Icons.sync, color: statusFg, size: 18),
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              padding: EdgeInsets.zero,
             ),
           ],
         ],

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../state/leaderboard_provider.dart';
+
 import '../state/auth_provider.dart';
+import '../state/leaderboard_provider.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -18,9 +19,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   void initState() {
     super.initState();
 
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<LeaderboardProvider>(context, listen: false);
-
       provider.loadGlobal(range);
       provider.loadFriends(range);
     });
@@ -30,51 +30,50 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   Widget build(BuildContext context) {
     final leaderboard = Provider.of<LeaderboardProvider>(context);
     final auth = Provider.of<AuthProvider>(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: const Color(0xFF1E1E2E),
+        backgroundColor: colorScheme.surface,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
+          backgroundColor: colorScheme.surface.withValues(alpha: 0),
           elevation: 0,
           centerTitle: true,
           title: const Text(
-            "🏆 Leaderboard",
+            "Rang lista",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
           ),
           bottom: const TabBar(
             tabs: [
-              Tab(text: "Global"),
-              Tab(text: "Friends"),
+              Tab(text: "Globalno"),
+              Tab(text: "Prijatelji"),
             ],
           ),
           actions: [
-            // weekly / allTime switch
             DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                dropdownColor: const Color(0xFF1E1E2E),
+                dropdownColor: colorScheme.surface,
                 value: range,
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: "weekly",
                     child: Text(
-                      "Weekly",
-                      style: TextStyle(color: Colors.white),
+                      "Nedeljno",
+                      style: TextStyle(color: colorScheme.onSurface),
                     ),
                   ),
                   DropdownMenuItem(
                     value: "allTime",
                     child: Text(
-                      "All time",
-                      style: TextStyle(color: Colors.white),
+                      "Ukupno",
+                      style: TextStyle(color: colorScheme.onSurface),
                     ),
                   ),
                 ],
                 onChanged: (v) {
                   if (v == null) return;
                   setState(() => range = v);
-
                   leaderboard.loadGlobal(v);
                   leaderboard.loadFriends(v);
                 },
@@ -88,11 +87,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               leaderboard.global,
               leaderboard.isLoading,
               auth.userId != null ? int.tryParse(auth.userId!) : null,
+              colorScheme,
             ),
             _buildList(
               leaderboard.friends,
               leaderboard.isLoading,
               auth.userId != null ? int.tryParse(auth.userId!) : null,
+              colorScheme,
             ),
           ],
         ),
@@ -100,10 +101,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     );
   }
 
-  Widget _buildList(List<LeaderboardEntry> items, bool loading, int? myUserId) {
+  Widget _buildList(
+    List<LeaderboardEntry> items,
+    bool loading,
+    int? myUserId,
+    ColorScheme colorScheme,
+  ) {
     if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
+      return Center(
+        child: CircularProgressIndicator(color: colorScheme.primary),
       );
     }
 
@@ -111,7 +117,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       return Center(
         child: Text(
           "Nema podataka.",
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+          style: TextStyle(color: colorScheme.onSurface),
         ),
       );
     }
@@ -120,16 +126,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
       itemBuilder: (_, i) {
-        return _buildRow(items[i], items[i].userId == myUserId);
+        return _buildRow(items[i], items[i].userId == myUserId, colorScheme);
       },
     );
   }
 
-  Widget _buildRow(LeaderboardEntry e, bool isMe) {
-    Color color = isMe ? Colors.greenAccent : Colors.white;
-    Color bg = isMe
-        ? Colors.greenAccent.withValues(alpha: 0.15)
-        : Colors.white.withValues(alpha: 0.06);
+  Widget _buildRow(LeaderboardEntry e, bool isMe, ColorScheme colorScheme) {
+    final color = isMe ? colorScheme.primary : colorScheme.onSurface;
+    final bg = isMe
+        ? colorScheme.primaryContainer.withValues(alpha: 0.45)
+        : colorScheme.surface.withValues(alpha: 0.7);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -138,20 +144,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         color: bg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isMe
-              ? Colors.greenAccent
-              : Colors.white.withValues(alpha: 0.12),
+          color: isMe ? colorScheme.primary : colorScheme.outline,
           width: 2,
         ),
       ),
       child: Row(
         children: [
-          // Rank medal
           _rankIcon(e.rank),
-
           const SizedBox(width: 14),
-
-          // Name + stats
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,9 +166,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Lvl ${e.level} • XP ${e.xp} • 🔥 ${e.streak}",
+                  "Nivo ${e.level} | XP ${e.xp} | Niz ${e.streak}",
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: colorScheme.onSurface,
                     fontSize: 14,
                   ),
                 ),
@@ -181,6 +181,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   Widget _rankIcon(int rank) {
+    final colorScheme = Theme.of(context).colorScheme;
     switch (rank) {
       case 1:
         return const Text("🥇", style: TextStyle(fontSize: 32));
@@ -192,7 +193,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         return Text(
           "$rank",
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.8),
+            color: colorScheme.onSurface,
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../l10n/app_i18n.dart';
 import '../state/quiz_provider.dart';
-import '../models/question.dart';
 import 'home/gamified_quiz_screen.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -12,86 +13,88 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
-  bool loading = true;
-  Question? currentQuestion;
-  int? subtopicId;
+  bool _loading = true;
+  bool _hasInitialized = false;
+  int _subtopicId = 1;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (loading) {
-      subtopicId = ModalRoute.of(context)?.settings.arguments as int? ?? 1;
-      _startQuiz();
-    }
+    if (_hasInitialized) return;
+
+    _hasInitialized = true;
+    _subtopicId = ModalRoute.of(context)?.settings.arguments as int? ?? 1;
+    _startQuiz();
   }
 
   Future<void> _startQuiz() async {
     final quiz = Provider.of<QuizProvider>(context, listen: false);
-    final success = await quiz.startQuiz(subtopicId!, 10);
-    if (success && quiz.currentQuestion != null) {
-      setState(() {
-        currentQuestion = quiz.currentQuestion;
-        loading = false;
-      });
-    } else {
-      // fallback UI
-      setState(() {
-        loading = false;
-      });
-    }
+    await quiz.startQuiz(_subtopicId, 10);
+
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+    });
   }
 
-  void _showGamifiedQuestion(Question question) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => GamifiedQuizScreen(
-          questionText: question.text,
-          options: question.options
-              .map(
-                (o) => OptionItem(
-                  id: o.id.toString(),
-                  text: o.text,
-                  isCorrect: false,
-                ),
-              )
-              .toList(),
-          onSubmit: (answerId) async {
-            final quiz = Provider.of<QuizProvider>(context, listen: false);
-            await quiz.answer(answerId, context);
-            final next = quiz.currentQuestion;
-            if (next != null) {
-              _showGamifiedQuestion(next);
-            } else {
-              Navigator.pushReplacementNamed(context, '/quiz_result');
-            }
-          },
-        ),
-      ),
-    );
+  Future<void> _retry() async {
+    setState(() {
+      _loading = true;
+    });
+    await _startQuiz();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF101820),
-        body: Center(child: CircularProgressIndicator()),
+    final t = context.t;
+    final quiz = Provider.of<QuizProvider>(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: colorScheme.surface,
+        body: Center(
+          child: CircularProgressIndicator(color: colorScheme.primary),
+        ),
       );
     }
-    if (currentQuestion != null) {
-      // Prikazujemo prvo pitanje kroz GamifiedQuizScreen
-      Future.microtask(() => _showGamifiedQuestion(currentQuestion!));
-      return const SizedBox.shrink();
-    }
-    return const Scaffold(
-      backgroundColor: Color(0xFF101820),
-      body: Center(
-        child: Text(
-          'No questions available',
-          style: TextStyle(color: Colors.white),
+
+    final question = quiz.currentQuestion;
+    if (question == null) {
+      return Scaffold(
+        backgroundColor: colorScheme.surface,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                t.noQuestions,
+                style: TextStyle(color: colorScheme.onSurface),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(onPressed: _retry, child: Text(t.retry)),
+            ],
+          ),
         ),
-      ),
+      );
+    }
+
+    return GamifiedQuizScreen(
+      questionText: question.text,
+      questionNumber: quiz.currentQuestionNumber,
+      totalQuestions: quiz.totalQuestions,
+      options: question.options
+          .map(
+            (option) => OptionItem(
+              id: option.id.toString(),
+              text: option.text,
+              isCorrect: option.id == question.correctAnswerId,
+            ),
+          )
+          .toList(),
+      onSubmit: (answerId) async {
+        await quiz.answer(answerId, context);
+      },
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class GameButton extends StatefulWidget {
   final String text;
+  final Widget? child;
   final bool disabled;
   final bool isCorrect;
   final bool isWrong;
@@ -11,6 +12,7 @@ class GameButton extends StatefulWidget {
     super.key,
     required this.text,
     required this.onTap,
+    this.child,
     this.disabled = false,
     this.isCorrect = false,
     this.isWrong = false,
@@ -26,54 +28,69 @@ class _GameButtonState extends State<GameButton>
 
   @override
   Widget build(BuildContext context) {
-    Color bgColor;
+    final colorScheme = Theme.of(context).colorScheme;
+    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    late final Color bgColor;
+    late final Color fgColor;
 
     if (widget.isCorrect) {
-      bgColor = Colors.greenAccent.shade400;
+      bgColor = colorScheme.tertiary;
+      fgColor = colorScheme.onTertiary;
     } else if (widget.isWrong) {
-      bgColor = Colors.redAccent.shade200;
+      bgColor = colorScheme.error;
+      fgColor = colorScheme.onError;
     } else {
-      bgColor = Colors.blue.shade500;
+      bgColor = colorScheme.primary;
+      fgColor = colorScheme.onPrimary;
     }
 
     return AnimatedScale(
       scale: _scale,
-      duration: const Duration(milliseconds: 120),
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _scale = 0.95),
-        onTapCancel: () => setState(() => _scale = 1.0),
-        onTapUp: (_) => setState(() {
-          _scale = 1.0;
-          if (!widget.disabled) widget.onTap();
-        }),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                bgColor.withValues(alpha: 0.9),
-                bgColor.withValues(alpha: 0.6),
+      duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 120),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: widget.disabled ? null : widget.onTap,
+          onHighlightChanged: reduceMotion
+              ? null
+              : (isHighlighted) {
+                  setState(() {
+                    _scale = isHighlighted ? 0.95 : 1.0;
+                  });
+                },
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  bgColor.withValues(alpha: 0.9),
+                  bgColor.withValues(alpha: 0.6),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: bgColor.withValues(alpha: 0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: bgColor.withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              widget.text,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 1.2,
-              ),
+            child: Center(
+              child:
+                  widget.child ??
+                  Text(
+                    widget.text,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: fgColor,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
             ),
           ),
         ),

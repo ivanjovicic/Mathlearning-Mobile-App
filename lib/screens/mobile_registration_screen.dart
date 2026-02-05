@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../services/auth_service.dart';
 import '../state/auth_provider.dart';
-import 'home_screen.dart';
 
 class MobileRegistrationScreen extends StatefulWidget {
   const MobileRegistrationScreen({super.key});
@@ -44,7 +44,6 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
     });
 
     try {
-      // Register via AuthService
       final result = await AuthService.instance.registerMobileUser(
         username: _usernameController.text.trim(),
         email: _emailController.text.trim(),
@@ -53,43 +52,38 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
       );
 
       if (result.success) {
-        // Update auth state
         if (mounted) {
           context.read<AuthProvider>().login(
             _usernameController.text.trim(),
             _passwordController.text,
           );
-        }
-
-        // Show success message
-        if (mounted) {
+          final colorScheme = Theme.of(context).colorScheme;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
+              backgroundColor: colorScheme.tertiary,
+              duration: const Duration(seconds: 3),
               content: Row(
                 children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 12),
-                  Text('Registration successful! Welcome! 🎉'),
+                  Icon(Icons.check_circle, color: colorScheme.onTertiary),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Registracija uspesna! Dobrodosao/la!',
+                    style: TextStyle(color: colorScheme.onTertiary),
+                  ),
                 ],
               ),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
             ),
           );
-
-          // Navigate to home screen
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
+          Navigator.of(context).pushReplacementNamed("/home");
         }
       } else {
         setState(() {
-          _errorMessage = result.error ?? 'Registration failed';
+          _errorMessage = _localizeRegistrationError(result.error);
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Registration failed: $e';
+        _errorMessage = _localizeRegistrationError(e.toString());
       });
     } finally {
       if (mounted) {
@@ -102,8 +96,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.blue[50],
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -113,228 +108,177 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
-
-                // Header
                 Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue[600],
+                        color: colorScheme.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_add,
                         size: 48,
-                        color: Colors.white,
+                        color: colorScheme.onPrimary,
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Create Account',
+                    Text(
+                      'Kreiraj nalog',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Join the math learning community!',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    Text(
+                      'Pridruzi se zajednici za ucenje matematike!',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 40),
-
-                // Display Name
-                TextFormField(
+                _textField(
                   controller: _displayNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Display Name',
-                    prefixIcon: const Icon(Icons.badge),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
+                  labelText: 'Prikazano ime',
+                  prefixIcon: Icons.badge,
+                  colorScheme: colorScheme,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your display name';
+                      return 'Unesi prikazano ime';
                     }
                     if (value.trim().length < 2) {
-                      return 'Display name must be at least 2 characters';
+                      return 'Prikazano ime mora imati najmanje 2 karaktera';
                     }
                     return null;
                   },
                 ),
-
                 const SizedBox(height: 16),
-
-                // Username
-                TextFormField(
+                _textField(
                   controller: _usernameController,
-                  decoration: InputDecoration(
-                    labelText: 'Username',
-                    prefixIcon: const Icon(Icons.person),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
+                  labelText: 'Korisnicko ime',
+                  prefixIcon: Icons.person,
+                  colorScheme: colorScheme,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a username';
+                      return 'Unesi korisnicko ime';
                     }
                     if (value.trim().length < 3) {
-                      return 'Username must be at least 3 characters';
+                      return 'Korisnicko ime mora imati najmanje 3 karaktera';
                     }
                     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value.trim())) {
-                      return 'Username can only contain letters, numbers, and underscores';
+                      return 'Koristi samo slova, brojeve i donju crtu';
                     }
                     return null;
                   },
                 ),
-
                 const SizedBox(height: 16),
-
-                // Email
-                TextFormField(
+                _textField(
                   controller: _emailController,
+                  labelText: 'Imejl',
+                  prefixIcon: Icons.email,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
+                  colorScheme: colorScheme,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your email';
+                      return 'Unesi imejl';
                     }
                     if (!RegExp(
                       r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                     ).hasMatch(value.trim())) {
-                      return 'Please enter a valid email address';
+                      return 'Unesi ispravnu imejl adresu';
                     }
                     return null;
                   },
                 ),
-
                 const SizedBox(height: 16),
-
-                // Password
-                TextFormField(
+                _textField(
                   controller: _passwordController,
+                  labelText: 'Lozinka',
+                  prefixIcon: Icons.lock,
                   obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
+                  colorScheme: colorScheme,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
+                      return 'Unesi lozinku';
                     }
                     if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                      return 'Lozinka mora imati najmanje 6 karaktera';
                     }
                     return null;
                   },
                 ),
-
                 const SizedBox(height: 16),
-
-                // Confirm Password
-                TextFormField(
+                _textField(
                   controller: _confirmPasswordController,
+                  labelText: 'Potvrdi lozinku',
+                  prefixIcon: Icons.lock_outline,
                   obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Confirm Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
+                  colorScheme: colorScheme,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please confirm your password';
+                      return 'Potvrdi lozinku';
                     }
                     if (value != _passwordController.text) {
-                      return 'Passwords do not match';
+                      return 'Lozinke se ne poklapaju';
                     }
                     return null;
                   },
                 ),
-
                 const SizedBox(height: 24),
-
-                // Error Message
                 if (_errorMessage.isNotEmpty)
                   Container(
                     margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red[50],
-                      border: Border.all(color: Colors.red[300]!),
+                      color: colorScheme.errorContainer,
+                      border: Border.all(color: colorScheme.error),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.error, color: Colors.red[700]),
+                        Icon(Icons.error, color: colorScheme.error),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             _errorMessage,
-                            style: TextStyle(color: Colors.red[700]),
+                            style: TextStyle(color: colorScheme.onErrorContainer),
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                // Register Button
                 ElevatedButton(
                   onPressed: _isLoading ? null : _registerUser,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[600],
-                    foregroundColor: Colors.white,
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -342,78 +286,72 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                     elevation: 2,
                   ),
                   child: _isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                              colorScheme.onPrimary,
                             ),
                           ),
                         )
                       : const Text(
-                          'Create Account',
+                          'Kreiraj nalog',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                 ),
-
                 const SizedBox(height: 24),
-
-                // Sign in link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Already have an account? ',
-                      style: TextStyle(color: Colors.grey),
+                    Text(
+                      'Vec imas nalog? ',
+                      style: TextStyle(color: colorScheme.onSurface),
                     ),
                     TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                       child: Text(
-                        'Sign In',
+                        'Prijavi se',
                         style: TextStyle(
-                          color: Colors.blue[600],
+                          color: colorScheme.primary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 20),
-
-                // Bonus info
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    border: Border.all(color: Colors.green[300]!),
+                    color: colorScheme.tertiaryContainer,
+                    border: Border.all(color: colorScheme.tertiary),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.stars, color: Colors.green[600]),
+                      Icon(Icons.stars, color: colorScheme.tertiary),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Welcome Bonus!',
+                              'Bonus dobrodoslice!',
                               style: TextStyle(
-                                color: Colors.green[700],
+                                color: colorScheme.onTertiaryContainer,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
-                              'Get 100 coins to start your learning journey',
-                              style: TextStyle(color: Colors.green[700]),
+                              'Dobijas 100 coina za pocetak ucenja',
+                              style: TextStyle(
+                                color: colorScheme.onTertiaryContainer,
+                              ),
                             ),
                           ],
                         ),
@@ -427,5 +365,81 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
         ),
       ),
     );
+  }
+
+  Widget _textField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData prefixIcon,
+    required ColorScheme colorScheme,
+    TextInputType? keyboardType,
+    Widget? suffixIcon,
+    bool obscureText = false,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      decoration: InputDecoration(
+        labelText: labelText,
+        prefixIcon: Icon(prefixIcon),
+        suffixIcon: suffixIcon,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      ),
+      validator: validator,
+    );
+  }
+
+  String _localizeRegistrationError(String? rawError) {
+    final raw = (rawError ?? '').trim();
+    if (raw.isEmpty) {
+      return 'Registracija nije uspela. Pokusaj ponovo.';
+    }
+
+    final value = raw.toLowerCase();
+    if (value.contains('username') &&
+        (value.contains('exists') ||
+            value.contains('taken') ||
+            value.contains('already'))) {
+      return 'Korisnicko ime je zauzeto.';
+    }
+    if (value.contains('email') &&
+        (value.contains('exists') ||
+            value.contains('taken') ||
+            value.contains('already'))) {
+      return 'Imejl adresa je vec zauzeta.';
+    }
+    if (value.contains('invalid email') || value.contains('email is invalid')) {
+      return 'Imejl adresa nije ispravna.';
+    }
+    if (value.contains('password') && value.contains('weak')) {
+      return 'Lozinka je preslaba.';
+    }
+    if (value.contains('timeout') ||
+        value.contains('socket') ||
+        value.contains('network') ||
+        value.contains('connection')) {
+      return 'Greska u mrezi. Pokusaj ponovo.';
+    }
+    if (value.contains('registration failed') ||
+        value.contains('mobile registration failed')) {
+      return 'Registracija nije uspela. Pokusaj ponovo.';
+    }
+
+    // Keep backend message only when it already looks localized.
+    final looksLocalized =
+        value.contains('nije') ||
+        value.contains('gresk') ||
+        value.contains('uspes') ||
+        value.contains('lozink') ||
+        value.contains('korisnick');
+    return looksLocalized
+        ? raw
+        : 'Registracija trenutno nije uspela. Pokusaj ponovo.';
   }
 }

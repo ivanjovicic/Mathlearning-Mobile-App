@@ -3,30 +3,49 @@ import 'package:provider/provider.dart';
 import '../state/progress_provider.dart';
 import '../state/badge_provider.dart';
 import '../state/auth_provider.dart';
+import '../theme/theme_controller.dart';
 import '../widgets/animated_xp_bar.dart';
+import '../widgets/theme_accessibility_mini_preview.dart';
 // user_service and user_profile imports removed (unused)
 import 'user_search_screen.dart';
+import '../services/user_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     final progress = Provider.of<ProgressProvider>(context);
     final badges = Provider.of<BadgeProvider>(context).badges;
     final auth = Provider.of<AuthProvider>(context);
+    final themeController = Provider.of<ThemeController>(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E2E),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "👤 Profil",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: colorScheme.surface.withValues(alpha: 0),
         elevation: 0,
         centerTitle: true,
         actions: [
+          IconButton(
+            onPressed: () => Navigator.pushNamed(context, "/settings"),
+            icon: Icon(Icons.settings_outlined, color: colorScheme.onSurface),
+            tooltip: 'Podesavanja',
+          ),
+          IconButton(
+            onPressed: () => Navigator.pushNamed(context, "/themes"),
+            icon: Icon(Icons.palette_outlined, color: colorScheme.onSurface),
+            tooltip: 'Tema i kretanje',
+          ),
           // Search users button
           IconButton(
             onPressed: () {
@@ -36,14 +55,14 @@ class ProfileScreen extends StatelessWidget {
                 ),
               );
             },
-            icon: const Icon(Icons.search, color: Colors.white),
-            tooltip: 'Search Users',
+            icon: Icon(Icons.search, color: colorScheme.onSurface),
+            tooltip: 'Pretraga korisnika',
           ),
           // Edit profile button
           IconButton(
             onPressed: () => _showEditProfileDialog(context),
-            icon: const Icon(Icons.edit, color: Colors.white),
-            tooltip: 'Edit Profile',
+            icon: Icon(Icons.edit, color: colorScheme.onSurface),
+            tooltip: 'Izmeni profil',
           ),
           // Logout button
           IconButton(
@@ -55,8 +74,8 @@ class ProfileScreen extends StatelessWidget {
                 ).pushNamedAndRemoveUntil('/login', (route) => false);
               }
             },
-            icon: const Icon(Icons.logout, color: Colors.red),
-            tooltip: 'Logout',
+            icon: Icon(Icons.logout, color: colorScheme.error),
+            tooltip: 'Odjava',
           ),
         ],
       ),
@@ -72,8 +91,8 @@ class ProfileScreen extends StatelessWidget {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.1),
-                  border: Border.all(color: Colors.yellow.shade400, width: 3),
+                  color: theme.cardColor.withAlpha((0.1 * 255).round()),
+                  border: Border.all(color: colorScheme.secondary, width: 3),
                 ),
                 alignment: Alignment.center,
                 child: const Text("🧠", style: TextStyle(fontSize: 70)),
@@ -84,10 +103,10 @@ class ProfileScreen extends StatelessWidget {
 
             // Username
             Text(
-              "@${auth.username ?? 'User'}",
-              style: TextStyle(
+              "@${auth.username ?? 'Korisnik'}",
+              style: theme.textTheme.bodyLarge?.copyWith(
                 fontSize: 18,
-                color: Colors.white.withValues(alpha: 0.8),
+                color: colorScheme.onSurface.withAlpha((0.8 * 255).round()),
               ),
             ),
 
@@ -95,11 +114,11 @@ class ProfileScreen extends StatelessWidget {
 
             // Level
             Text(
-              "Level ${progress.level}",
-              style: const TextStyle(
+              "Nivo ${progress.level}",
+              style: theme.textTheme.headlineMedium?.copyWith(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: colorScheme.onSurface,
               ),
             ),
 
@@ -112,34 +131,60 @@ class ProfileScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 18),
+            const ThemeAccessibilityMiniPreview(
+              title: "Profil: pregled pristupacnosti",
+              compact: true,
+            ),
+
+            const SizedBox(height: 14),
+            Card(
+              child: SwitchListTile(
+                value: themeController.useGamifiedHome,
+                onChanged: themeController.setUseGamifiedHome,
+                secondary: Icon(
+                  Icons.videogame_asset_outlined,
+                  color: colorScheme.primary,
+                ),
+                title: const Text("Gamifikovana pocetna"),
+                subtitle: Text(
+                  themeController.useGamifiedHome
+                      ? "Arena pocetna je ukljucena"
+                      : "Klasicna pocetna je ukljucena",
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 18),
 
             // Rank
-            _buildRankCard(progress),
+            _buildRankCard(context, progress),
 
             const SizedBox(height: 28),
 
             // Streak
-            _buildStreakCard(progress),
+            _buildStreakCard(context, progress),
 
             const SizedBox(height: 28),
 
             // Badges
-            _buildBadgeList(badges),
+            _buildBadgeList(context, badges),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRankCard(ProgressProvider progress) {
+  Widget _buildRankCard(BuildContext context, ProgressProvider progress) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     int rank = _calculateRank(progress.level, progress.xp);
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withValues(alpha: 0.08),
-        border: Border.all(color: Colors.purple.shade300, width: 2),
+        color: theme.cardColor.withAlpha((0.08 * 255).round()),
+        border: Border.all(color: colorScheme.primary, width: 2),
       ),
       child: Row(
         children: [
@@ -148,14 +193,19 @@ class ProfileScreen extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Rank",
-                style: TextStyle(color: Colors.white70, fontSize: 16),
+              Text(
+                "Rang",
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurface.withAlpha(
+                    (0.7 * 255).round(),
+                  ),
+                  fontSize: 16,
+                ),
               ),
               Text(
                 "$rank",
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: colorScheme.onSurface,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
@@ -167,13 +217,16 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStreakCard(ProgressProvider progress) {
+  Widget _buildStreakCard(BuildContext context, ProgressProvider progress) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withValues(alpha: 0.08),
-        border: Border.all(color: Colors.orange.shade300, width: 2),
+        color: theme.cardColor.withAlpha((0.08 * 255).round()),
+        border: Border.all(color: colorScheme.secondary, width: 2),
       ),
       child: Row(
         children: [
@@ -182,14 +235,19 @@ class ProfileScreen extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Streak",
-                style: TextStyle(color: Colors.white70, fontSize: 16),
+              Text(
+                "Niz",
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurface.withAlpha(
+                    (0.7 * 255).round(),
+                  ),
+                  fontSize: 16,
+                ),
               ),
               Text(
-                "${progress.streak} days",
-                style: const TextStyle(
-                  color: Colors.white,
+                "${progress.streak} dana",
+                style: TextStyle(
+                  color: colorScheme.onSurface,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
@@ -201,16 +259,19 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBadgeList(List badges) {
+  Widget _buildBadgeList(BuildContext context, List badges) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "🎖 Bedževi",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
+            style: theme.textTheme.headlineMedium?.copyWith(
+            color: colorScheme.onSurface,
             fontWeight: FontWeight.bold,
+            fontSize: 22,
           ),
         ),
         const SizedBox(height: 12),
@@ -226,13 +287,13 @@ class ProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: b.unlocked
-                      ? Colors.white.withValues(alpha: 0.2)
-                      : Colors.white.withValues(alpha: 0.08),
+                      ? theme.cardColor.withAlpha((0.2 * 255).round())
+                      : theme.cardColor.withAlpha((0.08 * 255).round()),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: b.unlocked
-                        ? Colors.greenAccent
-                        : Colors.white.withValues(alpha: 0.2),
+                        ? colorScheme.secondary
+                        : theme.cardColor.withAlpha((0.2 * 255).round()),
                     width: 2,
                   ),
                 ),
@@ -244,11 +305,13 @@ class ProfileScreen extends StatelessWidget {
                     Text(
                       b.name,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: theme.textTheme.bodyLarge?.copyWith(
                         color: b.unlocked
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.4),
-                        fontSize: 11,
+                            ? colorScheme.onSurface
+                            : colorScheme.onSurface.withAlpha(
+                                (0.4 * 255).round(),
+                              ),
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -274,23 +337,23 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Edit Profile'),
+          title: const Text('Izmena profila'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: displayNameController,
                 decoration: const InputDecoration(
-                  labelText: 'Display Name',
-                  hintText: 'Enter new display name',
+                  labelText: 'Prikazano ime',
+                  hintText: 'Unesi novo prikazano ime',
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: emailController,
                 decoration: const InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'Enter new email',
+                  labelText: 'Imejl',
+                  hintText: 'Unesi novi imejl',
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -299,7 +362,7 @@ class ProfileScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: const Text('Otkazi'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -316,9 +379,11 @@ class ProfileScreen extends StatelessWidget {
                     if (context.mounted) {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Profile updated successfully!'),
-                          backgroundColor: Colors.green,
+                        SnackBar(
+                          content: Text('Profil je uspesno azuriran!'),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.tertiary,
                         ),
                       );
                     }
@@ -326,22 +391,22 @@ class ProfileScreen extends StatelessWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Failed to update profile: $e'),
-                          backgroundColor: Colors.red,
+                          content: Text('Azuriranje profila nije uspelo: $e'),
+                          backgroundColor: Theme.of(context).colorScheme.error,
                         ),
                       );
                     }
                   }
                 }
               },
-              child: const Text('Save'),
+              child: const Text('Sacuvaj'),
             ),
           ],
         );
       },
-    );
-
-    displayNameController.dispose();
-    emailController.dispose();
+    ).then((_) {
+      displayNameController.dispose();
+      emailController.dispose();
+    });
   }
 }

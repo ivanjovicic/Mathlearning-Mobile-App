@@ -1,10 +1,11 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 class AchievementPopup extends StatefulWidget {
   final String title;
   final String subtitle;
-  final String icon; // emoji npr. "🔥", "🏅"
+  final String icon;
 
   const AchievementPopup({
     super.key,
@@ -21,28 +22,40 @@ class _AchievementPopupState extends State<AchievementPopup>
     with TickerProviderStateMixin {
   late AnimationController _scaleController;
   late AnimationController _fadeController;
+  bool _didScheduleClose = false;
 
   @override
   void initState() {
     super.initState();
-
     _scaleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-
     _scaleController.forward();
     _fadeController.forward();
+  }
 
-    // Auto-close after 1.6 sec
-    Future.delayed(const Duration(milliseconds: 1600), () {
-      if (mounted) Navigator.of(context).pop();
-    });
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didScheduleClose) return;
+    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (reduceMotion) {
+      _scaleController.value = 1;
+      _fadeController.value = 1;
+      Future.delayed(const Duration(milliseconds: 700), () {
+        if (mounted) Navigator.of(context).pop();
+      });
+    } else {
+      Future.delayed(const Duration(milliseconds: 1600), () {
+        if (mounted) Navigator.of(context).pop();
+      });
+    }
+    _didScheduleClose = true;
   }
 
   @override
@@ -54,8 +67,11 @@ class _AchievementPopupState extends State<AchievementPopup>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final accent = colorScheme.secondary;
+
     return Material(
-      color: Colors.black.withValues(alpha: 0.25),
+      color: colorScheme.scrim.withValues(alpha: 0.25),
       child: Center(
         child: ScaleTransition(
           scale: CurvedAnimation(
@@ -67,41 +83,37 @@ class _AchievementPopupState extends State<AchievementPopup>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Glow aura
                 Container(
                   width: 180,
                   height: 180,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.yellow.withValues(alpha: 0.15),
+                    color: accent.withValues(alpha: 0.15),
                   ),
                 ),
-
-                // Bursting particles
                 CustomPaint(
                   painter: AchievementParticles(
                     progress: _scaleController.value,
+                    color: accent,
                   ),
                   size: const Size(220, 220),
                 ),
-
-                // Main pop-up card
                 Container(
                   padding: const EdgeInsets.all(22),
                   margin: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.yellow.shade400,
+                      color: accent,
                       width: 2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.yellow.withValues(alpha: 0.3),
+                        color: accent.withValues(alpha: 0.3),
                         blurRadius: 18,
                         spreadRadius: 3,
-                      )
+                      ),
                     ],
                   ),
                   child: Column(
@@ -111,10 +123,10 @@ class _AchievementPopupState extends State<AchievementPopup>
                       const SizedBox(height: 10),
                       Text(
                         widget.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -122,12 +134,12 @@ class _AchievementPopupState extends State<AchievementPopup>
                         widget.subtitle,
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -139,23 +151,23 @@ class _AchievementPopupState extends State<AchievementPopup>
 
 class AchievementParticles extends CustomPainter {
   final double progress;
+  final Color color;
 
-  AchievementParticles({required this.progress});
+  AchievementParticles({required this.progress, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
     final rnd = Random();
     final center = size.center(Offset.zero);
 
-    for (int i = 0; i < 18; i++) {
+    for (var i = 0; i < 18; i++) {
       final angle = i * (2 * pi / 18);
       final radius = (progress * 90) + rnd.nextDouble() * 4;
-
       final dx = center.dx + radius * cos(angle);
       final dy = center.dy + radius * sin(angle);
 
       final paint = Paint()
-        ..color = Colors.yellow.withValues(alpha: 1 - progress)
+        ..color = color.withValues(alpha: 1 - progress)
         ..style = PaintingStyle.fill;
 
       canvas.drawCircle(Offset(dx, dy), 5 * (1 - progress), paint);
@@ -164,6 +176,6 @@ class AchievementParticles extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant AchievementParticles oldDelegate) {
-    return oldDelegate.progress != progress;
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }

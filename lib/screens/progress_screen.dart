@@ -34,7 +34,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading progress: $e')),
+          SnackBar(content: Text('Greska pri ucitavanju napretka: $e')),
         );
       }
     }
@@ -42,17 +42,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Progress'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Napredak'),
+        backgroundColor: colorScheme.inversePrimary,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _progress == null
               ? const Center(
                   child: Text(
-                    'No progress data available',
+                    'Nema dostupnih podataka o napretku',
                     style: TextStyle(fontSize: 16),
                   ),
                 )
@@ -68,7 +69,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Overall Progress',
+                                'Ukupan napredak',
                                 style: Theme.of(context).textTheme.headlineSmall,
                               ),
                               const SizedBox(height: 16),
@@ -76,16 +77,16 @@ class _ProgressScreenState extends State<ProgressScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
                                   _buildStatCard(
-                                    'Total Quizzes',
+                                    'Ukupno kvizova',
                                     '${_progress!.totalQuizzes}',
                                     Icons.quiz,
-                                    Colors.blue,
+                                    colorScheme.primary,
                                   ),
                                   _buildStatCard(
-                                    'Completed',
+                                    'Zavrseno',
                                     '${_progress!.completedQuizzes}',
                                     Icons.check_circle,
-                                    Colors.green,
+                                    colorScheme.tertiary,
                                   ),
                                 ],
                               ),
@@ -101,7 +102,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Performance',
+                                'Rezultati',
                                 style: Theme.of(context).textTheme.headlineSmall,
                               ),
                               const SizedBox(height: 16),
@@ -109,16 +110,16 @@ class _ProgressScreenState extends State<ProgressScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
                                   _buildStatCard(
-                                    'Average Score',
+                                    'Prosecan rezultat',
                                     '${(_progress!.averageScore * 100).toStringAsFixed(1)}%',
                                     Icons.analytics,
-                                    Colors.orange,
+                                    colorScheme.secondary,
                                   ),
                                   _buildStatCard(
-                                    'Best Score',
+                                    'Najbolji rezultat',
                                     '${(_progress!.bestScore * 100).toStringAsFixed(1)}%',
                                     Icons.star,
-                                    Colors.amber,
+                                    colorScheme.primary,
                                   ),
                                 ],
                               ),
@@ -134,7 +135,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Completion Rate',
+                                'Stopa zavrsetka',
                                 style: Theme.of(context).textTheme.headlineSmall,
                               ),
                               const SizedBox(height: 16),
@@ -146,7 +147,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                '${_progress!.completedQuizzes}/${_progress!.totalQuizzes} quizzes completed',
+                                '${_progress!.completedQuizzes}/${_progress!.totalQuizzes} kvizova zavrseno',
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                             ],
@@ -170,7 +171,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         ),
         Text(
           title,
-          style: const TextStyle(fontSize: 12),
+          style: const TextStyle(fontSize: 14),
           textAlign: TextAlign.center,
         ),
       ],

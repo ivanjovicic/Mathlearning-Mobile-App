@@ -5,7 +5,7 @@ import '../services/api_service.dart';
 class UserService {
   static UserService? _instance;
   static UserService get instance => _instance ??= UserService._();
-  
+
   UserService._();
 
   final ApiService _apiService = ApiService();
@@ -64,8 +64,8 @@ class UserService {
         final users = searchResults
             .map((userData) => UserSearchResult.fromJson(userData))
             .toList();
-        
-        debugPrint('✅ Found ${users.length} users for query: \"$query\"');
+
+        debugPrint('✅ Found ${users.length} users for query: "$query"');
         return users;
       }
     } catch (e) {
@@ -92,10 +92,13 @@ class UserService {
 
       if (registrationData != null) {
         // Extract profile from registration response
-        final profileData = registrationData['profile'] ?? registrationData['user'];
+        final profileData =
+            registrationData['profile'] ?? registrationData['user'];
         if (profileData != null) {
           _currentProfile = UserProfile.fromJson(profileData);
-          debugPrint('✅ Mobile user registered: ${_currentProfile?.displayName} with ${_currentProfile?.coins} coins');
+          debugPrint(
+            '✅ Mobile user registered: ${_currentProfile?.displayName} with ${_currentProfile?.coins} coins',
+          );
           return _currentProfile;
         }
       }

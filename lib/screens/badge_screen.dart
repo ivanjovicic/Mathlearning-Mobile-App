@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../state/badge_provider.dart' show BadgeProvider, AppBadge;
+
+import '../state/badge_provider.dart' show AppBadge, BadgeProvider;
 
 class BadgesScreen extends StatelessWidget {
   const BadgesScreen({super.key});
@@ -8,14 +9,15 @@ class BadgesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final badges = Provider.of<BadgeProvider>(context).badges;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E2E),
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: colorScheme.surface.withValues(alpha: 0),
         elevation: 0,
         title: const Text(
-          "🏅 Bedževi",
+          "Bedzevi",
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -29,37 +31,34 @@ class BadgesScreen extends StatelessWidget {
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
         ),
-        itemBuilder: (context, index) {
-          final badge = badges[index];
-          return _buildBadgeCard(badge);
-        },
+        itemBuilder: (context, index) => _buildBadgeCard(context, badges[index]),
       ),
     );
   }
 
-  Widget _buildBadgeCard(AppBadge badge) {
-    bool unlocked = badge.unlocked;
+  Widget _buildBadgeCard(BuildContext context, AppBadge badge) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final unlocked = badge.unlocked;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:
-            unlocked ? Colors.white.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.07),
+        color: unlocked
+            ? colorScheme.primaryContainer.withValues(alpha: 0.45)
+            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: unlocked
-              ? Colors.greenAccent.shade400
-              : Colors.white.withValues(alpha: 0.1),
+          color: unlocked ? colorScheme.primary : colorScheme.outline,
           width: 2,
         ),
         boxShadow: unlocked
             ? [
                 BoxShadow(
-                  color: Colors.greenAccent.withValues(alpha: 0.3),
+                  color: colorScheme.primary.withValues(alpha: 0.3),
                   blurRadius: 12,
                   spreadRadius: 2,
-                )
+                ),
               ]
-            : [],
+            : const [],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -74,14 +73,13 @@ class BadgesScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: unlocked
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.5),
+                  ? colorScheme.onSurface
+                  : colorScheme.onSurface,
               fontWeight: FontWeight.w600,
               fontSize: 16,
             ),
           ),
           const SizedBox(height: 12),
-          // Progress circle
           SizedBox(
             width: 65,
             height: 65,
@@ -90,16 +88,17 @@ class BadgesScreen extends StatelessWidget {
               children: [
                 CircularProgressIndicator(
                   value: badge.progress,
-                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                  backgroundColor: colorScheme.outlineVariant.withValues(
+                    alpha: 0.4,
+                  ),
                   valueColor: AlwaysStoppedAnimation(
-                    unlocked ? Colors.greenAccent : Colors.white.withValues(alpha: 0.3),
+                    unlocked ? colorScheme.primary : colorScheme.outline,
                   ),
                   strokeWidth: 6,
                 ),
                 Icon(
                   unlocked ? Icons.check_circle : Icons.lock,
-                  color:
-                      unlocked ? Colors.greenAccent : Colors.white.withValues(alpha: 0.4),
+                  color: unlocked ? colorScheme.primary : colorScheme.outline,
                   size: 28,
                 ),
               ],

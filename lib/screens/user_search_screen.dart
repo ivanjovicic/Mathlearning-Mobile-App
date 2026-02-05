@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/user_profile.dart';
 import '../services/user_service.dart';
 
@@ -12,7 +13,7 @@ class UserSearchScreen extends StatefulWidget {
 class _UserSearchScreenState extends State<UserSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final UserService _userService = UserService.instance;
-  
+
   List<UserSearchResult> _searchResults = [];
   bool _isLoading = false;
   String _errorMessage = '';
@@ -45,7 +46,7 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Search failed: $e';
+        _errorMessage = 'Pretraga trenutno nije uspela. Pokusaj ponovo.';
         _isLoading = false;
       });
     }
@@ -53,21 +54,21 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search Users'),
-        backgroundColor: Colors.blue[600],
-        foregroundColor: Colors.white,
+        title: const Text('Pretraga korisnika'),
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
       ),
       body: Column(
         children: [
-          // Search Input
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search for users...',
+                hintText: 'Pretrazi korisnike...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -82,10 +83,11 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
-                fillColor: Colors.grey[50],
+                fillColor: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.35,
+                ),
               ),
               onChanged: (value) {
-                // Debounce search to avoid too many API calls
                 Future.delayed(const Duration(milliseconds: 500), () {
                   if (_searchController.text == value) {
                     _searchUsers(value);
@@ -94,15 +96,11 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
               },
             ),
           ),
-          
-          // Loading indicator
           if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(20.0),
-              child: CircularProgressIndicator(),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: CircularProgressIndicator(color: colorScheme.primary),
             ),
-          
-          // Error message
           if (_errorMessage.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -110,35 +108,35 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  border: Border.all(color: Colors.red[300]!),
+                  color: colorScheme.errorContainer,
+                  border: Border.all(color: colorScheme.error),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   _errorMessage,
-                  style: TextStyle(color: Colors.red[700]),
+                  style: TextStyle(color: colorScheme.onErrorContainer),
                 ),
               ),
             ),
-          
-          // Search results
           Expanded(
-            child: _searchResults.isEmpty && !_isLoading && _searchController.text.isNotEmpty
-                ? const Center(
+            child: _searchResults.isEmpty &&
+                    !_isLoading &&
+                    _searchController.text.isNotEmpty
+                ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.search_off,
                           size: 64,
-                          color: Colors.grey,
+                          color: colorScheme.onSurface,
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Text(
-                          'No users found',
+                          'Nema rezultata',
                           style: TextStyle(
                             fontSize: 18,
-                            color: Colors.grey,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ],
@@ -165,26 +163,25 @@ class _UserTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Colors.blue[600],
+          backgroundColor: colorScheme.primary,
           child: Text(
-            user.displayName.isNotEmpty 
+            user.displayName.isNotEmpty
                 ? user.displayName[0].toUpperCase()
                 : user.username[0].toUpperCase(),
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: colorScheme.onPrimary,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
         title: Text(
           user.displayName.isNotEmpty ? user.displayName : user.username,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,11 +190,11 @@ class _UserTile extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.star, size: 16, color: Colors.amber[600]),
+                Icon(Icons.star, size: 16, color: colorScheme.secondary),
                 const SizedBox(width: 4),
-                Text('Level ${user.level}'),
+                Text('Nivo ${user.level}'),
                 const SizedBox(width: 16),
-                Icon(Icons.trending_up, size: 16, color: Colors.green[600]),
+                Icon(Icons.trending_up, size: 16, color: colorScheme.tertiary),
                 const SizedBox(width: 4),
                 Text('${user.xp} XP'),
               ],
@@ -206,10 +203,12 @@ class _UserTile extends StatelessWidget {
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
-          // TODO: Navigate to user profile or add friend
+          final title = user.displayName.isNotEmpty
+              ? user.displayName
+              : user.username;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Tapped on ${user.displayName}'),
+              content: Text('Izabran korisnik: $title'),
               duration: const Duration(seconds: 1),
             ),
           );

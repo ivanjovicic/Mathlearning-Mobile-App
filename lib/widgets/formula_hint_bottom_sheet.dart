@@ -1,122 +1,230 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_i18n.dart';
+import 'gamified_math_panel.dart';
 
-class FormulaHintBottomSheet extends StatelessWidget {
+class FormulaHintBottomSheet extends StatefulWidget {
   final String formula;
   final VoidCallback? onClose;
 
   const FormulaHintBottomSheet({
-    Key? key,
+    super.key,
     required this.formula,
     this.onClose,
-  }) : super(key: key);
+  });
 
   static Future<void> show(BuildContext context, String formula) {
+    final colorScheme = Theme.of(context).colorScheme;
     return showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
+      backgroundColor: colorScheme.surface.withValues(alpha: 0),
       isScrollControlled: true,
       builder: (context) => FormulaHintBottomSheet(formula: formula),
     );
   }
 
   @override
+  State<FormulaHintBottomSheet> createState() => _FormulaHintBottomSheetState();
+}
+
+class _FormulaHintBottomSheetState extends State<FormulaHintBottomSheet> {
+  late final List<String> _steps;
+  int _visibleSteps = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _steps = _extractSteps(widget.formula);
+    if (_steps.isEmpty) {
+      _steps.add(widget.formula.trim());
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final t = context.t;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF2A2A3E),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag indicator
           Container(
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.3),
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
           const SizedBox(height: 20),
-          
-          // Title
           Row(
             children: [
-              const Icon(Icons.lightbulb, color: Colors.yellow, size: 24),
+              Icon(Icons.lightbulb, color: colorScheme.secondary, size: 24),
               const SizedBox(width: 8),
-              const Text(
-                'Formula Hint',
+              Text(
+                t.formulaHintTitle,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: colorScheme.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const Spacer(),
               IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () {
+                  if (widget.onClose != null) widget.onClose!();
+                  Navigator.pop(context);
+                },
+                icon: Icon(Icons.close, color: colorScheme.onSurface),
               ),
             ],
           ),
-          
-          const SizedBox(height: 16),
-          
-          // Formula
+          const SizedBox(height: 8),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.yellow.withValues(alpha: 0.3),
-                width: 1,
-              ),
+              color: colorScheme.primaryContainer.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              formula,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-              ),
+              t.formulaStepCounter(_visibleSteps, _steps.length),
               textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Close button
+          const SizedBox(height: 12),
+          for (var i = 0; i < _visibleSteps; i++) ...[
+            GamifiedMathPanel(
+              formula: _steps[i],
+              title: "${t.formulaHintTitle} ${i + 1}",
+              subtitle: i == 0 ? t.formulaHintSubtitle : t.showNextStep,
+            ),
+            if (i < _visibleSteps - 1) const SizedBox(height: 10),
+          ],
+          if (_visibleSteps < _steps.length) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _revealNextStep,
+                    icon: const Icon(Icons.visibility_outlined),
+                    label: Text(t.showNextStep),
+                  ),
+                ),
+                if (_steps.length - _visibleSteps > 1) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _revealAllSteps,
+                      child: Text(t.showAllSteps),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: colorScheme.tertiaryContainer.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colorScheme.tertiary.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.workspace_premium_rounded,
+                  size: 18,
+                  color: colorScheme.onTertiaryContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    t.formulaBonusTip,
+                    style: TextStyle(
+                      color: colorScheme.onTertiaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.yellow,
-                foregroundColor: Colors.black,
+                backgroundColor: colorScheme.secondary,
+                foregroundColor: colorScheme.onSecondary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'Got it!',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Text(
+                t.gotIt,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),
-          
-          // Safe area padding
           SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
       ),
     );
+  }
+
+  void _revealNextStep() {
+    if (_visibleSteps >= _steps.length) return;
+    setState(() {
+      _visibleSteps++;
+    });
+  }
+
+  void _revealAllSteps() {
+    setState(() {
+      _visibleSteps = _steps.length;
+    });
+  }
+
+  List<String> _extractSteps(String rawFormula) {
+    final normalized = rawFormula.replaceAll('\r\n', '\n').trim();
+    if (normalized.isEmpty) return ['?'];
+
+    final lines = normalized
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    if (lines.length > 1) return lines;
+
+    const separators = ['=>', '\\Rightarrow', '\\to', ';'];
+    for (final separator in separators) {
+      if (normalized.contains(separator)) {
+        final parts = normalized
+            .split(separator)
+            .map((part) => part.trim())
+            .where((part) => part.isNotEmpty)
+            .toList();
+        if (parts.length > 1) return parts;
+      }
+    }
+
+    return [normalized];
   }
 }

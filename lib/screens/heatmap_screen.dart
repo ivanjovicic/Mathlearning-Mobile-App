@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../state/heatmap_provider.dart';
 import '../widgets/heatmap_tile.dart';
 
@@ -14,7 +15,7 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<HeatmapProvider>(context, listen: false).loadWeek();
     });
   }
@@ -22,15 +23,16 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
   @override
   Widget build(BuildContext context) {
     final heatmap = Provider.of<HeatmapProvider>(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E2E),
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         title: const Text(
-          "📅 Nedeljna Aktivnost",
+          "Nedeljna aktivnost",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: colorScheme.surface.withValues(alpha: 0),
         elevation: 0,
         centerTitle: true,
       ),
@@ -40,30 +42,22 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
           children: [
             _buildWeekLabels(),
             const SizedBox(height: 18),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(7, (i) {
-                int value = heatmap.weekData[i];
-                int max = heatmap.maxValue;
-
-                return HeatmapTile(
-                  value: value,
-                  max: max,
-                  delay: i * 120,
-                );
+                final value = heatmap.weekData[i];
+                final max = heatmap.maxValue;
+                return HeatmapTile(value: value, max: max, delay: i * 120);
               }),
             ),
-
             const SizedBox(height: 20),
-
             Text(
-              "Klikni na dan da vidiš detalje.",
+              "Klikni na dan da vidis detalje.",
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
+                color: colorScheme.onSurface,
                 fontSize: 14,
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -71,17 +65,20 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
   }
 
   Widget _buildWeekLabels() {
-    final days = ["P", "U", "S", "Č", "P", "S", "N"];
+    final colorScheme = Theme.of(context).colorScheme;
+    const days = ["P", "U", "S", "C", "P", "S", "N"];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: days
-          .map((d) => Text(
-                d,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 16,
-                ),
-              ))
+          .map(
+            (d) => Text(
+              d,
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontSize: 16,
+              ),
+            ),
+          )
           .toList(),
     );
   }
