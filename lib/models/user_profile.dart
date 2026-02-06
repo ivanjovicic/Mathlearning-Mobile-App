@@ -6,6 +6,7 @@ class UserProfile {
   final int coins;
   final int xp;
   final int level;
+  final String? avatarUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -17,6 +18,7 @@ class UserProfile {
     required this.coins,
     required this.xp,
     required this.level,
+    this.avatarUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -30,8 +32,13 @@ class UserProfile {
       coins: json['coins'] ?? 100, // Default 100 coins for new users
       xp: json['xp'] ?? 0,
       level: json['level'] ?? 1,
-      createdAt: DateTime.tryParse(json['createdAt'] ?? json['created_at'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(json['updatedAt'] ?? json['updated_at'] ?? '') ?? DateTime.now(),
+      avatarUrl: json['avatarUrl'] ?? json['avatar_url'],
+      createdAt:
+          DateTime.tryParse(json['createdAt'] ?? json['created_at'] ?? '') ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(json['updatedAt'] ?? json['updated_at'] ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -44,6 +51,7 @@ class UserProfile {
       'coins': coins,
       'xp': xp,
       'level': level,
+      'avatarUrl': avatarUrl,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };

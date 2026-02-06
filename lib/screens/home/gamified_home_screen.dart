@@ -10,6 +10,7 @@ import '../../widgets/animated_xp_bar.dart';
 import '../../widgets/level_up_animation.dart';
 import '../../widgets/offline_status_widget.dart';
 import '../../widgets/theme_accessibility_mini_preview.dart';
+import '../../widgets/daily_streak_widget.dart';
 import '../quiz/pick_topic_screen.dart';
 
 class GamifiedHomeScreen extends StatefulWidget {
@@ -78,9 +79,9 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
 
   void _openTopicPicker(ProgressProvider progress) {
     if (progress.topics.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.t.noTopicsAvailable())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.t.noTopicsAvailable())));
       return;
     }
 
@@ -155,7 +156,10 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(18),
           children: [
-            const Align(alignment: Alignment.topRight, child: OfflineStatusWidget()),
+            const Align(
+              alignment: Alignment.topRight,
+              child: OfflineStatusWidget(),
+            ),
             Row(
               children: [
                 Expanded(
@@ -184,8 +188,7 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
               level: progress.level,
               xp: progress.xp,
               xpToNextLevel: progress.xpToNextLevel,
-              topicName:
-                  recommendedTopic?.name ?? t.chooseTopicAndContinueQuiz,
+              topicName: recommendedTopic?.name ?? t.chooseTopicAndContinueQuiz,
               onStart: () {
                 Navigator.pushNamed(
                   context,
@@ -193,6 +196,13 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                   arguments: _resolveQuizTopicId(progress),
                 );
               },
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: DailyStreakWidget(
+                streak: progress.streak,
+                xpEarnedToday: 0, // Could be tracked separately if needed
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -261,7 +271,9 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                 child: ListTile(
                   leading: Icon(
                     locked ? Icons.lock_outline : Icons.play_circle_fill,
-                    color: locked ? colorScheme.onSurfaceVariant : colorScheme.primary,
+                    color: locked
+                        ? colorScheme.onSurfaceVariant
+                        : colorScheme.primary,
                   ),
                   title: Text(
                     topic.name,

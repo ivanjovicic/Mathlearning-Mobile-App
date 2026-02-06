@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/badge_screen.dart';
+import 'screens/daily_review_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/quiz_screen.dart';
@@ -143,6 +144,7 @@ class _AppRoot extends StatelessWidget {
                 home: const AuthCheckWidget(child: AuthWrapper()),
                 routes: {
                   "/home": (_) => const HomeEntryScreen(),
+                  "/daily-review": (_) => const DailyReviewScreen(),
                   "/quiz": (_) => const QuizScreen(),
                   "/heatmap": (_) => const HeatmapScreen(),
                   "/leaderboard": (_) => const LeaderboardScreen(),

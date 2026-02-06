@@ -232,6 +232,23 @@ class ApiService {
     }
   }
 
+  /// Get current user's rank (even if not in top N)
+  Future<Map<String, dynamic>?> getUserRank(String range, String? token) async {
+    try {
+      final response = await _dio.get('/api/leaderboard/me?range=$range');
+
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        return response.data is Map<String, dynamic> ? response.data : null;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('getUserRank failed: $e');
+      return null;
+    }
+  }
+
   // Progress API methods
   Future<Map<String, dynamic>?> getProgressWeakAreas(String? token) async {
     try {

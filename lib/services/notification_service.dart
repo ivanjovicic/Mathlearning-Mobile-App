@@ -24,7 +24,9 @@ class NotificationService {
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings();
     const settings = InitializationSettings(
       android: androidSettings,
@@ -85,6 +87,8 @@ class NotificationService {
       ),
       matchDateTimeComponents: DateTimeComponents.time,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       payload: 'daily_reminder',
     );
 
@@ -103,8 +107,8 @@ class NotificationService {
       granted = granted && (androidGranted ?? true);
     }
 
-    final iosImpl =
-        _notifications.resolvePlatformSpecificImplementation<
+    final iosImpl = _notifications
+        .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
         >();
     if (iosImpl != null) {
@@ -116,8 +120,8 @@ class NotificationService {
       granted = granted && (iosGranted ?? false);
     }
 
-    final macImpl =
-        _notifications.resolvePlatformSpecificImplementation<
+    final macImpl = _notifications
+        .resolvePlatformSpecificImplementation<
           MacOSFlutterLocalNotificationsPlugin
         >();
     if (macImpl != null) {

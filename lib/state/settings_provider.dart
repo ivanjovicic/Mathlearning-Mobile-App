@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/hint_models.dart';
+import '../models/user_settings.dart';
 import '../services/notification_service.dart';
+import '../services/settings_service.dart';
 
 enum AppLanguage { english, serbian, german, spanish }
 
@@ -34,7 +36,8 @@ class SettingsProvider extends ChangeNotifier {
   static const _dailyReminderMinutesKey = 'settings_daily_reminder_minutes';
   static const _languageKey = 'settings_language';
   static const _profileConfiguredKey = 'settings_profile_configured';
-  static const _notificationsConfiguredKey = 'settings_notifications_configured';
+  static const _notificationsConfiguredKey =
+      'settings_notifications_configured';
   static const _themeConfiguredKey = 'settings_theme_configured';
   static const _hintsConfiguredKey = 'settings_hints_configured';
   static const _feedbackConfiguredKey = 'settings_feedback_configured';
@@ -57,6 +60,9 @@ class SettingsProvider extends ChangeNotifier {
   bool _hintsConfigured = false;
   bool _feedbackConfigured = false;
   bool _lastReminderPermissionDenied = false;
+
+  final _settingsService = SettingsService.instance;
+  String? _userId; // Store user ID for API calls
 
   bool get isLoaded => _isLoaded;
   bool get hintsEnabled => _hintsEnabled;
@@ -115,6 +121,57 @@ class SettingsProvider extends ChangeNotifier {
     _load();
   }
 
+  /// Set user ID for syncing settings with backend
+  void setUserId(String userId) {
+    _userId = userId;
+  }
+
+  /// Sync settings from backend
+  Future<void> syncFromBackend(String userId) async {
+    try {
+      final settings = await _settingsService.getUserSettings(userId);
+      if (settings != null) {
+        _hintsEnabled = settings.hintsEnabled;
+        _soundEnabled = settings.soundEnabled;
+        _vibrationEnabled = settings.vibrationEnabled;
+        _dailyReminderEnabled = settings.dailyReminderEnabled;
+
+        if (settings.dailyReminderHour != null &&
+            settings.dailyReminderMinute != null) {
+          _dailyReminderTime = TimeOfDay(
+            hour: settings.dailyReminderHour!,
+            minute: settings.dailyReminderMinute!,
+          );
+        }
+
+        notifyListeners();
+        await _persist();
+      }
+    } catch (e) {
+      debugPrint('Error syncing settings from backend: $e');
+    }
+  }
+
+  /// Sync settings to backend
+  Future<void> _syncToBackend() async {
+    if (_userId == null) return;
+
+    try {
+      final settings = UserSettings(
+        hintsEnabled: _hintsEnabled,
+        soundEnabled: _soundEnabled,
+        vibrationEnabled: _vibrationEnabled,
+        dailyReminderEnabled: _dailyReminderEnabled,
+        dailyReminderHour: _dailyReminderTime.hour,
+        dailyReminderMinute: _dailyReminderTime.minute,
+      );
+
+      await _settingsService.updateUserSettings(_userId!, settings);
+    } catch (e) {
+      debugPrint('Error syncing settings to backend: $e');
+    }
+  }
+
   bool isHintTypeEnabled(String hintType) {
     if (!_hintsEnabled) return false;
     switch (hintType) {
@@ -157,6 +214,7 @@ class SettingsProvider extends ChangeNotifier {
     _hintsConfigured = true;
     notifyListeners();
     await _persist();
+    await _syncToBackend(); // Sync to backend
   }
 
   Future<void> setFormulaHintEnabled(bool value) async {
@@ -189,6 +247,7 @@ class SettingsProvider extends ChangeNotifier {
     _feedbackConfigured = true;
     notifyListeners();
     await _persist();
+    await _syncToBackend(); // Sync to backend
   }
 
   Future<void> setVibrationEnabled(bool value) async {
@@ -197,6 +256,7 @@ class SettingsProvider extends ChangeNotifier {
     _feedbackConfigured = true;
     notifyListeners();
     await _persist();
+    await _syncToBackend(); // Sync to backend
   }
 
   Future<void> setDailyReminderEnabled(bool value) async {
@@ -214,6 +274,7 @@ class SettingsProvider extends ChangeNotifier {
     }
 
     await _persist();
+    await _syncToBackend(); // Sync to backend
   }
 
   Future<void> setReminderTime(TimeOfDay value) async {
@@ -231,6 +292,7 @@ class SettingsProvider extends ChangeNotifier {
     }
 
     await _persist();
+    await _syncToBackend(); // Sync to backend
   }
 
   Future<void> _load() async {
@@ -267,9 +329,7 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> _syncReminderSchedule({
-    required bool requestPermission,
-  }) async {
+  Future<bool> _syncReminderSchedule({required bool requestPermission}) async {
     try {
       return await NotificationService.instance.syncDailyReminder(
         enabled: _dailyReminderEnabled,
@@ -312,9 +372,6 @@ class SettingsProvider extends ChangeNotifier {
 
   TimeOfDay _timeFromMinutes(int minutes) {
     final normalized = minutes.clamp(0, 1439).toInt();
-    return TimeOfDay(
-      hour: normalized ~/ 60,
-      minute: normalized % 60,
-    );
+    return TimeOfDay(hour: normalized ~/ 60, minute: normalized % 60);
   }
 }

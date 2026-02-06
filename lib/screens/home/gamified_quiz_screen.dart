@@ -7,10 +7,15 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_i18n.dart';
 import '../../state/quiz_provider.dart';
+import '../../state/progress_provider.dart';
 import '../../state/settings_provider.dart';
 import '../../widgets/gamified_math_panel.dart';
 import '../../widgets/game_button.dart';
 import '../../widgets/cooldown_circle.dart';
+import '../../widgets/mastery_burst.dart';
+import '../../widgets/mastery_progress_bar.dart';
+import '../../widgets/streak_flame.dart';
+import '../../widgets/xp_pop_animation.dart';
 
 class GamifiedQuizScreen extends StatefulWidget {
   final String questionText;
@@ -46,7 +51,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
 
   double questionScale = 1.0;
   double shakeOffset = 0.0;
-  bool showXpPopup = false;
+  OverlayEntry? _xpOverlay;
+  OverlayEntry? _streakOverlay;
+  OverlayEntry? _masteryOverlay;
   bool get _reduceMotion =>
       MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
@@ -61,9 +68,15 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       isSubmitting = false;
       questionScale = 1.0;
       shakeOffset = 0.0;
-      showXpPopup = false;
       _lastBonusXp = 0;
+      _removeOverlays();
     }
+  }
+
+  @override
+  void dispose() {
+    _removeOverlays();
+    super.dispose();
   }
 
   @override
@@ -86,33 +99,11 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
               const SizedBox(height: 16),
               _buildHeader(theme, colorScheme, progress),
               const SizedBox(height: 20),
-              if (showXpPopup)
-                AnimatedOpacity(
-                  opacity: showXpPopup ? 1 : 0,
-                  duration: _reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 400),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 22,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.secondary,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Text(
-                      _lastBonusXp > 0
-                          ? "+${widget.xpReward + _lastBonusXp} XP"
-                          : "+${widget.xpReward} XP",
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: colorScheme.onSecondary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
+              _buildMasteryRow(
+                theme: theme,
+                colorScheme: colorScheme,
+                masteryProgress: quizProvider.masteryPercent,
+              ),
               if (_combo > 1) ...[
                 const SizedBox(height: 8),
                 _buildComboChip(theme, colorScheme, t.comboLabel(_combo)),
@@ -335,6 +326,44 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     );
   }
 
+  Widget _buildMasteryRow({
+    required ThemeData theme,
+    required ColorScheme colorScheme,
+    required double masteryProgress,
+  }) {
+    final t = context.t;
+    final percentage = (masteryProgress * 100).round();
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              t.masteryLabel,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.8),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              "$percentage%",
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.8),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        MasteryProgressBar(
+          progress: masteryProgress,
+          animate: !_reduceMotion,
+        ),
+      ],
+    );
+  }
+
   Widget _buildComboChip(
     ThemeData theme,
     ColorScheme colorScheme,
@@ -425,8 +454,12 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
 
   void _handleAnswer(OptionItem opt) {
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
+    final progressProvider =
+        Provider.of<ProgressProvider>(context, listen: false);
     final awardBonus =
         opt.isCorrect && !quizProvider.usedHintForCurrentQuestion;
+    final theme = Theme.of(context);
+    final t = context.t;
 
     _playInteractionFeedback(isCorrect: opt.isCorrect);
 
@@ -438,9 +471,35 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       _lastBonusXp = awardBonus ? _noHintBonusXp : 0;
     });
 
+    final previousMastery = quizProvider.masteryPercent;
+    quizProvider.applyMasteryDelta(isCorrect: opt.isCorrect);
+    _maybeShowMasteryBurst(
+      previous: previousMastery,
+      current: quizProvider.masteryPercent,
+      theme: theme,
+      t: t,
+    );
+
     if (isCorrect) {
+      final totalXp = widget.xpReward + _lastBonusXp;
+      _showXpPop(
+        xp: totalXp,
+        backgroundColor: theme.colorScheme.secondary,
+        textColor: theme.colorScheme.onSecondary,
+        icon: Icons.auto_awesome,
+      );
+      if (progressProvider.streak > 0) {
+        _showStreakFlame(progressProvider.streak);
+      }
       _correctAnimation();
     } else {
+      _showXpPop(
+        xp: 0,
+        label: t.tryAgain,
+        backgroundColor: theme.colorScheme.errorContainer,
+        textColor: theme.colorScheme.onErrorContainer,
+        icon: Icons.close,
+      );
       _wrongAnimation();
     }
   }
@@ -464,19 +523,123 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
   Future<void> _nextQuestionWithCooldown() async {
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
 
-    // Start XP animation
-    setState(() => showXpPopup = true);
-
     // Wait 1 second for cooldown
     await Future.delayed(const Duration(seconds: 1));
 
     if (!mounted) return;
 
-    // Hide XP popup
-    setState(() => showXpPopup = false);
-
     // Move to next question
     quizProvider.goToNextQuestion();
+  }
+
+  void _showXpPop({
+    required int xp,
+    String? label,
+    required Color backgroundColor,
+    required Color textColor,
+    IconData? icon,
+  }) {
+    if (_reduceMotion) return;
+    _xpOverlay?.remove();
+    _xpOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 120,
+        right: 20,
+        child: IgnorePointer(
+          child: XpPopAnimation(
+            xp: xp,
+            label: label,
+            backgroundColor: backgroundColor,
+            textColor: textColor,
+            icon: icon,
+            reduceMotion: _reduceMotion,
+          ),
+        ),
+      ),
+    );
+    Overlay.of(context, rootOverlay: true).insert(_xpOverlay!);
+    Future.delayed(const Duration(milliseconds: 900), () {
+      _xpOverlay?.remove();
+      _xpOverlay = null;
+    });
+  }
+
+  void _showStreakFlame(int streak) {
+    if (_reduceMotion) return;
+    _streakOverlay?.remove();
+    _streakOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 140,
+        left: 0,
+        right: 0,
+        child: IgnorePointer(
+          child: Center(child: StreakFlame(streak: streak)),
+        ),
+      ),
+    );
+    Overlay.of(context, rootOverlay: true).insert(_streakOverlay!);
+    Future.delayed(const Duration(milliseconds: 650), () {
+      _streakOverlay?.remove();
+      _streakOverlay = null;
+    });
+  }
+
+  void _maybeShowMasteryBurst({
+    required double previous,
+    required double current,
+    required ThemeData theme,
+    required AppI18n t,
+  }) {
+    if (_reduceMotion) return;
+    if (previous < 0.5 && current >= 0.5) {
+      _showMasteryBurst(
+        label: t.masteryMilestone(50),
+        color: theme.colorScheme.tertiary,
+      );
+    }
+    if (previous < 1.0 && current >= 1.0) {
+      _showMasteryBurst(
+        label: t.masteryMax,
+        color: theme.colorScheme.primary,
+      );
+    }
+  }
+
+  void _showMasteryBurst({
+    required String label,
+    required Color color,
+  }) {
+    _masteryOverlay?.remove();
+    _masteryOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 90,
+        left: 0,
+        right: 0,
+        child: IgnorePointer(
+          child: Center(
+            child: MasteryBurst(
+              label: label,
+              color: color,
+              reduceMotion: _reduceMotion,
+            ),
+          ),
+        ),
+      ),
+    );
+    Overlay.of(context, rootOverlay: true).insert(_masteryOverlay!);
+    Future.delayed(const Duration(milliseconds: 700), () {
+      _masteryOverlay?.remove();
+      _masteryOverlay = null;
+    });
+  }
+
+  void _removeOverlays() {
+    _xpOverlay?.remove();
+    _xpOverlay = null;
+    _streakOverlay?.remove();
+    _streakOverlay = null;
+    _masteryOverlay?.remove();
+    _masteryOverlay = null;
   }
 
   void _correctAnimation() {

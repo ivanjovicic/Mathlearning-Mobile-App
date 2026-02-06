@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/offline_manager.dart';
+import '../services/srs_service.dart';
 import '../models/question.dart';
 import '../models/option.dart';
 import '../models/hint_models.dart';
@@ -15,6 +16,7 @@ import 'settings_provider.dart';
 class QuizProvider extends ChangeNotifier {
   final api = ApiService();
   final _offline = OfflineManager.instance;
+  final _srs = SrsService.instance;
 
   String? token;
   String? quizId;
@@ -22,6 +24,9 @@ class QuizProvider extends ChangeNotifier {
   int questionsAnsweredInSession = 0;
   List<Question> _allQuestions = []; // Store all questions for offline mode
   int _currentQuestionIndex = 0;
+  bool _isSrsMode = false; // Track if current quiz is SRS mode
+  int _questionStartTime =
+      0; // Track when question started for time calculation
 
   // Hint system state
   String? _currentClue;
@@ -38,8 +43,62 @@ class QuizProvider extends ChangeNotifier {
   bool get isLoadingHint => _isLoadingHint;
   bool get usedHintForCurrentQuestion => _usedHintForCurrentQuestion;
   bool get isCooldown => _isCooldown;
+  bool get isSrsMode => _isSrsMode;
   int get totalQuestions => _allQuestions.length;
   int get currentQuestionNumber => _currentQuestionIndex + 1;
+  List<Question> get questions => List.unmodifiable(_allQuestions);
+  double _masteryPercent = 0.0;
+  double get masteryPercent => _masteryPercent;
+  bool _skipDailyReviewOnce = false;
+
+  void skipDailyReviewOnce() {
+    _skipDailyReviewOnce = true;
+  }
+
+  bool consumeSkipDailyReviewOnce() {
+    final shouldSkip = _skipDailyReviewOnce;
+    _skipDailyReviewOnce = false;
+    return shouldSkip;
+  }
+
+  void resetMastery() {
+    _masteryPercent = 0.0;
+  }
+
+  void applyMasteryDelta({required bool isCorrect}) {
+    final delta = isCorrect ? 0.12 : -0.06;
+    _masteryPercent = (_masteryPercent + delta).clamp(0.0, 1.0);
+    notifyListeners();
+  }
+
+  Future<void> loadQuiz({int count = 10}) async {
+    questionsAnsweredInSession = 0;
+    _currentQuestionIndex = 0;
+    _allQuestions = [];
+    _isSrsMode = true;
+    _resetHints();
+    resetMastery();
+
+    final srsQuestions = await _srs.fetchDailySrsQuestions();
+    final limited = srsQuestions.take(count);
+    _allQuestions = limited.map((q) => Question.fromJson(q)).toList();
+
+    if (_allQuestions.isNotEmpty) {
+      quizId = "srs-review-${DateTime.now().millisecondsSinceEpoch}";
+      currentQuestion = _allQuestions[0];
+      _questionStartTime = DateTime.now().millisecondsSinceEpoch;
+    } else {
+      quizId = null;
+      currentQuestion = null;
+    }
+
+    notifyListeners();
+  }
+
+  Future<int> getDailySrsCount() async {
+    final srsQuestions = await _srs.fetchDailySrsQuestions();
+    return srsQuestions.length;
+  }
 
   Future<bool> startQuiz(int subtopicId, int count) async {
     try {
@@ -47,9 +106,25 @@ class QuizProvider extends ChangeNotifier {
       questionsAnsweredInSession = 0;
       _currentQuestionIndex = 0;
       _allQuestions = [];
+      _isSrsMode = false;
       _resetHints();
+      resetMastery();
 
-      // Try to get questions (online first, fallback to cache)
+      // 1️⃣ FIRST: Try to get SRS questions (priority)
+      final srsQuestions = await _srs.fetchDailySrsQuestions();
+
+      if (srsQuestions.isNotEmpty) {
+        debugPrint('✅ Found ${srsQuestions.length} SRS questions for review');
+        _allQuestions = srsQuestions.map((q) => Question.fromJson(q)).toList();
+        _isSrsMode = true;
+        quizId = "srs-quiz-${DateTime.now().millisecondsSinceEpoch}";
+        currentQuestion = _allQuestions[0];
+        _questionStartTime = DateTime.now().millisecondsSinceEpoch;
+        notifyListeners();
+        return true;
+      }
+
+      // 2️⃣ FALLBACK: Try to get normal topic questions
       final questionsData = await _offline.getQuestions(
         subtopicId,
         count,
@@ -65,6 +140,7 @@ class QuizProvider extends ChangeNotifier {
 
         // Set first question
         currentQuestion = _allQuestions[0];
+        _questionStartTime = DateTime.now().millisecondsSinceEpoch;
         notifyListeners();
         return true;
       }
@@ -79,6 +155,7 @@ class QuizProvider extends ChangeNotifier {
   Future<bool> _startFallbackQuiz() async {
     // Demo quiz for offline use with multiple questions
     quizId = "demo-quiz-${DateTime.now().millisecondsSinceEpoch}";
+    resetMastery();
 
     _allQuestions = [
       Question(
@@ -140,6 +217,7 @@ class QuizProvider extends ChangeNotifier {
 
     _currentQuestionIndex = 0;
     currentQuestion = _allQuestions[0];
+    _questionStartTime = DateTime.now().millisecondsSinceEpoch;
 
     debugPrint('✅ Demo quiz started with ${_allQuestions.length} questions');
     notifyListeners();
@@ -173,7 +251,23 @@ class QuizProvider extends ChangeNotifier {
       '🎯 Answer: "$answer" (ID: ${selectedOption?.id}) | Correct ID: ${currentQuestion!.correctAnswerId} | Is Correct: $isCorrect',
     );
 
+    // Calculate time spent on this question
+    final currentTime = DateTime.now().millisecondsSinceEpoch;
+    final timeMs = currentTime - _questionStartTime;
+
     try {
+      // If this is SRS mode, update SRS data
+      if (_isSrsMode) {
+        await _srs.updateSrs(
+          questionId: currentQuestion!.id,
+          isCorrect: isCorrect,
+          timeMs: timeMs,
+        );
+        debugPrint(
+          '📊 SRS updated: Q${currentQuestion!.id}, correct=$isCorrect, time=${timeMs}ms',
+        );
+      }
+
       // Submit answer (online or queue for offline sync)
       await _offline.submitAnswer(
         quizId: quizId!,
@@ -208,6 +302,8 @@ class QuizProvider extends ChangeNotifier {
     if (_currentQuestionIndex < _allQuestions.length) {
       currentQuestion = _allQuestions[_currentQuestionIndex];
       _resetHints(); // Reset hints for new question
+      _questionStartTime =
+          DateTime.now().millisecondsSinceEpoch; // Reset timer for new question
     }
     _isCooldown = false;
     notifyListeners();

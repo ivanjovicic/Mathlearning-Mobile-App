@@ -508,7 +508,7 @@ class _LanguageDropdown extends StatelessWidget {
         child: DropdownButtonFormField<AppLanguage>(
           initialValue: settings.language,
           decoration: InputDecoration(
-            labelText: t.language,
+            labelText: t.languageLabel,
             prefixIcon: const Icon(Icons.language),
           ),
           items: AppLanguage.values

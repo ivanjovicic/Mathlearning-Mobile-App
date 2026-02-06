@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mathlearning/widgets/animated_xp_bar.dart';
 import 'package:provider/provider.dart';
 
@@ -7,8 +9,10 @@ import '../models/topic_item.dart';
 import '../state/auth_provider.dart';
 import '../state/coin_provider.dart';
 import '../state/progress_provider.dart';
+import '../state/quiz_provider.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/offline_status_widget.dart';
+import '../widgets/streak_progress_bar.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
 import 'quiz/pick_topic_screen.dart';
 
@@ -19,12 +23,23 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   static const int _dailyGoalTarget = 20;
+  late Future<int> _dailyReviewCountFuture;
+  late final AnimationController _refreshSpinController;
+  bool _isRefreshingDailyReview = false;
+  bool _showRefreshSuccess = false;
 
   @override
   void initState() {
     super.initState();
+    _refreshSpinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    WidgetsBinding.instance.addObserver(this);
+    _refreshDailyReviewCount();
     Future.microtask(() {
       if (!mounted) return;
 
@@ -51,6 +66,54 @@ class _HomeScreenState extends State<HomeScreen> {
       progress.loadProgress();
       progress.loadTopics();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshSpinController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshDailyReviewCount();
+    }
+  }
+
+  void _refreshDailyReviewCount() {
+    if (!mounted) return;
+    setState(() {
+      _isRefreshingDailyReview = true;
+      _dailyReviewCountFuture =
+          Provider.of<QuizProvider>(context, listen: false).getDailySrsCount();
+    });
+    _refreshSpinController
+      ..reset()
+      ..repeat();
+    _dailyReviewCountFuture.whenComplete(() {
+      if (!mounted) return;
+      setState(() => _isRefreshingDailyReview = false);
+      _refreshSpinController
+        ..stop()
+        ..reset();
+      setState(() => _showRefreshSuccess = true);
+      Future.delayed(const Duration(milliseconds: 700), () {
+        if (!mounted) return;
+        setState(() => _showRefreshSuccess = false);
+      });
+    });
+  }
+
+  String _formatDailyReviewSubtitle(int count) {
+    if (count == 0) {
+      return "Nema SRS pitanja za danas";
+    }
+
+    final totalSeconds = (count * 45);
+    final minutes = (totalSeconds / 60).round().clamp(1, 99);
+    return "Danas imas $count SRS pitanja • ~$minutes min";
   }
 
   TopicProgress? _findRecommendedTopic(ProgressProvider progress) {
@@ -143,6 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final progress = Provider.of<ProgressProvider>(context);
     final auth = Provider.of<AuthProvider>(context);
     final colorScheme = Theme.of(context).colorScheme;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
     final username = auth.username?.trim();
     final recommendedTopic = _findRecommendedTopic(progress);
     final dailyDone = progress.totalAttempts % _dailyGoalTarget;
@@ -225,6 +289,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 20),
+              StreakProgressBar(
+                streak: progress.streak,
+                maxStreak: 30,
+                enableBurst: true,
+              ),
+              const SizedBox(height: 16),
               Text(
                 t.level(progress.level),
                 style: TextStyle(
@@ -255,6 +325,63 @@ class _HomeScreenState extends State<HomeScreen> {
                     "/quiz",
                     arguments: _resolveQuizTopicId(progress),
                   );
+                },
+              ),
+              const SizedBox(height: 10),
+              FutureBuilder<int>(
+                future: _dailyReviewCountFuture,
+                builder: (context, snapshot) {
+                  final count = snapshot.data ?? 0;
+                  final isLoading = snapshot.connectionState ==
+                          ConnectionState.waiting ||
+                      _isRefreshingDailyReview;
+                  final subtitle = isLoading
+                      ? "Ucitavam dnevni review..."
+                      : _formatDailyReviewSubtitle(count);
+                  final isEnabled = !isLoading && count > 0;
+
+                  final card = _buildDailyReviewCard(
+                    title: "Daily Review",
+                    subtitle: subtitle,
+                    enabled: isEnabled,
+                    onTap: isEnabled
+                        ? () async {
+                            HapticFeedback.selectionClick();
+                            await Navigator.pushNamed(context, "/daily-review");
+                            if (!mounted) return;
+                            _refreshDailyReviewCount();
+                          }
+                        : null,
+                    onDisabledTap: !isEnabled
+                        ? () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Nema pitanja za danas."),
+                              ),
+                            );
+                          }
+                        : null,
+                    onRefresh:
+                        _isRefreshingDailyReview ? null : _refreshDailyReviewCount,
+                    subtitleLoading: isLoading,
+                  );
+
+                  if (reduceMotion) {
+                    return card;
+                  }
+
+                  return card
+                      .animate()
+                      .fadeIn(duration: 250.ms)
+                      .scale(
+                        duration: 300.ms,
+                        curve: Curves.easeOutBack,
+                      )
+                      .then()
+                      .shimmer(
+                        duration: 1200.ms,
+                        color: colorScheme.secondary.withValues(alpha: 0.6),
+                      );
                 },
               ),
               Align(
@@ -489,6 +616,166 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 8),
             Icon(Icons.arrow_forward, color: colorScheme.onPrimary),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyReviewCard({
+    required String title,
+    required String subtitle,
+    required bool enabled,
+    VoidCallback? onTap,
+    VoidCallback? onDisabledTap,
+    VoidCallback? onRefresh,
+    bool subtitleLoading = false,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    return Semantics(
+      label: "$title, $subtitle",
+      button: true,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.6,
+        child: InkWell(
+          onTap: enabled ? onTap : onDisabledTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Ink(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: colorScheme.secondary.withValues(alpha: 0.7),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.secondary.withValues(alpha: 0.2),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colorScheme.secondary.withValues(alpha: 0.15),
+                  ),
+                  child: Icon(
+                    Icons.auto_awesome,
+                    color: colorScheme.secondary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colorScheme.onSurface
+                              .withValues(alpha: enabled ? 0.7 : 0.45),
+                          fontSize: 13,
+                        ),
+                      ).animate(
+                        target: subtitleLoading && !reduceMotion ? 1 : 0,
+                      ).shimmer(
+                        duration: 900.ms,
+                        color: colorScheme.secondary.withValues(alpha: 0.6),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (onRefresh != null)
+                  Tooltip(
+                    message: "Osvezi",
+                    child: InkResponse(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        onRefresh();
+                      },
+                      radius: 22,
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: colorScheme.secondary.withValues(alpha: 0.12),
+                          border: Border.all(
+                            color: colorScheme.secondary.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          switchInCurve: Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          child: _showRefreshSuccess
+                              ? Icon(
+                                  Icons.check,
+                                  key: const ValueKey('refresh_check'),
+                                  size: 18,
+                                  color: colorScheme.secondary,
+                                ).animate().scale(
+                                    duration: 200.ms,
+                                    curve: Curves.easeOutBack,
+                                  )
+                              : RotationTransition(
+                                  key: const ValueKey('refresh_spin'),
+                                  turns: _refreshSpinController,
+                                  child: Icon(
+                                    Icons.refresh,
+                                    size: 18,
+                                    color: colorScheme.secondary,
+                                  )
+                                      .animate(
+                                        target: _isRefreshingDailyReview &&
+                                                !reduceMotion
+                                            ? 1
+                                            : 0,
+                                      )
+                                      .scale(
+                                        begin: const Offset(1.0, 1.0),
+                                        end: const Offset(1.15, 1.15),
+                                        duration: 500.ms,
+                                        curve: Curves.easeInOut,
+                                      )
+                                      .then()
+                                      .scale(
+                                        begin: const Offset(1.15, 1.15),
+                                        end: const Offset(1.0, 1.0),
+                                        duration: 500.ms,
+                                        curve: Curves.easeInOut,
+                                      ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                Icon(Icons.arrow_forward, color: colorScheme.onSurface),
+              ],
+            ),
+          ),
         ),
       ),
     );

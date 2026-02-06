@@ -29,6 +29,14 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Future<void> _startQuiz() async {
     final quiz = Provider.of<QuizProvider>(context, listen: false);
+    if (!quiz.consumeSkipDailyReviewOnce()) {
+      final dailyCount = await quiz.getDailySrsCount();
+      if (dailyCount > 0) {
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, "/daily-review");
+        return;
+      }
+    }
     await quiz.startQuiz(_subtopicId, 10);
 
     if (!mounted) return;
