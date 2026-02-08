@@ -88,7 +88,7 @@ class _QuizScreenState extends State<QuizScreen> {
     }
 
     return GamifiedQuizScreen(
-      questionText: question.text,
+      question: question,
       questionNumber: quiz.currentQuestionNumber,
       totalQuestions: quiz.totalQuestions,
       options: question.options

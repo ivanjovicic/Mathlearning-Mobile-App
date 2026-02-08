@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/badge_screen.dart';
@@ -11,6 +13,8 @@ import 'screens/reward_screen.dart';
 import 'screens/heatmap_screen.dart';
 import 'screens/leaderboard_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/quiz_summary_screen.dart';
+import 'screens/my_feedback_screen.dart';
 
 import 'state/badge_provider.dart';
 import 'state/leaderboard_provider.dart';
@@ -20,8 +24,10 @@ import 'state/progress_provider.dart';
 import 'state/heatmap_provider.dart';
 import 'state/coin_provider.dart';
 import 'state/settings_provider.dart';
+import 'state/onboarding_provider.dart';
 
 import 'theme/theme_controller.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 import 'theme_selector_page.dart';
 import 'widgets/auth_wrapper.dart';
 
@@ -32,12 +38,35 @@ import 'effects/glass_break_transition.dart';
 import 'services/offline_manager.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/bug_capture_service.dart';
+import 'services/bug_report_service.dart';
+import 'services/route_tracker.dart';
+import 'widgets/global_bug_report_button.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  AuthService.instance.initialize();
-  OfflineManager.instance.initialize();
+  // Allow google_fonts to fetch from Google CDN at runtime.
+  // On web the asset bundle may not contain bundled fonts, so this
+  // prevents the AssetManifest.json 404 crash.
+  GoogleFonts.config.allowRuntimeFetching = true;
+
+  // On web, tell Flutter to use the CanvasKit-compatible font loader
+  // and suppress asset-manifest errors for missing font files.
+  if (kIsWeb) {
+    FlutterError.onError = (FlutterErrorDetails details) {
+      final msg = details.exceptionAsString();
+      if (msg.contains('AssetManifest') || msg.contains('Unable to load asset')) {
+        debugPrint('⚠️ Suppressed web asset error: $msg');
+        return;
+      }
+      FlutterError.presentError(details);
+    };
+  }
+
+  await AuthService.instance.initialize();
+  await OfflineManager.instance.initialize();
+  await BugReportService.instance.syncPendingReports();
   await NotificationService.instance.initialize();
 
   runApp(const MathLearningApp());
@@ -58,12 +87,26 @@ class MathLearningApp extends StatelessWidget {
           create: (context) => BadgeProvider(
             Provider.of<ProgressProvider>(context, listen: false),
           ),
-          update: (context, progress, previous) => BadgeProvider(progress),
+          update: (context, progress, previous) {
+            if (previous == null) return BadgeProvider(progress);
+            previous.updateProgress(progress);
+            return previous;
+          },
         ),
-        ChangeNotifierProvider(create: (_) => QuizProvider()),
+        ChangeNotifierProxyProvider<ProgressProvider, QuizProvider>(
+          create: (context) => QuizProvider(),
+          update: (context, progress, previous) {
+            if (previous == null) {
+              return QuizProvider()..updateProgressProvider(progress);
+            }
+            previous.updateProgressProvider(progress);
+            return previous;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => HeatmapProvider()),
         ChangeNotifierProvider(create: (_) => LeaderboardProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => OnboardingProvider()),
       ],
       child: const _AppRoot(),
     );
@@ -131,6 +174,7 @@ class _AppRoot extends StatelessWidget {
                   GlobalCupertinoLocalizations.delegate,
                   GlobalWidgetsLocalizations.delegate,
                 ],
+                navigatorObservers: [RouteTracker.instance],
                 builder: (context, child) {
                   final mediaQuery = MediaQuery.of(context);
                   return MediaQuery(
@@ -138,7 +182,18 @@ class _AppRoot extends StatelessWidget {
                       disableAnimations: reduceMotion,
                       highContrast: mediaQuery.highContrast || highContrast,
                     ),
-                    child: child ?? const SizedBox.shrink(),
+                    child: RepaintBoundary(
+                      key: BugCaptureService.instance.rootBoundaryKey,
+                      child: Stack(
+                        children: [
+                          child ?? const SizedBox.shrink(),
+                          const Align(
+                            alignment: Alignment.bottomRight,
+                            child: GlobalBugReportButton(),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
                 home: const AuthCheckWidget(child: AuthWrapper()),
@@ -154,6 +209,9 @@ class _AppRoot extends StatelessWidget {
                   "/settings": (_) => const SettingsScreen(),
                   "/login": (_) => const LoginScreen(),
                   "/themes": (_) => const ThemeSelectorPage(),
+                  "/onboarding": (_) => const OnboardingScreen(),
+                  "/quiz-summary": (_) => const QuizSummaryScreen(),
+                  "/my-feedback": (_) => const MyFeedbackScreen(),
                 },
               ),
             ),

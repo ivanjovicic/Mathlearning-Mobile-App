@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/progress_service.dart';
 import '../models/topic_dto.dart';
 import '../services/offline_storage_service.dart';
 
 class ProgressProvider extends ChangeNotifier {
   final api = ApiService();
+  final ProgressService _progressService = ProgressService.instance;
 
   String? token;
 
@@ -18,9 +20,55 @@ class ProgressProvider extends ChangeNotifier {
 
   VoidCallback? onLevelUp; // callback za animaciju
 
+  // ─── Optimistic update: apply XP / streak instantly ───
+
+  /// Called by QuizProvider right after answering a question.
+  /// Updates XP & streak immediately (works offline too).
+  void applyAnswerResult({
+    required bool isCorrect,
+    int xpForQuestion = 10,
+  }) {
+    totalAttempts++;
+
+    if (isCorrect) {
+      xp += xpForQuestion;
+      streak++;
+
+      // Level-up check
+      while (xp >= xpToNextLevel) {
+        xp -= xpToNextLevel;
+        level++;
+        if (onLevelUp != null) onLevelUp!();
+      }
+    } else {
+      // Wrong answer doesn't break streak, but doesn't increase it
+    }
+
+    // Recalculate accuracy optimistically
+    // (rough: can't know exact server accuracy, but keep local consistent)
+    if (totalAttempts > 0) {
+      // We track correct count implicitly: accuracy * oldAttempts + (1 or 0)
+      final oldCorrectCount =
+          ((accuracy / 100.0) * (totalAttempts - 1)).round();
+      final newCorrectCount = oldCorrectCount + (isCorrect ? 1 : 0);
+      accuracy = (newCorrectCount / totalAttempts) * 100.0;
+    }
+
+    _cacheProgressLocally();
+    notifyListeners();
+  }
+
+  // ─── Load progress (cache-first, then server) ───
+
   Future<void> loadProgress() async {
+    // 1) Try from cache first (instant UI)
+    final cached = await OfflineStorageService.getCachedUserProgress();
+    if (cached != null) {
+      _applyFromCache(cached, notify: false);
+    }
+
+    // 2) Try from server to reconcile
     try {
-      // Skip API call if using demo token (backend not ready)
       if (token?.startsWith('demo_token') != true) {
         final data = await api.get("/api/progress/overview", token);
         if (data != null) {
@@ -28,53 +76,96 @@ class ProgressProvider extends ChangeNotifier {
           accuracy = (data["accuracy"] as num?)?.toDouble() ?? 0.0;
           streak = data["streak"] ?? 0;
 
-          // XP se generiše iz performansa
           xp = calculateXp(totalAttempts, accuracy);
 
-          // PROVERI LEVEL UP
           while (xp >= xpToNextLevel) {
             xp -= xpToNextLevel;
             level++;
-
-            // TRIGGER LEVEL UP ANIMACIJE
             if (onLevelUp != null) onLevelUp!();
           }
 
-          // Cache progress data for offline use
-          await OfflineStorageService.cacheUserProgress(
-            level: level,
-            xp: xp,
-            streak: streak,
-            totalAttempts: totalAttempts,
-            accuracy: accuracy,
-          );
-
+          await _cacheProgressLocally();
           notifyListeners();
           return;
         }
       }
     } catch (e) {
-      // API failed, try loading from cache
       debugPrint('Progress API failed: $e');
-      final cached = await OfflineStorageService.getCachedUserProgress();
+      // Already loaded from cache above, so UI still has data
       if (cached != null) {
-        level = cached['level'];
-        xp = cached['xp'];
-        streak = cached['streak'];
-        totalAttempts = cached['total_attempts'];
-        accuracy = cached['accuracy'];
         notifyListeners();
         return;
       }
     }
 
-    // Fallback demo data (when using demo token, API fails, and no cache)
-    totalAttempts = 15;
-    accuracy = 75.0;
-    streak = 3;
-    xp = calculateXp(totalAttempts, accuracy);
+    // 3) Fallback demo data (when using demo token, API fails, and no cache)
+    if (cached == null) {
+      totalAttempts = 15;
+      accuracy = 75.0;
+      streak = 3;
+      xp = calculateXp(totalAttempts, accuracy);
+    }
 
     notifyListeners();
+  }
+
+  // ─── Sync local progress with server (reconcile after offline) ───
+
+  /// Push local state to server, then pull authoritative copy back.
+  Future<void> syncWithServer() async {
+    final localMap = {
+      'level': level,
+      'xp': xp,
+      'streak': streak,
+      'totalAttempts': totalAttempts,
+      'accuracy': accuracy,
+    };
+
+    try {
+      await _progressService.pushProgress(localMap);
+
+      // Pull authoritative state from server
+      final remote = await _progressService.fetchProgress();
+      if (remote != null) {
+        totalAttempts = remote['totalAttempts'] ?? totalAttempts;
+        accuracy =
+            (remote['accuracy'] as num?)?.toDouble() ?? accuracy;
+        streak = remote['streak'] ?? streak;
+        xp = calculateXp(totalAttempts, accuracy);
+
+        while (xp >= xpToNextLevel) {
+          xp -= xpToNextLevel;
+          level++;
+          if (onLevelUp != null) onLevelUp!();
+        }
+
+        await _cacheProgressLocally();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('syncWithServer failed (will retry later): $e');
+    }
+  }
+
+  // ─── Cache helpers ───
+
+  void _applyFromCache(Map<String, dynamic> cached, {bool notify = true}) {
+    level = cached['level'] ?? level;
+    xp = cached['xp'] ?? xp;
+    streak = cached['streak'] ?? streak;
+    totalAttempts = cached['total_attempts'] ?? totalAttempts;
+    accuracy = (cached['accuracy'] as num?)?.toDouble() ?? accuracy;
+    if (notify) notifyListeners();
+  }
+
+  Future<void> _cacheProgressLocally() async {
+    await OfflineStorageService.cacheUserProgress(
+      level: level,
+      xp: xp,
+      streak: streak,
+      totalAttempts: totalAttempts,
+      accuracy: accuracy,
+    );
   }
 
   int calculateXp(int attempts, double acc) {
@@ -159,6 +250,27 @@ class ProgressProvider extends ChangeNotifier {
 
       // TRIGGER LEVEL UP ANIMACIJE
       if (onLevelUp != null) onLevelUp!();
+    }
+
+    notifyListeners();
+  }
+
+  // Penalize XP for using hints
+  void penalizeXp(int amount) {
+    xp -= amount;
+
+    // Prevent negative XP and level degradation
+    if (xp < 0) {
+      if (level > 1) {
+        // Go down a level
+        level--;
+        xp += xpToNextLevel;
+        // If still negative, set to 0
+        if (xp < 0) xp = 0;
+      } else {
+        // Minimum level 1, XP can't go below 0
+        xp = 0;
+      }
     }
 
     notifyListeners();

@@ -6,6 +6,10 @@ class Question {
   final List<Option> options;
   final int correctAnswerId;
   final int? subtopicId;
+  final String? hintLight;
+  final String? hintMedium;
+  final String? hintFull;
+  final String? explanation;
 
   Question({
     required this.id,
@@ -13,6 +17,10 @@ class Question {
     required this.options,
     required this.correctAnswerId,
     this.subtopicId,
+    this.hintLight,
+    this.hintMedium,
+    this.hintFull,
+    this.explanation,
   });
 
   factory Question.fromJson(Map<String, dynamic> json) {
@@ -24,6 +32,10 @@ class Question {
           .toList(),
       correctAnswerId: json['correctAnswerId'],
       subtopicId: json['subtopicId'],
+      hintLight: json['hintLight'],
+      hintMedium: json['hintMedium'],
+      hintFull: json['hintFull'],
+      explanation: json['explanation'],
     );
   }
 
@@ -34,6 +46,10 @@ class Question {
       'options': options.map((option) => option.toJson()).toList(),
       'correctAnswerId': correctAnswerId,
       'subtopicId': subtopicId,
+      'hintLight': hintLight,
+      'hintMedium': hintMedium,
+      'hintFull': hintFull,
+      'explanation': explanation,
     };
   }
 }

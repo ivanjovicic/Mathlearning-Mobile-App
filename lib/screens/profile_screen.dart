@@ -112,6 +112,38 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
+            // Demo mode banner
+            if (auth.isDemoMode) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: colorScheme.primary),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: colorScheme.onPrimaryContainer,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Demo režim - test podaci",
+                      style: TextStyle(
+                        color: colorScheme.onPrimaryContainer,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Level
             Text(
               "Nivo ${progress.level}",
@@ -151,6 +183,19 @@ class ProfileScreen extends StatelessWidget {
                       ? "Arena pocetna je ukljucena"
                       : "Klasicna pocetna je ukljucena",
                 ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              child: ListTile(
+                leading: Icon(
+                  Icons.rate_review_outlined,
+                  color: colorScheme.primary,
+                ),
+                title: const Text("My Feedback"),
+                subtitle: const Text("Pregled poslatog UX/UI feedback-a"),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pushNamed(context, "/my-feedback"),
               ),
             ),
 

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/config.dart';
+import 'connectivity_service.dart';
 
 class AuthService {
   static AuthService? _instance;
@@ -29,7 +30,7 @@ class AuthService {
   // Dio client with interceptor
   late Dio _dio;
 
-  void initialize() {
+  Future<void> initialize() async {
     _dio = Dio(
       BaseOptions(
         baseUrl: Config.apiBaseUrl,
@@ -74,6 +75,12 @@ class AuthService {
         },
       ),
     );
+
+    // Load cached identity/token so offline mode can start with auth context.
+    final prefs = await SharedPreferences.getInstance();
+    _accessToken = prefs.getString(_accessTokenKey);
+    _userId = prefs.getString(_userIdKey);
+    _username = prefs.getString(_usernameKey);
   }
 
   // Login with username/password
@@ -232,11 +239,28 @@ class AuthService {
   // Auto-login on app start
   Future<bool> autoLogin() async {
     try {
+      // Load cached session for offline mode.
+      final cachedPrefs = await SharedPreferences.getInstance();
+      _userId = cachedPrefs.getString(_userIdKey);
+      _username = cachedPrefs.getString(_usernameKey);
+      final cachedAccessToken = cachedPrefs.getString(_accessTokenKey);
+      if (cachedAccessToken != null && cachedAccessToken.isNotEmpty) {
+        _accessToken = cachedAccessToken;
+      }
+
+      if (_accessToken != null) {
+        // Refresh in background when online; keep cached session for offline mode.
+        if (ConnectivityService.instance.isOnline) {
+          _refreshTokens();
+        }
+        return true;
+      }
+
       // Load tokens from storage
       final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
       if (refreshToken == null) {
         debugPrint('No refresh token found');
-        return false;
+        return _accessToken != null;
       }
 
       // Load user data from SharedPreferences (faster)
@@ -255,7 +279,7 @@ class AuthService {
       debugPrint('❌ Auto-login failed: $e');
     }
 
-    return false;
+    return _accessToken != null;
   }
 
   // Refresh access and refresh tokens
@@ -350,6 +374,9 @@ class AuthService {
   String? get userId => _userId;
   String? get username => _username;
   bool get isLoggedIn => _accessToken != null;
+
+  // Check if current session is demo mode
+  bool get isDemoMode => _accessToken?.startsWith('demo_') ?? false;
 
   // Get Dio client for API calls
   Dio get client => _dio;

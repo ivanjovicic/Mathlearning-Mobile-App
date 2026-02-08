@@ -182,7 +182,44 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                 color: colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+
+            // Demo mode banner
+            Consumer<AuthProvider>(
+              builder: (context, auth, child) {
+                if (!auth.isDemoMode) return const SizedBox.shrink();
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  margin: const EdgeInsets.only(bottom: 4),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: colorScheme.primary),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: colorScheme.onPrimaryContainer,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Demo režim - test podaci",
+                        style: TextStyle(
+                          color: colorScheme.onPrimaryContainer,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 4),
             _buildHeroPanel(
               context: context,
               level: progress.level,

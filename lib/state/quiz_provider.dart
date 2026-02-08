@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/offline_manager.dart';
@@ -6,6 +6,7 @@ import '../services/srs_service.dart';
 import '../models/question.dart';
 import '../models/option.dart';
 import '../models/hint_models.dart';
+import '../screens/quiz_summary_screen.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/achievement_popup.dart';
 import '../widgets/formula_hint_bottom_sheet.dart';
@@ -17,6 +18,14 @@ class QuizProvider extends ChangeNotifier {
   final api = ApiService();
   final _offline = OfflineManager.instance;
   final _srs = SrsService.instance;
+
+  /// Injected by ProxyProvider — used for optimistic XP/streak updates.
+  ProgressProvider? _progress;
+
+  /// Called by ProxyProvider on update to inject latest ProgressProvider.
+  void updateProgressProvider(ProgressProvider progress) {
+    _progress = progress;
+  }
 
   String? token;
   String? quizId;
@@ -49,6 +58,21 @@ class QuizProvider extends ChangeNotifier {
   List<Question> get questions => List.unmodifiable(_allQuestions);
   double _masteryPercent = 0.0;
   double get masteryPercent => _masteryPercent;
+
+  // Session stats for summary screen
+  int _correctCount = 0;
+  int _sessionXp = 0;
+  final List<WrongQuestion> _wrongQuestions = [];
+
+  int get correctCount => _correctCount;
+  int get sessionXp => _sessionXp;
+  List<WrongQuestion> get wrongQuestions =>
+      List.unmodifiable(_wrongQuestions);
+
+  void addSessionXp(int xp) {
+    _sessionXp += xp;
+  }
+
   bool _skipDailyReviewOnce = false;
 
   void skipDailyReviewOnce() {
@@ -76,6 +100,9 @@ class QuizProvider extends ChangeNotifier {
     _currentQuestionIndex = 0;
     _allQuestions = [];
     _isSrsMode = true;
+    _correctCount = 0;
+    _sessionXp = 0;
+    _wrongQuestions.clear();
     _resetHints();
     resetMastery();
 
@@ -107,14 +134,17 @@ class QuizProvider extends ChangeNotifier {
       _currentQuestionIndex = 0;
       _allQuestions = [];
       _isSrsMode = false;
+      _correctCount = 0;
+      _sessionXp = 0;
+      _wrongQuestions.clear();
       _resetHints();
       resetMastery();
 
-      // 1️⃣ FIRST: Try to get SRS questions (priority)
+      // 1ï¸âƒ£ FIRST: Try to get SRS questions (priority)
       final srsQuestions = await _srs.fetchDailySrsQuestions();
 
       if (srsQuestions.isNotEmpty) {
-        debugPrint('✅ Found ${srsQuestions.length} SRS questions for review');
+        debugPrint('âœ… Found ${srsQuestions.length} SRS questions for review');
         _allQuestions = srsQuestions.map((q) => Question.fromJson(q)).toList();
         _isSrsMode = true;
         quizId = "srs-quiz-${DateTime.now().millisecondsSinceEpoch}";
@@ -124,7 +154,7 @@ class QuizProvider extends ChangeNotifier {
         return true;
       }
 
-      // 2️⃣ FALLBACK: Try to get normal topic questions
+      // 2ï¸âƒ£ FALLBACK: Try to get normal topic questions
       final questionsData = await _offline.getQuestions(
         subtopicId,
         count,
@@ -171,7 +201,7 @@ class QuizProvider extends ChangeNotifier {
       ),
       Question(
         id: 2,
-        text: "Koliko je 5 × 3?",
+        text: "Koliko je 5 Ã— 3?",
         correctAnswerId: 5,
         options: [
           Option(id: 5, text: "15"),
@@ -182,7 +212,7 @@ class QuizProvider extends ChangeNotifier {
       ),
       Question(
         id: 3,
-        text: "Koliko je 10 ÷ 2?",
+        text: "Koliko je 10 Ã· 2?",
         correctAnswerId: 9,
         options: [
           Option(id: 9, text: "5"),
@@ -219,7 +249,7 @@ class QuizProvider extends ChangeNotifier {
     currentQuestion = _allQuestions[0];
     _questionStartTime = DateTime.now().millisecondsSinceEpoch;
 
-    debugPrint('✅ Demo quiz started with ${_allQuestions.length} questions');
+    debugPrint('âœ… Demo quiz started with ${_allQuestions.length} questions');
     notifyListeners();
     return true;
   }
@@ -248,23 +278,29 @@ class QuizProvider extends ChangeNotifier {
         selectedOption.id == currentQuestion!.correctAnswerId;
 
     debugPrint(
-      '🎯 Answer: "$answer" (ID: ${selectedOption?.id}) | Correct ID: ${currentQuestion!.correctAnswerId} | Is Correct: $isCorrect',
+      'ðŸŽ¯ Answer: "$answer" (ID: ${selectedOption?.id}) | Correct ID: ${currentQuestion!.correctAnswerId} | Is Correct: $isCorrect',
     );
 
     // Calculate time spent on this question
     final currentTime = DateTime.now().millisecondsSinceEpoch;
     final timeMs = currentTime - _questionStartTime;
 
+    // Optimistic XP/streak update — instant feedback even offline
+    _progress?.applyAnswerResult(
+      isCorrect: isCorrect,
+      xpForQuestion: 10,
+    );
+
     try {
-      // If this is SRS mode, update SRS data
+      // If this is SRS mode, update SRS data (online or queued offline).
       if (_isSrsMode) {
-        await _srs.updateSrs(
+        await _offline.submitSrsUpdate(
           questionId: currentQuestion!.id,
           isCorrect: isCorrect,
           timeMs: timeMs,
         );
         debugPrint(
-          '📊 SRS updated: Q${currentQuestion!.id}, correct=$isCorrect, time=${timeMs}ms',
+          'SRS processed: Q${currentQuestion!.id}, correct=$isCorrect, time=${timeMs}ms',
         );
       }
 
@@ -283,6 +319,23 @@ class QuizProvider extends ChangeNotifier {
     }
 
     questionsAnsweredInSession++;
+
+    // Track session stats
+    if (isCorrect) {
+      _correctCount++;
+    } else {
+      // Find correct answer text
+      final correctOption = currentQuestion!.options.firstWhere(
+        (o) => o.id == currentQuestion!.correctAnswerId,
+        orElse: () => currentQuestion!.options.first,
+      );
+      _wrongQuestions.add(WrongQuestion(
+        questionId: currentQuestion!.id,
+        questionText: currentQuestion!.text,
+        userAnswer: selectedOption?.text ?? answer,
+        correctAnswer: correctOption.text,
+      ));
+    }
 
     // Check if quiz is finished
     if (questionsAnsweredInSession >= _allQuestions.length) {
@@ -318,9 +371,18 @@ class QuizProvider extends ChangeNotifier {
     await progress.loadProgress(); // Refresh progress data
     if (!context.mounted) return;
 
+    // Build session stats for summary screen
+    final stats = QuizSessionStats(
+      correct: _correctCount,
+      total: _allQuestions.length,
+      xpEarned: _sessionXp,
+      streak: progress.streak,
+      masteryProgress: _masteryPercent,
+      wrongQuestions: List.from(_wrongQuestions),
+    );
+
     // Check for level up after progress refresh
     if (progress.level > oldLevel) {
-      // Check if there's also an accuracy achievement
       bool hasAccuracyAchievement = _checkAccuracyAchievement(
         oldAccuracy,
         progress.accuracy,
@@ -335,31 +397,38 @@ class QuizProvider extends ChangeNotifier {
             onFinished: () {
               Navigator.pop(context); // Close level-up dialog
 
-              // Show accuracy achievement after level-up if applicable
               if (hasAccuracyAchievement) {
                 _showAccuracyAchievement(context, progress.accuracy);
               }
 
-              Navigator.pushNamed(context, "/reward");
+              Navigator.pushNamed(
+                context,
+                '/quiz-summary',
+                arguments: stats,
+              );
             },
           ),
         ),
       );
     } else {
-      // No level up, but check for accuracy achievements
       if (_checkAccuracyAchievement(oldAccuracy, progress.accuracy)) {
         _showAccuracyAchievement(context, progress.accuracy);
       }
       Navigator.pushNamed(
         context,
-        "/reward",
-      ); // Direct to reward if no level up
+        '/quiz-summary',
+        arguments: stats,
+      );
     }
 
+    // Reset quiz state
     questionsAnsweredInSession = 0;
     _currentQuestionIndex = 0;
     _allQuestions = [];
     currentQuestion = null;
+    _correctCount = 0;
+    _sessionXp = 0;
+    _wrongQuestions.clear();
     notifyListeners();
   }
 
@@ -401,6 +470,10 @@ class QuizProvider extends ChangeNotifier {
   // Get pending answers count for UI display
   Future<int> getPendingAnswersCount() async {
     return await _offline.getPendingAnswersCount();
+  }
+
+  Future<int> getPendingSrsUpdatesCount() async {
+    return await _offline.getPendingSrsUpdatesCount();
   }
 
   // Manual sync trigger
@@ -629,3 +702,4 @@ class QuizProvider extends ChangeNotifier {
     _usedHintForCurrentQuestion = false;
   }
 }
+

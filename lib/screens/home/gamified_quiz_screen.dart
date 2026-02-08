@@ -17,8 +17,10 @@ import '../../widgets/mastery_progress_bar.dart';
 import '../../widgets/streak_flame.dart';
 import '../../widgets/xp_pop_animation.dart';
 
+import '../../models/question.dart';
+
 class GamifiedQuizScreen extends StatefulWidget {
-  final String questionText;
+  final Question question;
   final List<OptionItem> options;
   final Future<void> Function(String answer) onSubmit;
   final int xpReward;
@@ -27,7 +29,7 @@ class GamifiedQuizScreen extends StatefulWidget {
 
   const GamifiedQuizScreen({
     super.key,
-    required this.questionText,
+    required this.question,
     required this.options,
     required this.onSubmit,
     required this.questionNumber,
@@ -61,7 +63,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
   void didUpdateWidget(covariant GamifiedQuizScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.questionNumber != widget.questionNumber ||
-        oldWidget.questionText != widget.questionText) {
+        oldWidget.question.id != widget.question.id) {
       answered = false;
       selectedAnswer = "";
       isCorrect = false;
@@ -98,7 +100,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
             children: [
               const SizedBox(height: 16),
               _buildHeader(theme, colorScheme, progress),
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
               _buildMasteryRow(
                 theme: theme,
                 colorScheme: colorScheme,
@@ -108,16 +110,20 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 const SizedBox(height: 8),
                 _buildComboChip(theme, colorScheme, t.comboLabel(_combo)),
               ],
-              const SizedBox(height: 16),
-              AnimatedContainer(
-                duration: _reduceMotion
-                    ? Duration.zero
-                    : const Duration(milliseconds: 150),
-                transform:
-                    Matrix4.translationValues(shakeOffset, 0.0, 0.0) *
-                    Matrix4.diagonal3Values(questionScale, questionScale, 1.0),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
+              const SizedBox(height: 12),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      AnimatedContainer(
+                        duration: _reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 150),
+                        transform:
+                            Matrix4.translationValues(shakeOffset, 0.0, 0.0) *
+                            Matrix4.diagonal3Values(questionScale, questionScale, 1.0),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
                   color: theme.cardColor,
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
@@ -131,7 +137,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                   ],
                 ),
                 child: GamifiedMathPanel(
-                  formula: widget.questionText,
+                  formula: widget.question.text,
                   title: t.mathChallengeTitle,
                   subtitle: t.mathChallengeSubtitle,
                 ),
@@ -240,7 +246,11 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                   ),
                 ],
               ],
-              const Spacer(),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
               if (quizProvider.isCooldown)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 24),
@@ -304,11 +314,25 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            Text(
-              "${widget.questionNumber}/${widget.totalQuestions}",
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface,
-              ),
+            Row(
+              children: [
+                // Hint button
+                IconButton(
+                  icon: Icon(
+                    Icons.lightbulb_outline,
+                    color: colorScheme.primary,
+                  ),
+                  onPressed: answered ? null : () => _showHintModal(context),
+                  tooltip: t.hint,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "${widget.questionNumber}/${widget.totalQuestions}",
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -482,6 +506,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
 
     if (isCorrect) {
       final totalXp = widget.xpReward + _lastBonusXp;
+      quizProvider.addSessionXp(totalXp);
       _showXpPop(
         xp: totalXp,
         backgroundColor: theme.colorScheme.secondary,
@@ -697,6 +722,53 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         HapticFeedback.mediumImpact();
       }
     }
+  }
+
+  void _showHintModal(BuildContext context) {
+    final t = context.t;
+    final progress = Provider.of<ProgressProvider>(context, listen: false);
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: Icon(Icons.lightbulb_outline, color: Colors.blue),
+            title: Text(t.smallHint),
+            subtitle: Text(widget.question.hintLight ?? t.noHintAvailable),
+            onTap: widget.question.hintLight != null
+                ? () {
+                    progress.penalizeXp(1);
+                    Navigator.pop(context);
+                  }
+                : null,
+          ),
+          ListTile(
+            leading: Icon(Icons.lightbulb, color: Colors.orange),
+            title: Text(t.mediumHint),
+            subtitle: Text(widget.question.hintMedium ?? t.noHintAvailable),
+            onTap: widget.question.hintMedium != null
+                ? () {
+                    progress.penalizeXp(3);
+                    Navigator.pop(context);
+                  }
+                : null,
+          ),
+          ListTile(
+            leading: Icon(Icons.lightbulb, color: Colors.red),
+            title: Text(t.fullHint),
+            subtitle: Text(widget.question.hintFull ?? t.noHintAvailable),
+            onTap: widget.question.hintFull != null
+                ? () {
+                    progress.penalizeXp(5);
+                    Navigator.pop(context);
+                  }
+                : null,
+          ),
+        ],
+      ),
+    );
   }
 }
 

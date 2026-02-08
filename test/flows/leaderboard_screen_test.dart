@@ -1,0 +1,145 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+
+import 'package:mathlearning/screens/leaderboard_screen.dart';
+import 'package:mathlearning/state/auth_provider.dart';
+import 'package:mathlearning/state/leaderboard_provider.dart';
+
+import '../helpers/test_app.dart';
+import '../helpers/test_bootstrap.dart';
+import '../helpers/test_fakes.dart';
+
+class _NoopLeaderboardProvider extends LeaderboardProvider {
+  _NoopLeaderboardProvider();
+
+  @override
+  Future<void> loadGlobal(String range) async {}
+
+  @override
+  Future<void> loadFriends(String range) async {}
+}
+
+void main() {
+  bootstrapTests();
+
+  group('LeaderboardScreen', () {
+    testWidgets('shows loading indicator when provider isLoading is true',
+        (tester) async {
+      final leaderboard = _NoopLeaderboardProvider()..isLoading = true;
+
+      await tester.pumpWidget(
+        buildTestApp(
+          home: const LeaderboardScreen(),
+          providers: [
+            ChangeNotifierProvider<LeaderboardProvider>.value(value: leaderboard),
+            ChangeNotifierProvider<AuthProvider>.value(
+              value: TestAuthProvider(userId: '42'),
+            ),
+          ],
+        ),
+      );
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('shows empty state with RefreshIndicator when list is empty',
+        (tester) async {
+      final leaderboard = _NoopLeaderboardProvider()..isLoading = false;
+
+      await tester.pumpWidget(
+        buildTestApp(
+          home: const LeaderboardScreen(),
+          providers: [
+            ChangeNotifierProvider<LeaderboardProvider>.value(value: leaderboard),
+            ChangeNotifierProvider<AuthProvider>.value(
+              value: TestAuthProvider(userId: '42'),
+            ),
+          ],
+        ),
+      );
+
+      expect(find.byType(RefreshIndicator), findsOneWidget);
+      expect(find.text('Nema podataka.'), findsOneWidget);
+    });
+
+    testWidgets('renders rows and highlights current user with "Ti"',
+        (tester) async {
+      final items = [
+        LeaderboardEntry(
+          rank: 1,
+          userId: 1,
+          name: 'Top Player',
+          level: 10,
+          xp: 999,
+          weeklyXp: 300,
+          streak: 12,
+        ),
+        LeaderboardEntry(
+          rank: 5,
+          userId: 42,
+          name: 'Alex',
+          level: 3,
+          xp: 1200,
+          weeklyXp: 123,
+          streak: 7,
+        ),
+      ];
+
+      final leaderboard = TestLeaderboardProvider(globalItems: items);
+      final auth = TestAuthProvider(userId: '42');
+
+      await tester.pumpWidget(
+        buildTestApp(
+          home: const LeaderboardScreen(),
+          providers: [
+            ChangeNotifierProvider<LeaderboardProvider>.value(value: leaderboard),
+            ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ],
+        ),
+      );
+
+      // Let initState post-frame loads run.
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Alex'), findsOneWidget);
+      expect(find.text('Ti'), findsOneWidget);
+      // Weekly range => weeklyXp should be shown.
+      expect(find.text('123 XP'), findsOneWidget);
+    });
+
+    testWidgets('changing range calls provider load methods with new range',
+        (tester) async {
+      final leaderboard = TestLeaderboardProvider(
+        globalItems: const [],
+        friendsItems: const [],
+      );
+
+      await tester.pumpWidget(
+        buildTestApp(
+          home: const LeaderboardScreen(),
+          providers: [
+            ChangeNotifierProvider<LeaderboardProvider>.value(value: leaderboard),
+            ChangeNotifierProvider<AuthProvider>.value(
+              value: TestAuthProvider(userId: '42'),
+            ),
+          ],
+        ),
+      );
+
+      await tester.pump();
+
+      // Open dropdown and select "Ukupno" (allTime).
+      await tester.tap(find.byType(DropdownButton<String>));
+      await tester.pump();
+      await tester.tap(find.text('Ukupno').last);
+      await tester.pump();
+
+      expect(leaderboard.lastGlobalRange, 'allTime');
+      expect(leaderboard.lastFriendsRange, 'allTime');
+      expect(leaderboard.loadGlobalCalls, greaterThan(0));
+      expect(leaderboard.loadFriendsCalls, greaterThan(0));
+    });
+  });
+}

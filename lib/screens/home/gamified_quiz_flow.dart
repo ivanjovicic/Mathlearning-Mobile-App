@@ -46,7 +46,7 @@ class _GamifiedQuizFlowState extends State<GamifiedQuizFlow> {
 
     final question = widget.questions[current];
     return GamifiedQuizScreen(
-      questionText: question.text,
+      question: question,
       questionNumber: current + 1,
       totalQuestions: widget.questions.length,
       options: question.options

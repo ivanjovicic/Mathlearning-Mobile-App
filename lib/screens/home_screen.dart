@@ -113,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     final totalSeconds = (count * 45);
     final minutes = (totalSeconds / 60).round().clamp(1, 99);
-    return "Danas imas $count SRS pitanja • ~$minutes min";
+    return "Danas imas $count SRS pitanja - ~$minutes min";
   }
 
   TopicProgress? _findRecommendedTopic(ProgressProvider progress) {

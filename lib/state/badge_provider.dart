@@ -16,9 +16,14 @@ class AppBadge {
 }
 
 class BadgeProvider extends ChangeNotifier {
-  final ProgressProvider progress;
+  ProgressProvider progress;
 
   BadgeProvider(this.progress);
+
+  void updateProgress(ProgressProvider newProgress) {
+    progress = newProgress;
+    notifyListeners();
+  }
 
   List<AppBadge> get badges {
     double acc = progress.accuracy;

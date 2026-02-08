@@ -206,7 +206,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           // My rank row (outside top 50)
           if (i == items.length + 1 && showMyRank) {
             return _buildRow(
-              myRankOutsideList,
+              myRankOutsideList!,
               true,
               colorScheme,
               range,

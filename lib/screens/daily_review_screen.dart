@@ -40,10 +40,11 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 40),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
               const Text(
                 "Daily Review",
                 style: TextStyle(
@@ -106,6 +107,33 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                   style: const TextStyle(fontSize: 18, color: Colors.white70),
                 ),
               const SizedBox(height: 14),
+              if (!_loading && !qp.isOnline) ...[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.cloud_off, color: Colors.white70, size: 16),
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          "Offline: koristim poslednja sacuvana SRS pitanja.",
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn(duration: 250.ms),
+                const SizedBox(height: 12),
+              ],
               if (!_loading)
                 Container(
                   padding:
@@ -119,7 +147,9 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                   ),
                   child: Text(
                     qp.questions.isEmpty
-                        ? "Danas si sve zavrsio. Bravo!"
+                        ? (qp.isOnline
+                            ? "Danas si sve zavrsio. Bravo!"
+                            : "Offline: nema sacuvanih pitanja. Otvori aplikaciju online da preuzmemo Daily Review.")
                         : "Procena: ~${(qp.questions.length * 45 / 60).round().clamp(1, 99)} min",
                     style: const TextStyle(
                       color: Colors.white70,
@@ -232,13 +262,14 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                   ),
                 ),
               ).animate().scale(duration: 300.ms, curve: Curves.easeOutBack),
-              const Spacer(),
-              const Text(
-                "Ponavljanje pojacava pamcenje",
-                style: TextStyle(color: Colors.white54),
-              ),
-              const SizedBox(height: 30),
-            ],
+                const SizedBox(height: 24),
+                const Text(
+                  "Ponavljanje pojacava pamcenje",
+                  style: TextStyle(color: Colors.white54),
+                ),
+                const SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),

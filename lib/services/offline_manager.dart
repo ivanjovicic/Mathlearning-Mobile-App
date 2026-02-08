@@ -1,118 +1,330 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+
+import '../models/question.dart';
+import 'api_service.dart';
+import 'auth_service.dart';
 import 'connectivity_service.dart';
 import 'offline_storage_service.dart';
-import 'api_service.dart';
+import 'srs_service.dart';
 
 class OfflineManager {
   static OfflineManager? _instance;
   static OfflineManager get instance => _instance ??= OfflineManager._();
-  
+
   OfflineManager._();
 
   final ApiService _api = ApiService();
-  late ConnectivityService _connectivity;
-  
-  void initialize() {
+  final SrsService _srs = SrsService.instance;
+
+  ConnectivityService? _connectivity;
+  StreamSubscription<bool>? _connectivitySubscription;
+  bool _initialized = false;
+
+  final StreamController<int> _pendingCountController =
+      StreamController<int>.broadcast();
+  Stream<int> get pendingCountStream => _pendingCountController.stream;
+
+  String _resolveUserId() => AuthService.instance.userId ?? 'default';
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+    _initialized = true;
+
     _connectivity = ConnectivityService.instance;
-    _connectivity.initialize();
-    
-    // Listen for connectivity changes
-    _connectivity.onConnectivityChanged.listen((isOnline) {
+    await _connectivity?.initialize();
+
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription =
+        _connectivity?.onConnectivityChanged.listen((isOnline) {
       if (isOnline) {
         syncPendingData();
+      } else {
+        emitPendingCount();
       }
     });
+
+    await emitPendingCount();
+
+    // Auto-sync on start if user is already logged in
+    if (AuthService.instance.isLoggedIn) {
+      await syncPendingData();
+    }
   }
 
-  /// Sync all pending offline data when connection is restored
+  bool get isOnline => _connectivity?.isOnline ?? true;
+
+  bool get _isOnlineWithToken =>
+      isOnline &&
+      AuthService.instance.isLoggedIn &&
+      AuthService.instance.accessToken != null;
+
+  Future<void> dispose() async {
+    await _connectivitySubscription?.cancel();
+    await _pendingCountController.close();
+  }
+
+  Future<void> emitPendingCount() async {
+    if (_pendingCountController.isClosed) return;
+    final answers = await OfflineStorageService.getPendingAnswers();
+    final srs = await OfflineStorageService.getPendingSrsUpdates(
+      userId: _resolveUserId(),
+    );
+    _pendingCountController.add(answers.length + srs.length);
+  }
+
+  /// Manual sync button in UI
+  Future<void> manualSync() async {
+    await syncPendingData();
+  }
+
+  Future<void> retryWithBackoff(
+    Future<void> Function() action, {
+    int maxAttempts = 4,
+  }) async {
+    var delay = const Duration(milliseconds: 400);
+
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await action();
+        return;
+      } catch (e) {
+        if (attempt == maxAttempts) rethrow;
+        await Future.delayed(delay);
+        delay *= 2;
+      }
+    }
+  }
+
   Future<void> syncPendingData() async {
+    if (!_isOnlineWithToken) {
+      await emitPendingCount();
+      return;
+    }
+
     try {
-      debugPrint('🔄 Starting offline data sync...');
-      
-      await syncPendingAnswers();
-      
-      debugPrint('✅ Offline data sync completed');
+      await _syncPendingAnswers();
+      await _syncPendingSrs();
     } catch (e) {
-      debugPrint('❌ Error syncing offline data: $e');
+      debugPrint('Offline sync error: $e');
+    } finally {
+      await emitPendingCount();
     }
   }
 
-  /// Submit all pending quiz answers via batch API
-  Future<void> syncPendingAnswers({String? token}) async {
+  // ───────── HIGH-LEVEL QUESTION API ─────────
+
+  /// Get quiz questions with online→cache fallback.
+  /// Returns parsed [Question] objects ready for QuizProvider.
+  Future<List<Question>> getQuizQuestions({
+    int subtopicId = 1,
+    int count = 10,
+  }) async {
+    if (_isOnlineWithToken) {
+      try {
+        final raw = await _api.getQuestions('topic_$subtopicId', count);
+        if (raw != null && raw.isNotEmpty) {
+          await OfflineStorageService.cacheQuestions(subtopicId, raw);
+          return raw.map((e) => Question.fromJson(e)).toList();
+        }
+      } catch (_) {
+        // fallback to cache
+      }
+    }
+
+    final cached =
+        await OfflineStorageService.getCachedQuestions(subtopicId, count);
+    if (cached != null) {
+      return cached.map((e) => Question.fromJson(e)).toList();
+    }
+    return [];
+  }
+
+  /// Get daily SRS review questions with online→cache fallback.
+  Future<List<Question>> getDailyReviewQuestions() async {
+    if (_isOnlineWithToken) {
+      try {
+        final raw = await _srs.fetchDailySrsQuestions();
+        if (raw.isNotEmpty) {
+          final userId = _resolveUserId();
+          await OfflineStorageService.cacheDailySrsQuestions(
+            userId: userId,
+            questions: raw,
+          );
+          return raw.map((e) => Question.fromJson(e)).toList();
+        }
+      } catch (_) {
+        // fallback to cache
+      }
+    }
+
+    final userId = _resolveUserId();
+    final cached = await OfflineStorageService.getCachedDailySrsQuestions(
+      userId: userId,
+    );
+    return cached.map((e) => Question.fromJson(e)).toList();
+  }
+
+  Future<void> _syncPendingAnswers() async {
     final pendingAnswers = await OfflineStorageService.getPendingAnswers();
-    
-    if (pendingAnswers.isEmpty) {
-      debugPrint('No pending answers to sync');
-      return;
+    if (pendingAnswers.isEmpty) return;
+
+    final failed = <Map<String, dynamic>>[];
+
+    for (final answer in pendingAnswers) {
+      final quizId = answer['quiz_id']?.toString();
+      final questionId = (answer['question_id'] as num?)?.toInt();
+      final value = answer['answer']?.toString();
+      final timeSpentSeconds =
+          (answer['time_spent_seconds'] as num?)?.toInt() ?? 0;
+
+      if (quizId == null || questionId == null || value == null) {
+        continue; // skip malformed entries
+      }
+
+      try {
+        await retryWithBackoff(() async {
+          final result = await _api.submitAnswer(
+            quizId,
+            questionId,
+            value,
+            timeSpentSeconds,
+            null,
+          );
+          if (result == null) {
+            throw Exception('submitAnswer returned null');
+          }
+        });
+      } catch (_) {
+        // Even after backoff retries failed → keep in queue
+        failed.add(answer);
+      }
     }
 
-    debugPrint('Syncing ${pendingAnswers.length} pending answers...');
+    // Replace full queue with only the failed items
+    await OfflineStorageService.clearPendingAnswers();
+    for (final answer in failed) {
+      await OfflineStorageService.savePendingAnswer(
+        quizId: answer['quiz_id'].toString(),
+        questionId: (answer['question_id'] as num).toInt(),
+        answer: answer['answer'].toString(),
+        timeSpentSeconds: (answer['time_spent_seconds'] as num).toInt(),
+        isCorrect: (answer['is_correct'] as num?)?.toInt() == 1,
+      );
+    }
 
-    // Convert to API format
-    final apiAnswers = pendingAnswers.map((answer) => {
-      'quizId': answer['quiz_id'],
-      'questionId': answer['question_id'],
-      'answer': answer['answer'],
-      'timeSpentSeconds': answer['time_spent_seconds'],
-      'timestamp': answer['timestamp'],
-      'isCorrect': answer['is_correct'] == 1,
-    }).toList();
-
-    try {
-      final result = await _api.batchSubmitAnswers(apiAnswers, token);
-      
-      if (result != null) {
-        // Clear pending answers on successful sync
-        await OfflineStorageService.clearPendingAnswers();
-        debugPrint('✅ Successfully synced ${pendingAnswers.length} answers');
-      } else {
-        debugPrint('❌ Failed to sync pending answers');
-      }
-    } catch (e) {
-      debugPrint('❌ Error syncing pending answers: $e');
+    if (failed.isNotEmpty) {
+      debugPrint(
+        'OfflineManager: ${pendingAnswers.length - failed.length}/${pendingAnswers.length} answers synced, ${failed.length} still pending',
+      );
     }
   }
 
-  /// Cache questions for offline use
-  Future<void> preloadQuestions(int subtopicId, int count, String? token) async {
-    if (!_connectivity.isOnline) {
-      debugPrint('Cannot preload questions - offline mode');
-      return;
+  Future<void> _syncPendingSrs() async {
+    final userId = _resolveUserId();
+    final pending = await OfflineStorageService.getPendingSrsUpdates(
+      userId: userId,
+    );
+    if (pending.isEmpty) return;
+
+    final failed = <Map<String, dynamic>>[];
+
+    for (final item in pending) {
+      final questionId = (item['questionId'] as num?)?.toInt();
+      final isCorrect = item['isCorrect'] == true;
+      final timeMs = (item['timeMs'] as num?)?.toInt() ?? 0;
+
+      if (questionId == null) continue;
+
+      try {
+        await retryWithBackoff(() async {
+          final ok = await _srs.updateSrs(
+            questionId: questionId,
+            isCorrect: isCorrect,
+            timeMs: timeMs,
+          );
+          if (!ok) throw Exception('updateSrs returned false');
+        });
+      } catch (_) {
+        failed.add(item);
+      }
     }
 
-    try {
-      final questions = await _api.getQuestions('topic_$subtopicId', count);
-      if (questions != null) {
-        await OfflineStorageService.cacheQuestions(subtopicId, questions);
-        debugPrint('✅ Cached ${questions.length} questions for subtopic $subtopicId');
-      }
-    } catch (e) {
-      debugPrint('❌ Error preloading questions: $e');
+    await OfflineStorageService.replacePendingSrsUpdates(
+      userId: userId,
+      updates: failed,
+    );
+
+    if (failed.isNotEmpty) {
+      debugPrint(
+        'OfflineManager: ${pending.length - failed.length}/${pending.length} SRS updates synced, ${failed.length} still pending',
+      );
     }
   }
 
-  /// Get questions (online first, fallback to cache)
-  Future<List<Map<String, dynamic>>?> getQuestions(int subtopicId, int count, String? token) async {
-    if (_connectivity.isOnline) {
-      // Try online first
+  Future<void> submitSrsUpdate({
+    required int questionId,
+    required bool isCorrect,
+    required int timeMs,
+  }) async {
+    if (isOnline) {
+      try {
+        final ok = await _srs.updateSrs(
+          questionId: questionId,
+          isCorrect: isCorrect,
+          timeMs: timeMs,
+        );
+        if (ok) {
+          await emitPendingCount();
+          return;
+        }
+      } catch (_) {}
+    }
+
+    await OfflineStorageService.savePendingSrsUpdate(
+      userId: _resolveUserId(),
+      questionId: questionId,
+      isCorrect: isCorrect,
+      timeMs: timeMs,
+    );
+    await emitPendingCount();
+  }
+
+  Future<List<Map<String, dynamic>>?> getQuestions(
+    int subtopicId,
+    int count,
+    String? token,
+  ) async {
+    if (isOnline) {
       try {
         final questions = await _api.getQuestions('topic_$subtopicId', count);
         if (questions != null) {
-          // Cache for offline use
           await OfflineStorageService.cacheQuestions(subtopicId, questions);
           return questions;
         }
       } catch (e) {
-        debugPrint('Online questions failed, falling back to cache: $e');
+        debugPrint('Online questions failed, fallback to cache: $e');
       }
     }
 
-    // Fallback to cached questions
-    debugPrint('Using cached questions for subtopic $subtopicId');
-    return await OfflineStorageService.getCachedQuestions(subtopicId, count);
+    return OfflineStorageService.getCachedQuestions(subtopicId, count);
   }
 
-  /// Submit answer (online or queue for offline)
+  Future<void> preloadQuestions(int subtopicId, int count, String? token) async {
+    if (!isOnline) {
+      return;
+    }
+    try {
+      final questions = await _api.getQuestions('topic_$subtopicId', count);
+      if (questions != null) {
+        await OfflineStorageService.cacheQuestions(subtopicId, questions);
+      }
+    } catch (e) {
+      debugPrint('preloadQuestions error: $e');
+    }
+  }
+
   Future<bool> submitAnswer({
     required String quizId,
     required int questionId,
@@ -121,17 +333,22 @@ class OfflineManager {
     required bool isCorrect,
     String? token,
   }) async {
-    if (_connectivity.isOnline) {
-      // Try online submit
+    if (isOnline) {
       try {
-        final result = await _api.submitAnswer(quizId, questionId, answer, timeSpentSeconds, token);
-        return result != null;
-      } catch (e) {
-        debugPrint('Online submit failed, saving for offline sync: $e');
-      }
+        final result = await _api.submitAnswer(
+          quizId,
+          questionId,
+          answer,
+          timeSpentSeconds,
+          token,
+        );
+        if (result != null) {
+          await emitPendingCount();
+          return true;
+        }
+      } catch (_) {}
     }
 
-    // Save for offline sync
     await OfflineStorageService.savePendingAnswer(
       quizId: quizId,
       questionId: questionId,
@@ -139,17 +356,80 @@ class OfflineManager {
       timeSpentSeconds: timeSpentSeconds,
       isCorrect: isCorrect,
     );
-    
-    debugPrint('📱 Answer saved for offline sync');
+    await emitPendingCount();
     return true;
   }
 
-  /// Check if device is online
-  bool get isOnline => _connectivity.isOnline;
-
-  /// Get pending answers count
   Future<int> getPendingAnswersCount() async {
     final pending = await OfflineStorageService.getPendingAnswers();
     return pending.length;
+  }
+
+  Future<int> getPendingSrsUpdatesCount() async {
+    return OfflineStorageService.getPendingSrsUpdatesCount(
+      userId: _resolveUserId(),
+    );
+  }
+}
+
+// ───────── HELPER DATA CLASSES ─────────
+
+class PendingAnswer {
+  final String questionId;
+  final bool isCorrect;
+  final int timeMs;
+  final DateTime createdAt;
+
+  PendingAnswer({
+    required this.questionId,
+    required this.isCorrect,
+    required this.timeMs,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'questionId': questionId,
+        'isCorrect': isCorrect,
+        'timeMs': timeMs,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory PendingAnswer.fromJson(Map<String, dynamic> json) {
+    return PendingAnswer(
+      questionId: json['questionId'] as String,
+      isCorrect: json['isCorrect'] as bool,
+      timeMs: json['timeMs'] as int,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
+  }
+}
+
+class PendingSrsUpdate {
+  final String questionId;
+  final bool isCorrect;
+  final int timeMs;
+  final DateTime createdAt;
+
+  PendingSrsUpdate({
+    required this.questionId,
+    required this.isCorrect,
+    required this.timeMs,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'questionId': questionId,
+        'isCorrect': isCorrect,
+        'timeMs': timeMs,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory PendingSrsUpdate.fromJson(Map<String, dynamic> json) {
+    return PendingSrsUpdate(
+      questionId: json['questionId'] as String,
+      isCorrect: json['isCorrect'] as bool,
+      timeMs: json['timeMs'] as int,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
   }
 }

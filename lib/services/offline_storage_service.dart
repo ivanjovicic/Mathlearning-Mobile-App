@@ -14,6 +14,13 @@ class OfflineStorageService {
   static const String _pendingAnswersTable = 'pending_answers';
   static const String _userProgressTable = 'user_progress';
 
+  // SharedPreferences keys (used across platforms)
+  static const String _srsDailyQuestionsKeyPrefix =
+      'cached_srs_daily_questions_';
+  static const String _srsDailyQuestionsUpdatedAtKeyPrefix =
+      'cached_srs_daily_questions_updated_at_';
+  static const String _pendingSrsUpdatesKeyPrefix = 'pending_srs_updates_';
+
   static Future<Database?> get database async {
     if (kIsWeb) {
       // SQLite doesn't work on web, return null for web fallback
@@ -272,5 +279,220 @@ class OfflineStorageService {
     );
 
     return maps.isNotEmpty ? maps.first : null;
+  }
+
+  // === SRS DAILY QUESTIONS CACHE (SharedPreferences) ===
+
+  static Future<void> cacheDailySrsQuestions({
+    required String userId,
+    required List<Map<String, dynamic>> questions,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_srsDailyQuestionsKeyPrefix$userId',
+      jsonEncode(questions),
+    );
+    await prefs.setInt(
+      '$_srsDailyQuestionsUpdatedAtKeyPrefix$userId',
+      DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  static Future<List<Map<String, dynamic>>> getCachedDailySrsQuestions({
+    required String userId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_srsDailyQuestionsKeyPrefix$userId');
+    if (raw == null || raw.isEmpty) return [];
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return List<Map<String, dynamic>>.from(decoded);
+      }
+    } catch (_) {
+      // Corrupted cache - ignore.
+    }
+
+    return [];
+  }
+
+  static Future<DateTime?> getCachedDailySrsQuestionsUpdatedAt({
+    required String userId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ms = prefs.getInt('$_srsDailyQuestionsUpdatedAtKeyPrefix$userId');
+    if (ms == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  static Future<void> clearDailySrsQuestionsCache({
+    required String userId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('$_srsDailyQuestionsKeyPrefix$userId');
+    await prefs.remove('$_srsDailyQuestionsUpdatedAtKeyPrefix$userId');
+  }
+
+  // === PENDING SRS UPDATES QUEUE (SharedPreferences) ===
+
+  static Future<void> savePendingSrsUpdate({
+    required String userId,
+    required int questionId,
+    required bool isCorrect,
+    required int timeMs,
+  }) async {
+    final pending = await getPendingSrsUpdates(userId: userId);
+    pending.add({
+      'questionId': questionId,
+      'isCorrect': isCorrect,
+      'timeMs': timeMs,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+    await replacePendingSrsUpdates(userId: userId, updates: pending);
+  }
+
+  static Future<List<Map<String, dynamic>>> getPendingSrsUpdates({
+    required String userId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_pendingSrsUpdatesKeyPrefix$userId');
+    if (raw == null || raw.isEmpty) return [];
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return List<Map<String, dynamic>>.from(decoded);
+      }
+    } catch (_) {
+      // Corrupted queue - ignore.
+    }
+
+    return [];
+  }
+
+  static Future<void> replacePendingSrsUpdates({
+    required String userId,
+    required List<Map<String, dynamic>> updates,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = '$_pendingSrsUpdatesKeyPrefix$userId';
+    if (updates.isEmpty) {
+      await prefs.remove(key);
+      return;
+    }
+    await prefs.setString(key, jsonEncode(updates));
+  }
+
+  static Future<int> getPendingSrsUpdatesCount({required String userId}) async {
+    final pending = await getPendingSrsUpdates(userId: userId);
+    return pending.length;
+  }
+
+  static Future<void> clearPendingSrsUpdates({required String userId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('$_pendingSrsUpdatesKeyPrefix$userId');
+  }
+
+  // === GENERIC V1-KEYED CACHE (SharedPreferences, cross-platform) ===
+
+  static const String _keyPendingAnswersV1 = 'offline_pending_answers_v1';
+  static const String _keyPendingSrsV1 = 'offline_pending_srs_v1';
+  static const String _keyCachedQuestionsV1 = 'offline_cached_questions_v1';
+  static const String _keyCachedSrsDailyV1 = 'offline_cached_srs_daily_v1';
+  static const String _keyCachedProgressV1 = 'offline_cached_progress_v1';
+
+  // ---------- V1 Pending Answers ----------
+  static Future<void> savePendingAnswersV1(
+      List<Map<String, dynamic>> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyPendingAnswersV1, jsonEncode(list));
+  }
+
+  static Future<List<Map<String, dynamic>>> loadPendingAnswersV1() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyPendingAnswersV1);
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ---------- V1 Pending SRS ----------
+  static Future<void> savePendingSrsV1(
+      List<Map<String, dynamic>> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyPendingSrsV1, jsonEncode(list));
+  }
+
+  static Future<List<Map<String, dynamic>>> loadPendingSrsV1() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyPendingSrsV1);
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ---------- V1 Cached Questions ----------
+  static Future<void> cacheQuestionsV1(
+      List<Map<String, dynamic>> questions) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCachedQuestionsV1, jsonEncode(questions));
+  }
+
+  static Future<List<Map<String, dynamic>>> loadCachedQuestionsV1() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyCachedQuestionsV1);
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ---------- V1 Cached SRS Daily ----------
+  static Future<void> cacheSrsDailyV1(
+      List<Map<String, dynamic>> questions) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCachedSrsDailyV1, jsonEncode(questions));
+  }
+
+  static Future<List<Map<String, dynamic>>> loadCachedSrsDailyV1() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyCachedSrsDailyV1);
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ---------- V1 Cached Progress (XP/Streak) ----------
+  static Future<void> cacheProgressV1(
+      Map<String, dynamic> progress) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCachedProgressV1, jsonEncode(progress));
+  }
+
+  static Future<Map<String, dynamic>?> loadCachedProgressV1() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyCachedProgressV1);
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
   }
 }

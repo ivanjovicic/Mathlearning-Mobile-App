@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/offline_manager.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService.instance;
@@ -13,6 +14,7 @@ class AuthProvider extends ChangeNotifier {
   String? get token => _authService.accessToken;
   String? get userId => _authService.userId;
   String? get username => _authService.username;
+  bool get isDemoMode => _authService.isDemoMode;
 
   // Auto-login on app start
   Future<bool> autoLogin() async {
@@ -24,6 +26,7 @@ class AuthProvider extends ChangeNotifier {
         onTimeout: () => false,
       );
       if (success) {
+        await OfflineManager.instance.syncPendingData();
         notifyListeners();
         return true;
       }
@@ -46,6 +49,7 @@ class AuthProvider extends ChangeNotifier {
       final result = await _authService.login(username, password);
 
       if (result.success) {
+        await OfflineManager.instance.syncPendingData();
         notifyListeners();
         return true;
       } else {

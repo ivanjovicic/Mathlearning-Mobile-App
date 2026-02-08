@@ -73,6 +73,7 @@ class GameThemeTransitionState extends State<GameThemeTransition>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isAnimating = _controller.isAnimating;
     return AnimatedBuilder(
       animation: _controller,
       builder: (_, __) {
@@ -88,46 +89,48 @@ class GameThemeTransitionState extends State<GameThemeTransition>
                     newPrimary,
               ),
               widget.child,
-              MeteorParticles(
-                count: 12,
-                color:
-                    Color.lerp(
+              if (isAnimating) ...[
+                MeteorParticles(
+                  count: 12,
+                  color:
+                      Color.lerp(
+                        oldPrimary,
+                        newPrimary,
+                        _controller.value,
+                      )?.withAlpha((0.6 * 255).round()) ??
+                      newPrimary.withAlpha((0.6 * 255).round()),
+                ),
+                SparkBurst(
+                  color: newPrimary,
+                  trigger: _controller.status == AnimationStatus.forward,
+                ),
+                if (_blur.value > 0)
+                  BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: _blur.value,
+                      sigmaY: _blur.value,
+                    ),
+                    child: Container(
+                      color: colorScheme.scrim.withAlpha((0.10 * 255).round()),
+                    ),
+                  ),
+                IgnorePointer(
+                  child: Container(
+                    color: Color.lerp(
                       oldPrimary,
                       newPrimary,
                       _controller.value,
-                    )?.withAlpha((0.6 * 255).round()) ??
-                    newPrimary.withAlpha((0.6 * 255).round()),
-              ),
-              SparkBurst(
-                color: newPrimary,
-                trigger: _controller.status == AnimationStatus.forward,
-              ),
-              if (_blur.value > 0)
-                BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: _blur.value,
-                    sigmaY: _blur.value,
+                    )?.withAlpha((0.25 * 255).round()),
                   ),
+                ),
+                Opacity(
+                  opacity: _fade.value,
                   child: Container(
-                    color: colorScheme.scrim.withAlpha((0.10 * 255).round()),
+                    color: colorScheme.scrim.withAlpha((0.6 * 255).round()),
                   ),
                 ),
-              IgnorePointer(
-                child: Container(
-                  color: Color.lerp(
-                    oldPrimary,
-                    newPrimary,
-                    _controller.value,
-                  )?.withAlpha((0.25 * 255).round()),
-                ),
-              ),
-              Opacity(
-                opacity: _fade.value,
-                child: Container(
-                  color: colorScheme.scrim.withAlpha((0.6 * 255).round()),
-                ),
-              ),
-              Transform.scale(scale: _scale.value, child: Container()),
+                Transform.scale(scale: _scale.value, child: Container()),
+              ],
             ],
           ),
         );

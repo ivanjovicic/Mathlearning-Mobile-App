@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
+import 'connectivity_service.dart';
+import 'offline_storage_service.dart';
 
 class SrsService {
   static final SrsService instance = SrsService._internal();
@@ -7,6 +9,11 @@ class SrsService {
 
   /// Fetch daily SRS questions that need review
   Future<List<Map<String, dynamic>>> fetchDailySrsQuestions() async {
+    final userId = AuthService.instance.userId;
+
+    if (userId != null && !ConnectivityService.instance.isOnline) {
+      return OfflineStorageService.getCachedDailySrsQuestions(userId: userId);
+    }
     try {
       final dio = AuthService.instance.client;
       final response = await dio.get('/api/quiz/srs/daily');
@@ -15,16 +22,30 @@ class SrsService {
           response.statusCode! >= 200 &&
           response.statusCode! < 300) {
         if (response.data is List) {
-          return List<Map<String, dynamic>>.from(response.data);
+          final questions = List<Map<String, dynamic>>.from(response.data);
+          if (userId != null) {
+            await OfflineStorageService.cacheDailySrsQuestions(
+              userId: userId,
+              questions: questions,
+            );
+          }
+          return questions;
         }
       }
 
       debugPrint('Failed to load SRS questions: ${response.statusCode}');
-      return [];
     } catch (e) {
       debugPrint('Error fetching SRS questions: $e');
-      return [];
     }
+
+    // Offline fallback: serve cached questions if available.
+    if (userId != null) {
+      final cached = await OfflineStorageService.getCachedDailySrsQuestions(
+        userId: userId,
+      );
+      if (cached.isNotEmpty) return cached;
+    }
+    return [];
   }
 
   /// Fetch mixed SRS questions (daily mix)

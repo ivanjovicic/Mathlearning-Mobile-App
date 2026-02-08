@@ -59,6 +59,11 @@ class _GlassBreakTransitionState extends State<GlassBreakTransition>
 
   @override
   Widget build(BuildContext context) {
+    // When not animating, just show the child – no glass effect overlay.
+    if (!_controller.isAnimating) {
+      return widget.child;
+    }
+
     final t = Curves.easeOutCubic.transform(_controller.value);
 
     return Stack(

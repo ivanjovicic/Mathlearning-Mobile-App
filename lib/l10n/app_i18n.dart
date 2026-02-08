@@ -250,7 +250,147 @@ class AppI18n {
       _pick(en: 'Show all steps', sr: 'Prikazi sve korake');
   String formulaStepCounter(int current, int total) =>
       _pick(en: 'Step $current of $total', sr: 'Korak $current od $total');
-}
+
+  // ── Onboarding ─────────────────────────────────────────────────
+  String get obWelcomeTitle => _pick(
+        en: 'Welcome!',
+        sr: 'Dobrodosli!',
+        de: 'Willkommen!',
+        es: '¡Bienvenido!',
+      );
+  String get obWelcomeSubtitle => _pick(
+        en: "Let's level up your math skills together 💡",
+        sr: 'Zajedno cemo unaprediti tvoje znanje matematike 💡',
+        de: 'Lass uns gemeinsam deine Mathe-Skills verbessern 💡',
+        es: 'Mejoremos juntos tus habilidades matemáticas 💡',
+      );
+  String get obLanguageTitle => _pick(
+        en: 'Choose Language',
+        sr: 'Izaberi jezik',
+        de: 'Sprache wählen',
+        es: 'Elige idioma',
+      );
+  String get obLanguageSubtitle => _pick(
+        en: 'Pick the language for the app interface',
+        sr: 'Odaberi jezik interfejsa aplikacije',
+        de: 'Wähle die Sprache für die App-Oberfläche',
+        es: 'Elige el idioma de la interfaz',
+      );
+  String get obDifficultyTitle => _pick(
+        en: 'Difficulty',
+        sr: 'Težina',
+        de: 'Schwierigkeitsgrad',
+        es: 'Dificultad',
+      );
+  String get obDifficultySubtitle => _pick(
+        en: 'Choose how challenging you want your practice to be',
+        sr: 'Koliko zahtevnu vezbanje zelis?',
+        de: 'Wie anspruchsvoll soll dein Training sein?',
+        es: '¿Qué tan desafiante quieres que sea tu práctica?',
+      );
+  String get obEasy => _pick(
+        en: 'Easy',
+        sr: 'Lako',
+        de: 'Einfach',
+        es: 'Fácil',
+      );
+  String get obNormal => _pick(
+        en: 'Normal',
+        sr: 'Normalno',
+        de: 'Normal',
+        es: 'Normal',
+      );
+  String get obHard => _pick(
+        en: 'Hard',
+        sr: 'Tesko',
+        de: 'Schwer',
+        es: 'Difícil',
+      );
+  String get obDailyTitle => _pick(
+        en: 'Daily Review',
+        sr: 'Dnevno ponavljanje',
+        de: 'Tägliche Wiederholung',
+        es: 'Repaso diario',
+      );
+  String get obDailySubtitle => _pick(
+        en: 'Enable smart spaced-repetition reminders',
+        sr: 'Ukljuci pametne podsetnike za ponavljanje',
+        de: 'Aktiviere smarte Wiederholungs-Erinnerungen',
+        es: 'Activa recordatorios inteligentes de repaso',
+      );
+  String get obEnableReminder => _pick(
+        en: 'Enable daily reminder',
+        sr: 'Ukljuci dnevni podsetnik',
+        de: 'Tägliche Erinnerung aktivieren',
+        es: 'Activar recordatorio diario',
+      );
+  String get obContinue => _pick(
+        en: 'Continue',
+        sr: 'Nastavi',
+        de: 'Weiter',
+        es: 'Continuar',
+      );
+  String get obStartLearning => _pick(
+        en: 'Start Learning 🚀',
+        sr: 'Počni da učiš 🚀',
+        de: 'Lerne los 🚀',
+        es: '¡A aprender! 🚀',
+      );
+
+  // ── Quiz Summary ──────────────────────────────────────────────
+  String get qsTitle => _pick(
+        en: 'Quiz Complete!',
+        sr: 'Kviz zavrsen!',
+        de: 'Quiz abgeschlossen!',
+        es: '¡Quiz completado!',
+      );
+  String qsSubtitle(int correct, int total) => _pick(
+        en: 'You got $correct out of $total correct.',
+        sr: 'Pogodio si $correct od $total.',
+        de: 'Du hast $correct von $total richtig.',
+        es: 'Acertaste $correct de $total.',
+      );
+  String get qsStreak => _pick(
+        en: 'Streak',
+        sr: 'Niz',
+        de: 'Serie',
+        es: 'Racha',
+      );
+  String get qsAccuracy => _pick(
+        en: 'Accuracy',
+        sr: 'Tacnost',
+        de: 'Genauigkeit',
+        es: 'Precisión',
+      );
+  String get qsMastery => _pick(
+        en: 'Mastery',
+        sr: 'Savladanost',
+        de: 'Meisterung',
+        es: 'Dominio',
+      );
+  String get qsReviewTitle => _pick(
+        en: 'Questions to Review',
+        sr: 'Pitanja za ponavljanje',
+        de: 'Fragen zur Wiederholung',
+        es: 'Preguntas para repasar',
+      );
+  String get qsPlayAgain => _pick(
+        en: 'Play Again',
+        sr: 'Igraj ponovo',
+        de: 'Nochmal spielen',
+        es: 'Jugar de nuevo',
+      );
+  String get qsBackHome => _pick(
+        en: 'Back to Home',
+        sr: 'Nazad na pocetnu',
+        de: 'Zurück zum Start',
+        es: 'Volver al inicio',
+      );
+  String get hint => _pick(en: 'Hint', sr: 'Pomoc');
+  String get smallHint => _pick(en: 'Small hint (-1 XP)', sr: 'Mala pomoc (-1 XP)');
+  String get mediumHint => _pick(en: 'Medium hint (-3 XP)', sr: 'Srednja pomoc (-3 XP)');
+  String get fullHint => _pick(en: 'Full hint (-5 XP)', sr: 'Cela pomoc (-5 XP)');
+  String get noHintAvailable => _pick(en: 'No hint available', sr: 'Pomoc nije dostupna');
 
 extension AppI18nContextX on BuildContext {
   AppI18n get t {

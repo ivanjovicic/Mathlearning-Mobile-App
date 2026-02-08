@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_i18n.dart';
 import '../state/auth_provider.dart';
+import '../state/onboarding_provider.dart';
 import '../theme/theme_controller.dart';
 import '../screens/home/gamified_home_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/login_screen.dart';
+import '../screens/onboarding/onboarding_screen.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -40,9 +42,23 @@ class AuthWrapper extends StatelessWidget {
         }
 
         // Navigate based on auth status
-        return authProvider.isAuthenticated
-            ? const HomeEntryScreen()
-            : const LoginScreen();
+        if (!authProvider.isAuthenticated) {
+          return const LoginScreen();
+        }
+
+        // Show onboarding for first-time users
+        final onboarding = Provider.of<OnboardingProvider>(
+          context,
+          listen: true,
+        );
+        if (!onboarding.isLoaded) {
+          return const SizedBox.shrink(); // wait for prefs to load
+        }
+        if (!onboarding.isCompleted) {
+          return const OnboardingScreen();
+        }
+
+        return const HomeEntryScreen();
       },
     );
   }

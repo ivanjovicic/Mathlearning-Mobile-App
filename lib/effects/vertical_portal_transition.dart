@@ -45,6 +45,11 @@ class _VerticalPortalTransitionState extends State<VerticalPortalTransition>
 
   @override
   Widget build(BuildContext context) {
+    // When not animating, just show the child directly – no portal overlays.
+    if (!_controller.isAnimating) {
+      return widget.child;
+    }
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (_, __) {
