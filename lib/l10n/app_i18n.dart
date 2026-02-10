@@ -391,6 +391,8 @@ class AppI18n {
   String get mediumHint => _pick(en: 'Medium hint (-3 XP)', sr: 'Srednja pomoc (-3 XP)');
   String get fullHint => _pick(en: 'Full hint (-5 XP)', sr: 'Cela pomoc (-5 XP)');
   String get noHintAvailable => _pick(en: 'No hint available', sr: 'Pomoc nije dostupna');
+  String get qsMore => _pick(en: 'more', sr: 'još', de: 'mehr', es: 'más');
+}
 
 extension AppI18nContextX on BuildContext {
   AppI18n get t {

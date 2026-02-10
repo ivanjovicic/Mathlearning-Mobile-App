@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../state/auth_provider.dart';
 import '../state/leaderboard_provider.dart';
+import '../theme/astrax_theme.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -37,15 +38,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: AstraXTheme.bg,
         appBar: AppBar(
-          backgroundColor: colorScheme.surface.withValues(alpha: 0),
+          backgroundColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.emoji_events, color: colorScheme.secondary, size: 22),
+              const Icon(Icons.emoji_events, color: AstraXTheme.neonPurple, size: 22),
               const SizedBox(width: 8),
               const Text(
                 "Rang lista",
@@ -206,7 +207,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           // My rank row (outside top 50)
           if (i == items.length + 1 && showMyRank) {
             return _buildRow(
-              myRankOutsideList!,
+              myRankOutsideList,
               true,
               colorScheme,
               range,

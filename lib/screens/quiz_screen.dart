@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
 import '../state/quiz_provider.dart';
+import '../theme/astrax_theme.dart';
+import '../widgets/astrax_buttons.dart';
+import '../widgets/astrax_card.dart';
 import 'home/gamified_quiz_screen.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -56,13 +59,11 @@ class _QuizScreenState extends State<QuizScreen> {
   Widget build(BuildContext context) {
     final t = context.t;
     final quiz = Provider.of<QuizProvider>(context);
-    final colorScheme = Theme.of(context).colorScheme;
-
     if (_loading) {
       return Scaffold(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: AstraXTheme.bg,
         body: Center(
-          child: CircularProgressIndicator(color: colorScheme.primary),
+          child: const CircularProgressIndicator(color: AstraXTheme.neonBlue),
         ),
       );
     }
@@ -70,18 +71,23 @@ class _QuizScreenState extends State<QuizScreen> {
     final question = quiz.currentQuestion;
     if (question == null) {
       return Scaffold(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: AstraXTheme.bg,
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                t.noQuestions,
-                style: TextStyle(color: colorScheme.onSurface),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: AstraCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    t.noQuestions,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 12),
+                  AstraNeonButton(text: t.retry, onTap: _retry),
+                ],
               ),
-              const SizedBox(height: 12),
-              ElevatedButton(onPressed: _retry, child: Text(t.retry)),
-            ],
+            ),
           ),
         ),
       );

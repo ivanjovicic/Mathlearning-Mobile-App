@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'astrax_theme.dart';
 import 'theme_sci_fi.dart';
 import '../widgets/game_theme_transition.dart';
 import 'theme_fantasy.dart';
@@ -7,10 +8,10 @@ import 'theme_pastel.dart';
 import 'theme_minimal.dart';
 import 'theme_retro.dart';
 
-enum AppThemeType { sciFi, fantasy, pastel, minimal, retro }
+enum AppThemeType { sciFi, fantasy, pastel, minimal, retro, astra }
 
 class ThemeController extends ChangeNotifier {
-  AppThemeType _currentType = AppThemeType.sciFi;
+  AppThemeType _currentType = AppThemeType.astra;
   bool _reduceMotion = false;
   bool _highContrast = false;
   bool _useGamifiedHome = true;
@@ -122,6 +123,8 @@ class ThemeController extends ChangeNotifier {
         return MinimalTheme.data;
       case AppThemeType.retro:
         return RetroTheme.data;
+      case AppThemeType.astra:
+        return AstraXTheme.data;
       default:
         return SciFiTheme.data;
     }

@@ -6,14 +6,18 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
 import '../models/topic_item.dart';
+import '../services/srs_service.dart';
 import '../state/auth_provider.dart';
 import '../state/coin_provider.dart';
 import '../state/progress_provider.dart';
 import '../state/quiz_provider.dart';
+import '../theme/astrax_theme.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/offline_status_widget.dart';
-import '../widgets/streak_progress_bar.dart';
+import '../widgets/daily_streak_badge.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
+import '../widgets/astrax_bottom_nav.dart';
+import '../widgets/astrax_xp_bar.dart';
 import 'quiz/pick_topic_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,6 +34,8 @@ class _HomeScreenState extends State<HomeScreen>
   late final AnimationController _refreshSpinController;
   bool _isRefreshingDailyReview = false;
   bool _showRefreshSuccess = false;
+  int? _bestStreakOverride;
+  bool? _todayCompletedOverride;
 
   @override
   void initState() {
@@ -40,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
     WidgetsBinding.instance.addObserver(this);
     _refreshDailyReviewCount();
+    _loadStreakBadge();
     Future.microtask(() {
       if (!mounted) return;
 
@@ -79,7 +86,62 @@ class _HomeScreenState extends State<HomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _refreshDailyReviewCount();
+      _loadStreakBadge();
     }
+  }
+
+  Future<void> _loadStreakBadge() async {
+    final data = await SrsService.instance.fetchStreakBadge();
+    if (!mounted || data == null) return;
+
+    final best = _readInt(data, const [
+      'bestStreak',
+      'best_streak',
+      'maxStreak',
+      'max_streak',
+    ]);
+    final todayDone = _readBool(data, const [
+      'isTodayCompleted',
+      'todayCompleted',
+      'todayDone',
+      'doneToday',
+    ]);
+
+    setState(() {
+      if (best != null) {
+        _bestStreakOverride = best;
+      }
+      if (todayDone != null) {
+        _todayCompletedOverride = todayDone;
+      }
+    });
+  }
+
+  int? _readInt(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final value = data[key];
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final parsed = int.tryParse(value);
+        if (parsed != null) return parsed;
+      }
+    }
+    return null;
+  }
+
+  bool? _readBool(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final value = data[key];
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      if (value is String) {
+        final normalized = value.toLowerCase();
+        if (normalized == 'true' || normalized == '1') return true;
+        if (normalized == 'false' || normalized == '0') return false;
+      }
+    }
+    return null;
   }
 
   void _refreshDailyReviewCount() {
@@ -210,9 +272,11 @@ class _HomeScreenState extends State<HomeScreen>
     final username = auth.username?.trim();
     final recommendedTopic = _findRecommendedTopic(progress);
     final dailyDone = progress.totalAttempts % _dailyGoalTarget;
+    final isTodayCompleted = _todayCompletedOverride ?? (dailyDone > 0);
+    final bestStreak = _bestStreakOverride ?? progress.streak;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: AstraXTheme.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(18),
@@ -289,10 +353,11 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
               const SizedBox(height: 20),
-              StreakProgressBar(
-                streak: progress.streak,
-                maxStreak: 30,
-                enableBurst: true,
+              DailyStreakBadge(
+                currentStreak: progress.streak,
+                bestStreak: bestStreak,
+                isTodayCompleted: isTodayCompleted,
+                onTap: () => Navigator.pushNamed(context, "/heatmap"),
               ),
               const SizedBox(height: 16),
               Text(
@@ -312,6 +377,12 @@ class _HomeScreenState extends State<HomeScreen>
               AnimatedXpBar(
                 currentXp: progress.xp,
                 maxXp: progress.xpToNextLevel,
+              ),
+              const SizedBox(height: 8),
+              AstraXPBar(
+                progress: progress.xpToNextLevel == 0
+                    ? 0
+                    : progress.xp / progress.xpToNextLevel,
               ),
               const SizedBox(height: 18),
               _buildContinueCard(
@@ -524,33 +595,9 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        backgroundColor: colorScheme.surface,
-        indicatorColor: colorScheme.primaryContainer.withValues(alpha: 0.6),
-        onDestinationSelected: (index) => _onBottomNavTap(index, progress),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: t.navHome,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.quiz_outlined),
-            selectedIcon: const Icon(Icons.quiz),
-            label: t.navQuiz,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.leaderboard_outlined),
-            selectedIcon: const Icon(Icons.leaderboard),
-            label: t.navRank,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person),
-            label: t.navProfile,
-          ),
-        ],
+      bottomNavigationBar: AstraBottomNav(
+        currentIndex: 0,
+        onChanged: (index) => _onBottomNavTap(index, progress),
       ),
     );
   }

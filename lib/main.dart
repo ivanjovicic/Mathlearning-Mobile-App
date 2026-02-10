@@ -15,6 +15,7 @@ import 'screens/leaderboard_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/quiz_summary_screen.dart';
 import 'screens/my_feedback_screen.dart';
+import 'screens/astrax_home_screen.dart';
 
 import 'state/badge_provider.dart';
 import 'state/leaderboard_provider.dart';
@@ -199,6 +200,7 @@ class _AppRoot extends StatelessWidget {
                 home: const AuthCheckWidget(child: AuthWrapper()),
                 routes: {
                   "/home": (_) => const HomeEntryScreen(),
+                  "/astrax-home": (_) => const AstraHomeScreen(),
                   "/daily-review": (_) => const DailyReviewScreen(),
                   "/quiz": (_) => const QuizScreen(),
                   "/heatmap": (_) => const HeatmapScreen(),

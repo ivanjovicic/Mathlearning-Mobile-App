@@ -58,6 +58,11 @@ class ThemeSelectorPage extends StatelessWidget {
             selected: controller.currentType == AppThemeType.retro,
             onTap: () => controller.setTheme(AppThemeType.retro, context),
           ),
+          _ThemeCard(
+            title: "Astra Dark",
+            selected: controller.currentType == AppThemeType.astra,
+            onTap: () => controller.setTheme(AppThemeType.astra, context),
+          ),
           const SizedBox(height: 8),
           Text(
             "Reduce motion: ${controller.reduceMotion ? "ukljucen" : "iskljucen"} | "
