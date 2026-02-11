@@ -7,9 +7,19 @@ class SrsService {
   static final SrsService instance = SrsService._internal();
   SrsService._internal();
 
+  bool get _canUseProtectedEndpoints =>
+      AuthService.instance.isLoggedIn && !AuthService.instance.isDemoMode;
+
   /// Fetch daily SRS questions that need review
   Future<List<Map<String, dynamic>>> fetchDailySrsQuestions() async {
     final userId = AuthService.instance.userId;
+
+    if (!_canUseProtectedEndpoints) {
+      if (userId != null) {
+        return OfflineStorageService.getCachedDailySrsQuestions(userId: userId);
+      }
+      return [];
+    }
 
     if (userId != null && !ConnectivityService.instance.isOnline) {
       return OfflineStorageService.getCachedDailySrsQuestions(userId: userId);
@@ -50,6 +60,7 @@ class SrsService {
 
   /// Fetch mixed SRS questions (daily mix)
   Future<List<Map<String, dynamic>>> fetchMixedSrsQuestions() async {
+    if (!_canUseProtectedEndpoints) return [];
     try {
       final dio = AuthService.instance.client;
       final response = await dio.get('/api/quiz/srs/mixed');
@@ -59,6 +70,20 @@ class SrsService {
           response.statusCode! < 300) {
         if (response.data is List) {
           return List<Map<String, dynamic>>.from(response.data);
+        }
+        if (response.data is Map<String, dynamic>) {
+          final data = response.data as Map<String, dynamic>;
+          final srs = data['srs'];
+          final random = data['random'];
+
+          final merged = <Map<String, dynamic>>[];
+          if (srs is List) {
+            merged.addAll(List<Map<String, dynamic>>.from(srs));
+          }
+          if (random is List) {
+            merged.addAll(List<Map<String, dynamic>>.from(random));
+          }
+          return merged;
         }
       }
 
@@ -72,6 +97,7 @@ class SrsService {
 
   /// Fetch streak badge data
   Future<Map<String, dynamic>?> fetchStreakBadge() async {
+    if (!_canUseProtectedEndpoints) return null;
     try {
       final dio = AuthService.instance.client;
       final response = await dio.get('/api/quiz/srs/streak');
@@ -98,6 +124,7 @@ class SrsService {
     required bool isCorrect,
     required int timeMs,
   }) async {
+    if (!_canUseProtectedEndpoints) return false;
     try {
       final dio = AuthService.instance.client;
       final response = await dio.post(

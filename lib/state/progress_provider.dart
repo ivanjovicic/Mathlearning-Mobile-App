@@ -24,10 +24,7 @@ class ProgressProvider extends ChangeNotifier {
 
   /// Called by QuizProvider right after answering a question.
   /// Updates XP & streak immediately (works offline too).
-  void applyAnswerResult({
-    required bool isCorrect,
-    int xpForQuestion = 10,
-  }) {
+  void applyAnswerResult({required bool isCorrect, int xpForQuestion = 10}) {
     totalAttempts++;
 
     if (isCorrect) {
@@ -48,8 +45,8 @@ class ProgressProvider extends ChangeNotifier {
     // (rough: can't know exact server accuracy, but keep local consistent)
     if (totalAttempts > 0) {
       // We track correct count implicitly: accuracy * oldAttempts + (1 or 0)
-      final oldCorrectCount =
-          ((accuracy / 100.0) * (totalAttempts - 1)).round();
+      final oldCorrectCount = ((accuracy / 100.0) * (totalAttempts - 1))
+          .round();
       final newCorrectCount = oldCorrectCount + (isCorrect ? 1 : 0);
       accuracy = (newCorrectCount / totalAttempts) * 100.0;
     }
@@ -62,26 +59,43 @@ class ProgressProvider extends ChangeNotifier {
 
   Future<void> loadProgress() async {
     // 1) Try from cache first (instant UI)
-    final cached = await OfflineStorageService.getCachedUserProgress();
+    var cached = await OfflineStorageService.getCachedUserProgress();
+    cached ??= await OfflineStorageService.loadCachedProgressV1();
     if (cached != null) {
       _applyFromCache(cached, notify: false);
     }
 
+    final localAttempts = totalAttempts;
+    final localAccuracy = accuracy;
+    final localStreak = streak;
+    final localXp = xp;
+    final localLevel = level;
+
     // 2) Try from server to reconcile
     try {
-      if (token?.startsWith('demo_token') != true) {
+      if (token?.startsWith('demo_') != true) {
         final data = await api.get("/api/progress/overview", token);
         if (data != null) {
-          totalAttempts = data["totalAttempts"] ?? 0;
-          accuracy = (data["accuracy"] as num?)?.toDouble() ?? 0.0;
-          streak = data["streak"] ?? 0;
+          final remoteAttempts = data["totalAttempts"] ?? 0;
+          final remoteAccuracy = (data["accuracy"] as num?)?.toDouble() ?? 0.0;
+          final remoteStreak = data["streak"] ?? 0;
 
-          xp = calculateXp(totalAttempts, accuracy);
+          final remoteIsNewer =
+              remoteAttempts > localAttempts ||
+              (remoteAttempts == localAttempts &&
+                  remoteAccuracy >= localAccuracy);
 
-          while (xp >= xpToNextLevel) {
-            xp -= xpToNextLevel;
-            level++;
-            if (onLevelUp != null) onLevelUp!();
+          if (remoteIsNewer) {
+            totalAttempts = remoteAttempts;
+            accuracy = remoteAccuracy;
+            streak = remoteStreak;
+            _recalculateLevelAndXpFromAttempts();
+          } else {
+            totalAttempts = localAttempts;
+            accuracy = localAccuracy;
+            streak = localStreak;
+            xp = localXp;
+            level = localLevel;
           }
 
           await _cacheProgressLocally();
@@ -113,6 +127,12 @@ class ProgressProvider extends ChangeNotifier {
 
   /// Push local state to server, then pull authoritative copy back.
   Future<void> syncWithServer() async {
+    final localAttempts = totalAttempts;
+    final localAccuracy = accuracy;
+    final localStreak = streak;
+    final localXp = xp;
+    final localLevel = level;
+
     final localMap = {
       'level': level,
       'xp': xp,
@@ -127,16 +147,26 @@ class ProgressProvider extends ChangeNotifier {
       // Pull authoritative state from server
       final remote = await _progressService.fetchProgress();
       if (remote != null) {
-        totalAttempts = remote['totalAttempts'] ?? totalAttempts;
-        accuracy =
+        final remoteAttempts = remote['totalAttempts'] ?? totalAttempts;
+        final remoteAccuracy =
             (remote['accuracy'] as num?)?.toDouble() ?? accuracy;
-        streak = remote['streak'] ?? streak;
-        xp = calculateXp(totalAttempts, accuracy);
-
-        while (xp >= xpToNextLevel) {
-          xp -= xpToNextLevel;
-          level++;
-          if (onLevelUp != null) onLevelUp!();
+        final remoteStreak = remote['streak'] ?? streak;
+        // Do not regress local quiz progress with stale remote snapshot.
+        final remoteIsNewer =
+            remoteAttempts > localAttempts ||
+            (remoteAttempts == localAttempts &&
+                remoteAccuracy >= localAccuracy);
+        if (remoteIsNewer) {
+          totalAttempts = remoteAttempts;
+          accuracy = remoteAccuracy;
+          streak = remoteStreak;
+          _recalculateLevelAndXpFromAttempts();
+        } else {
+          totalAttempts = localAttempts;
+          accuracy = localAccuracy;
+          streak = localStreak;
+          xp = localXp;
+          level = localLevel;
         }
 
         await _cacheProgressLocally();
@@ -159,6 +189,14 @@ class ProgressProvider extends ChangeNotifier {
   }
 
   Future<void> _cacheProgressLocally() async {
+    final data = {
+      'level': level,
+      'xp': xp,
+      'streak': streak,
+      'total_attempts': totalAttempts,
+      'accuracy': accuracy,
+    };
+
     await OfflineStorageService.cacheUserProgress(
       level: level,
       xp: xp,
@@ -166,11 +204,28 @@ class ProgressProvider extends ChangeNotifier {
       totalAttempts: totalAttempts,
       accuracy: accuracy,
     );
+    await OfflineStorageService.cacheProgressV1(data);
+  }
+
+  Future<void> persistLocalProgress() async {
+    await _cacheProgressLocally();
   }
 
   int calculateXp(int attempts, double acc) {
     // Eksponencijalno nagrađivanje (osjećaj napretka)
     return ((acc / 100) * attempts * 12).toInt();
+  }
+
+  void _recalculateLevelAndXpFromAttempts() {
+    final totalXp = calculateXp(totalAttempts, accuracy);
+    level = 1;
+    xp = totalXp;
+
+    while (xp >= xpToNextLevel) {
+      xp -= xpToNextLevel;
+      level++;
+      if (onLevelUp != null) onLevelUp!();
+    }
   }
 
   // Topics list
@@ -182,10 +237,10 @@ class ProgressProvider extends ChangeNotifier {
   Future<void> loadTopics() async {
     try {
       // Skip API call if using demo token (backend not ready)
-      if (token?.startsWith('demo_token') != true) {
-        final data = await api.get("/api/progress/topics", token);
+      if (token?.startsWith('demo_') != true) {
+        final data = await api.getTopicsProgress();
         if (data != null) {
-          topics = (data as List).map((e) {
+          topics = data.map((e) {
             final dto = TopicDto.fromJson(e);
             return TopicProgress(
               name: dto.name,

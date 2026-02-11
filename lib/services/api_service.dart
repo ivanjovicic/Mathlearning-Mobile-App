@@ -250,36 +250,60 @@ class ApiService {
   }
 
   // Progress API methods
-  Future<Map<String, dynamic>?> getProgressWeakAreas(String? token) async {
+  Future<List<Map<String, dynamic>>?> getProgressWeakAreas(
+    String? token,
+  ) async {
     try {
-      return await get('/api/progress/weak-areas', token);
+      final response = await _dio.get('/api/progress/weak-areas');
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300 &&
+          response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+      return null;
     } catch (e) {
       return null;
     }
   }
 
   Future<ProgressOverview> getProgressOverview() async {
+    ProgressOverview fallback() => ProgressOverview(
+      totalQuizzes: 0,
+      completedQuizzes: 0,
+      averageScore: 0.0,
+      bestScore: 0.0,
+      lastQuizDate: DateTime.now(),
+    );
+
     try {
-      final response = await _dio.get('/progress/overview');
-      if (response.data != null) {
-        return ProgressOverview.fromJson(response.data);
+      final response = await _dio.get('/api/progress/overview');
+      if (response.data != null && response.data is Map<String, dynamic>) {
+        final data = response.data as Map<String, dynamic>;
+
+        // Current backend shape:
+        // { totalAttempts, accuracy, streak }
+        if (data.containsKey('totalAttempts') || data.containsKey('accuracy')) {
+          final attempts = (data['totalAttempts'] as num?)?.toInt() ?? 0;
+          final accuracyPercent = (data['accuracy'] as num?)?.toDouble() ?? 0.0;
+          final ratio = (accuracyPercent / 100.0).clamp(0.0, 1.0).toDouble();
+
+          return ProgressOverview(
+            totalQuizzes: attempts,
+            completedQuizzes: attempts,
+            averageScore: ratio,
+            bestScore: ratio,
+            lastQuizDate: DateTime.now(),
+          );
+        }
+
+        // Legacy shape expected by ProgressOverview model.
+        return ProgressOverview.fromJson(data);
       }
 
-      return ProgressOverview(
-        totalQuizzes: 0,
-        completedQuizzes: 0,
-        averageScore: 0.0,
-        bestScore: 0.0,
-        lastQuizDate: DateTime.now(),
-      );
+      return fallback();
     } catch (e) {
-      return ProgressOverview(
-        totalQuizzes: 0,
-        completedQuizzes: 0,
-        averageScore: 0.0,
-        bestScore: 0.0,
-        lastQuizDate: DateTime.now(),
-      );
+      return fallback();
     }
   }
 
@@ -290,28 +314,14 @@ class ApiService {
   ) async {
     try {
       final response = await _dio.post(
-        '/quiz/questions',
+        '/api/quiz/questions',
         data: {'topic': topic, 'count': count},
       );
       if (response.data != null && response.data['questions'] != null) {
         return List<Map<String, dynamic>>.from(response.data['questions']);
       }
     } catch (e) {
-      // Return fallback questions
-      return [
-        {
-          'id': 1,
-          'text': '2 + 2 = ?',
-          'correctAnswerId': 1,
-          'type': 'multiple_choice',
-          'options': [
-            {'id': 1, 'text': '4'},
-            {'id': 2, 'text': '3'},
-            {'id': 3, 'text': '5'},
-            {'id': 4, 'text': '6'},
-          ],
-        },
-      ];
+      debugPrint('getQuestions failed: $e');
     }
     return null;
   }
