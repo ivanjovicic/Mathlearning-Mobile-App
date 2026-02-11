@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/offline_manager.dart';
@@ -15,6 +15,9 @@ import 'coin_provider.dart';
 import 'settings_provider.dart';
 
 class QuizProvider extends ChangeNotifier {
+  static const int _baseXpReward = 20;
+  static const int _noHintBonusXp = 5;
+
   final api = ApiService();
   final _offline = OfflineManager.instance;
   final _srs = SrsService.instance;
@@ -36,6 +39,7 @@ class QuizProvider extends ChangeNotifier {
   bool _isSrsMode = false; // Track if current quiz is SRS mode
   int _questionStartTime =
       0; // Track when question started for time calculation
+  bool _isSubmittingAnswer = false;
 
   // Hint system state
   String? _currentClue;
@@ -53,6 +57,7 @@ class QuizProvider extends ChangeNotifier {
   bool get usedHintForCurrentQuestion => _usedHintForCurrentQuestion;
   bool get isCooldown => _isCooldown;
   bool get isSrsMode => _isSrsMode;
+  bool get isSubmittingAnswer => _isSubmittingAnswer;
   int get totalQuestions => _allQuestions.length;
   int get currentQuestionNumber => _currentQuestionIndex + 1;
   List<Question> get questions => List.unmodifiable(_allQuestions);
@@ -62,15 +67,36 @@ class QuizProvider extends ChangeNotifier {
   // Session stats for summary screen
   int _correctCount = 0;
   int _sessionXp = 0;
+  int? _sessionStartTotalXp;
   final List<WrongQuestion> _wrongQuestions = [];
+  final Set<int> _rewardedQuestionIds = <int>{};
+  final Set<String> _awardedQuestionFingerprints = <String>{};
 
   int get correctCount => _correctCount;
   int get sessionXp => _sessionXp;
-  List<WrongQuestion> get wrongQuestions =>
-      List.unmodifiable(_wrongQuestions);
+  List<WrongQuestion> get wrongQuestions => List.unmodifiable(_wrongQuestions);
+  bool get alreadyAwardedForCurrentQuestion {
+    final q = currentQuestion;
+    if (q == null) return false;
+    return _rewardedQuestionIds.contains(q.id) ||
+        _awardedQuestionFingerprints.contains(_questionFingerprint(q));
+  }
 
-  void addSessionXp(int xp) {
-    _sessionXp += xp;
+  bool canAwardXpForQuestion(Question question) {
+    return !_rewardedQuestionIds.contains(question.id) &&
+        !_awardedQuestionFingerprints.contains(_questionFingerprint(question));
+  }
+
+  void markHintUsedForCurrentQuestion() {
+    if (_usedHintForCurrentQuestion) return;
+    _usedHintForCurrentQuestion = true;
+    notifyListeners();
+  }
+
+  void resetAwardHistory() {
+    _rewardedQuestionIds.clear();
+    _awardedQuestionFingerprints.clear();
+    notifyListeners();
   }
 
   bool _skipDailyReviewOnce = false;
@@ -102,6 +128,7 @@ class QuizProvider extends ChangeNotifier {
     _isSrsMode = true;
     _correctCount = 0;
     _sessionXp = 0;
+    _sessionStartTotalXp = _currentProgressTotalXp();
     _wrongQuestions.clear();
     _resetHints();
     resetMastery();
@@ -109,6 +136,7 @@ class QuizProvider extends ChangeNotifier {
     final srsQuestions = await _srs.fetchDailySrsQuestions();
     final limited = srsQuestions.take(count);
     _allQuestions = limited.map((q) => Question.fromJson(q)).toList();
+    _allQuestions = _dedupeQuestionsByContent(_allQuestions);
 
     if (_allQuestions.isNotEmpty) {
       quizId = "srs-review-${DateTime.now().millisecondsSinceEpoch}";
@@ -136,6 +164,7 @@ class QuizProvider extends ChangeNotifier {
       _isSrsMode = false;
       _correctCount = 0;
       _sessionXp = 0;
+      _sessionStartTotalXp = _currentProgressTotalXp();
       _wrongQuestions.clear();
       _resetHints();
       resetMastery();
@@ -146,6 +175,7 @@ class QuizProvider extends ChangeNotifier {
       if (srsQuestions.isNotEmpty) {
         debugPrint('âœ… Found ${srsQuestions.length} SRS questions for review');
         _allQuestions = srsQuestions.map((q) => Question.fromJson(q)).toList();
+        _allQuestions = _dedupeQuestionsByContent(_allQuestions);
         _isSrsMode = true;
         quizId = "srs-quiz-${DateTime.now().millisecondsSinceEpoch}";
         currentQuestion = _allQuestions[0];
@@ -164,6 +194,7 @@ class QuizProvider extends ChangeNotifier {
       if (questionsData != null && questionsData.isNotEmpty) {
         // Convert to Question objects
         _allQuestions = questionsData.map((q) => Question.fromJson(q)).toList();
+        _allQuestions = _dedupeQuestionsByContent(_allQuestions);
 
         // Generate quiz ID
         quizId = "quiz-${DateTime.now().millisecondsSinceEpoch}";
@@ -248,6 +279,7 @@ class QuizProvider extends ChangeNotifier {
     _currentQuestionIndex = 0;
     currentQuestion = _allQuestions[0];
     _questionStartTime = DateTime.now().millisecondsSinceEpoch;
+    _sessionStartTotalXp = _currentProgressTotalXp();
 
     debugPrint('âœ… Demo quiz started with ${_allQuestions.length} questions');
     notifyListeners();
@@ -256,98 +288,174 @@ class QuizProvider extends ChangeNotifier {
 
   Future<void> answer(String answer, BuildContext context) async {
     if (currentQuestion == null) return;
+    if (_isSubmittingAnswer) return;
 
-    final selectedOptionId = int.tryParse(answer);
-
-    // Find selected option by ID (preferred) or fallback to option text
-    Option? selectedOption;
-    for (final option in currentQuestion!.options) {
-      if (selectedOptionId != null && option.id == selectedOptionId) {
-        selectedOption = option;
-        break;
-      }
-      if (option.text == answer) {
-        selectedOption = option;
-        break;
-      }
-    }
-
-    // Calculate if answer is correct by comparing option ID
-    bool isCorrect =
-        selectedOption != null &&
-        selectedOption.id == currentQuestion!.correctAnswerId;
-
-    debugPrint(
-      'ðŸŽ¯ Answer: "$answer" (ID: ${selectedOption?.id}) | Correct ID: ${currentQuestion!.correctAnswerId} | Is Correct: $isCorrect',
-    );
-
-    // Calculate time spent on this question
-    final currentTime = DateTime.now().millisecondsSinceEpoch;
-    final timeMs = currentTime - _questionStartTime;
-
-    // Optimistic XP/streak update — instant feedback even offline
-    _progress?.applyAnswerResult(
-      isCorrect: isCorrect,
-      xpForQuestion: 10,
-    );
+    _isSubmittingAnswer = true;
+    notifyListeners();
 
     try {
-      // If this is SRS mode, update SRS data (online or queued offline).
-      if (_isSrsMode) {
-        await _offline.submitSrsUpdate(
+      final selectedOptionId = int.tryParse(answer);
+
+      // Find selected option by ID (preferred) or fallback to option text
+      Option? selectedOption;
+      for (final option in currentQuestion!.options) {
+        if (selectedOptionId != null && option.id == selectedOptionId) {
+          selectedOption = option;
+          break;
+        }
+        if (option.text == answer) {
+          selectedOption = option;
+          break;
+        }
+      }
+
+      // Calculate if answer is correct by comparing option ID
+      bool isCorrect =
+          selectedOption != null &&
+          selectedOption.id == currentQuestion!.correctAnswerId;
+
+      debugPrint(
+        'ðŸŽ¯ Answer: "$answer" (ID: ${selectedOption?.id}) | Correct ID: ${currentQuestion!.correctAnswerId} | Is Correct: $isCorrect',
+      );
+
+      // Calculate time spent on this question
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
+      final timeMs = currentTime - _questionStartTime;
+      final localTotalXpBefore = _currentProgressTotalXp();
+
+      final questionFingerprint = _questionFingerprint(currentQuestion!);
+      final shouldRewardProgress =
+          _rewardedQuestionIds.add(currentQuestion!.id) &&
+          _awardedQuestionFingerprints.add(questionFingerprint);
+      final fallbackXpForQuestion = isCorrect
+          ? _baseXpReward + (_usedHintForCurrentQuestion ? 0 : _noHintBonusXp)
+          : 0;
+      Map<String, dynamic>? serverResponse;
+
+      try {
+        // If this is SRS mode, update SRS data (online or queued offline).
+        if (_isSrsMode) {
+          await _offline.submitSrsUpdate(
+            questionId: currentQuestion!.id,
+            isCorrect: isCorrect,
+            timeMs: timeMs,
+          );
+          debugPrint(
+            'SRS processed: Q${currentQuestion!.id}, correct=$isCorrect, time=${timeMs}ms',
+          );
+        }
+
+        // Submit answer (online or queue for offline sync)
+        final submitResult = await _offline.submitAnswer(
+          quizId: quizId!,
           questionId: currentQuestion!.id,
+          answer: selectedOption?.text ?? answer,
+          timeSpentSeconds: 3, // Could be calculated dynamically
           isCorrect: isCorrect,
-          timeMs: timeMs,
+          token: token,
         );
+        serverResponse = submitResult.response;
+      } catch (e) {
+        debugPrint('Error submitting answer: $e');
+        // Continue anyway - answer is saved for sync
+      }
+
+      var effectiveXpForQuestion = fallbackXpForQuestion;
+      if (serverResponse != null) {
+        final serverAwardedXp = _readIntFromResponse(serverResponse, const [
+          'awardedXp',
+          'awardedXP',
+          'xpAwarded',
+          'earnedXp',
+          'earnedXP',
+        ]);
+        final serverIsFirstTimeCorrect = _readBoolFromResponse(
+          serverResponse,
+          const [
+            'isFirstTimeCorrect',
+            'isFirstCorrect',
+            'firstTimeCorrect',
+            'firstCorrect',
+          ],
+        );
+        final serverTotalXp = _readIntFromResponse(serverResponse, const [
+          'totalXp',
+          'totalXP',
+          'xpTotal',
+          'totalExperience',
+        ]);
+
+        final hasReliableServerTotal =
+            serverTotalXp != null &&
+            localTotalXpBefore != null &&
+            serverTotalXp >= localTotalXpBefore;
+        final hasPositiveServerAward =
+            serverAwardedXp != null && serverAwardedXp > 0;
+        final canTrustFirstTimeFlag =
+            hasReliableServerTotal || hasPositiveServerAward;
+
+        if (canTrustFirstTimeFlag && serverIsFirstTimeCorrect == false) {
+          effectiveXpForQuestion = 0;
+        } else if (hasReliableServerTotal) {
+          // Prefer server absolute total XP when available.
+          final delta = serverTotalXp - localTotalXpBefore;
+          effectiveXpForQuestion = delta > 0 ? delta : 0;
+        } else if (hasPositiveServerAward) {
+          effectiveXpForQuestion = serverAwardedXp;
+        }
+      }
+
+      if (shouldRewardProgress) {
+        _progress?.applyAnswerResult(
+          isCorrect: isCorrect,
+          xpForQuestion: isCorrect ? effectiveXpForQuestion : 0,
+        );
+        await _progress?.persistLocalProgress();
+        if (isCorrect && effectiveXpForQuestion > 0) {
+          _sessionXp += effectiveXpForQuestion;
+        }
+      } else {
         debugPrint(
-          'SRS processed: Q${currentQuestion!.id}, correct=$isCorrect, time=${timeMs}ms',
+          'Skipping duplicate XP reward for questionId=${currentQuestion!.id}, fingerprint=$questionFingerprint',
         );
       }
 
-      // Submit answer (online or queue for offline sync)
-      await _offline.submitAnswer(
-        quizId: quizId!,
-        questionId: currentQuestion!.id,
-        answer: selectedOption?.text ?? answer,
-        timeSpentSeconds: 3, // Could be calculated dynamically
-        isCorrect: isCorrect,
-        token: token,
-      );
-    } catch (e) {
-      debugPrint('Error submitting answer: $e');
-      // Continue anyway - answer is saved for sync
+      questionsAnsweredInSession++;
+
+      // Track session stats
+      if (isCorrect) {
+        _correctCount++;
+      } else {
+        // Find correct answer text
+        final correctOption = currentQuestion!.options.firstWhere(
+          (o) => o.id == currentQuestion!.correctAnswerId,
+          orElse: () => currentQuestion!.options.first,
+        );
+        _wrongQuestions.add(
+          WrongQuestion(
+            questionId: currentQuestion!.id,
+            questionText: currentQuestion!.text,
+            userAnswer: selectedOption?.text ?? answer,
+            correctAnswer: correctOption.text,
+          ),
+        );
+      }
+
+      // Check if quiz is finished
+      if (questionsAnsweredInSession >= _allQuestions.length) {
+        // Quiz completed - show results
+        if (!context.mounted) return;
+        await _handleQuizCompletion(context);
+        return;
+      }
+
+      // Move to next question with cooldown
+      _isCooldown = true;
+      notifyListeners();
+    } finally {
+      _isSubmittingAnswer = false;
+      notifyListeners();
     }
-
-    questionsAnsweredInSession++;
-
-    // Track session stats
-    if (isCorrect) {
-      _correctCount++;
-    } else {
-      // Find correct answer text
-      final correctOption = currentQuestion!.options.firstWhere(
-        (o) => o.id == currentQuestion!.correctAnswerId,
-        orElse: () => currentQuestion!.options.first,
-      );
-      _wrongQuestions.add(WrongQuestion(
-        questionId: currentQuestion!.id,
-        questionText: currentQuestion!.text,
-        userAnswer: selectedOption?.text ?? answer,
-        correctAnswer: correctOption.text,
-      ));
-    }
-
-    // Check if quiz is finished
-    if (questionsAnsweredInSession >= _allQuestions.length) {
-      // Quiz completed - show results
-      if (!context.mounted) return;
-      await _handleQuizCompletion(context);
-      return;
-    }
-
-    // Move to next question with cooldown
-    _isCooldown = true;
-    notifyListeners();
   }
 
   Future<void> goToNextQuestion() async {
@@ -367,15 +475,28 @@ class QuizProvider extends ChangeNotifier {
     final progress = Provider.of<ProgressProvider>(context, listen: false);
     final oldLevel = progress.level;
     final oldAccuracy = progress.accuracy;
-
-    await progress.loadProgress(); // Refresh progress data
+    // Keep optimistic XP/streak and attempt best-effort sync.
+    // Using loadProgress here can overwrite fresh local progress with stale
+    // server data right after quiz completion.
+    await progress.syncWithServer();
+    await progress.persistLocalProgress();
+    await progress.loadTopics();
     if (!context.mounted) return;
+
+    final totalXpAfterSync =
+        ((progress.level - 1) * progress.xpToNextLevel) + progress.xp;
+    final xpFromProgressDelta = _sessionStartTotalXp == null
+        ? 0
+        : (totalXpAfterSync - _sessionStartTotalXp!).clamp(0, 1 << 30);
+    final summaryXp = xpFromProgressDelta > _sessionXp
+        ? xpFromProgressDelta
+        : _sessionXp;
 
     // Build session stats for summary screen
     final stats = QuizSessionStats(
       correct: _correctCount,
       total: _allQuestions.length,
-      xpEarned: _sessionXp,
+      xpEarned: summaryXp,
       streak: progress.streak,
       masteryProgress: _masteryPercent,
       wrongQuestions: List.from(_wrongQuestions),
@@ -397,28 +518,23 @@ class QuizProvider extends ChangeNotifier {
             onFinished: () {
               Navigator.pop(context); // Close level-up dialog
 
-              if (hasAccuracyAchievement) {
-                _showAccuracyAchievement(context, progress.accuracy);
-              }
-
-              Navigator.pushNamed(
-                context,
-                '/quiz-summary',
-                arguments: stats,
-              );
+              () async {
+                if (hasAccuracyAchievement) {
+                  await _showAccuracyAchievement(context, progress.accuracy);
+                }
+                if (!context.mounted) return;
+                Navigator.pushNamed(context, '/quiz-summary', arguments: stats);
+              }();
             },
           ),
         ),
       );
     } else {
       if (_checkAccuracyAchievement(oldAccuracy, progress.accuracy)) {
-        _showAccuracyAchievement(context, progress.accuracy);
+        await _showAccuracyAchievement(context, progress.accuracy);
       }
-      Navigator.pushNamed(
-        context,
-        '/quiz-summary',
-        arguments: stats,
-      );
+      if (!context.mounted) return;
+      Navigator.pushNamed(context, '/quiz-summary', arguments: stats);
     }
 
     // Reset quiz state
@@ -428,8 +544,90 @@ class QuizProvider extends ChangeNotifier {
     currentQuestion = null;
     _correctCount = 0;
     _sessionXp = 0;
+    _sessionStartTotalXp = null;
     _wrongQuestions.clear();
     notifyListeners();
+  }
+
+  List<Question> _dedupeQuestionsByContent(List<Question> questions) {
+    final seen = <String>{};
+    final unique = <Question>[];
+
+    for (final q in questions) {
+      final key = _questionFingerprint(q);
+      if (seen.add(key)) {
+        unique.add(q);
+      }
+    }
+
+    if (unique.length != questions.length) {
+      debugPrint(
+        'Deduped questions by content: ${questions.length - unique.length} removed',
+      );
+    }
+    return unique;
+  }
+
+  String _questionFingerprint(Question q) {
+    final normalizedQuestion = _normalizeText(q.text);
+    final optionTexts = q.options.map((o) => _normalizeText(o.text)).toList()
+      ..sort();
+    return '$normalizedQuestion|${optionTexts.join('|')}';
+  }
+
+  String _normalizeText(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  Map<String, dynamic> _flattenResponse(Map<String, dynamic> response) {
+    final flat = Map<String, dynamic>.from(response);
+    final data = response['data'];
+    if (data is Map) {
+      for (final entry in data.entries) {
+        flat.putIfAbsent(entry.key.toString(), () => entry.value);
+      }
+    }
+    return flat;
+  }
+
+  int? _currentProgressTotalXp() {
+    final p = _progress;
+    if (p == null) return null;
+    return ((p.level - 1) * p.xpToNextLevel) + p.xp;
+  }
+
+  int? _readIntFromResponse(Map<String, dynamic> response, List<String> keys) {
+    final flat = _flattenResponse(response);
+    for (final key in keys) {
+      if (!flat.containsKey(key)) continue;
+      final value = flat[key];
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final parsed = int.tryParse(value);
+        if (parsed != null) return parsed;
+      }
+    }
+    return null;
+  }
+
+  bool? _readBoolFromResponse(
+    Map<String, dynamic> response,
+    List<String> keys,
+  ) {
+    final flat = _flattenResponse(response);
+    for (final key in keys) {
+      if (!flat.containsKey(key)) continue;
+      final value = flat[key];
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      if (value is String) {
+        final normalized = value.trim().toLowerCase();
+        if (normalized == 'true') return true;
+        if (normalized == 'false') return false;
+      }
+    }
+    return null;
   }
 
   bool _checkAccuracyAchievement(double oldAccuracy, double newAccuracy) {
@@ -439,7 +637,10 @@ class QuizProvider extends ChangeNotifier {
         (oldAccuracy < 50 && newAccuracy >= 50);
   }
 
-  void _showAccuracyAchievement(BuildContext context, double accuracy) {
+  Future<void> _showAccuracyAchievement(
+    BuildContext context,
+    double accuracy,
+  ) async {
     String title, subtitle, icon;
 
     if (accuracy >= 90) {
@@ -458,7 +659,7 @@ class QuizProvider extends ChangeNotifier {
       return; // No achievement to show
     }
 
-    showDialog(
+    await showDialog(
       context: context,
       barrierColor: Colors.transparent,
       barrierDismissible: false,
@@ -628,9 +829,9 @@ class QuizProvider extends ChangeNotifier {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Nedovoljno coina'),
+        title: const Text('Nedovoljno zlatnika'),
         content: Text(
-          'Potrebno je $cost coina za ovu pomoc. Osvoji jos coina kroz kvizove.',
+          'Potrebno je $cost zlatnika za ovu pomoc. Osvoji jos zlatnika kroz kvizove.',
         ),
         actions: [
           TextButton(
@@ -702,4 +903,3 @@ class QuizProvider extends ChangeNotifier {
     _usedHintForCurrentQuestion = false;
   }
 }
-

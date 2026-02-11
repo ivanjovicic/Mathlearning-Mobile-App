@@ -16,6 +16,7 @@ import '../../widgets/mastery_burst.dart';
 import '../../widgets/mastery_progress_bar.dart';
 import '../../widgets/streak_flame.dart';
 import '../../widgets/xp_pop_animation.dart';
+import '../../widgets/formula_hint_bottom_sheet.dart';
 
 import '../../models/question.dart';
 
@@ -50,6 +51,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
   bool isSubmitting = false;
   int _combo = 0;
   int _lastBonusXp = 0;
+  int _awardedXpPreview = 0;
 
   double questionScale = 1.0;
   double shakeOffset = 0.0;
@@ -71,6 +73,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       questionScale = 1.0;
       shakeOffset = 0.0;
       _lastBonusXp = 0;
+      _awardedXpPreview = 0;
       _removeOverlays();
     }
   }
@@ -157,7 +160,11 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
 
                 return GameButton(
                   text: opt.text,
-                  disabled: answered || isSubmitting || quizProvider.isCooldown,
+                  disabled:
+                      answered ||
+                      isSubmitting ||
+                      quizProvider.isCooldown ||
+                      quizProvider.isSubmittingAnswer,
                   isCorrect: correct,
                   isWrong: wrong,
                   onTap: () => _handleAnswer(opt),
@@ -201,8 +208,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                       Text(
                         isCorrect
                             ? _combo > 1
-                                  ? "${t.correctXp(widget.xpReward + _lastBonusXp)} - ${t.comboLabel(_combo)}"
-                                  : t.correctXp(widget.xpReward + _lastBonusXp)
+                                  ? "${t.correctXp(_awardedXpPreview)} - ${t.comboLabel(_combo)}"
+                                  : t.correctXp(_awardedXpPreview)
                             : t.wrongKeepGoing,
                         style: TextStyle(
                           color: colorScheme.onSurface,
@@ -262,7 +269,10 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: isSubmitting ? null : _submitAndContinue,
+                      onPressed:
+                          (isSubmitting || quizProvider.isSubmittingAnswer)
+                          ? null
+                          : _submitAndContinue,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colorScheme.secondary,
                         foregroundColor: colorScheme.onSecondary,
@@ -322,7 +332,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                     Icons.lightbulb_outline,
                     color: colorScheme.primary,
                   ),
-                  onPressed: answered ? null : () => _showHintModal(context),
+                  onPressed: answered ? null : _showHintModal,
                   tooltip: t.hint,
                 ),
                 const SizedBox(width: 8),
@@ -480,8 +490,14 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
     final progressProvider =
         Provider.of<ProgressProvider>(context, listen: false);
+    final canAwardXp = quizProvider.canAwardXpForQuestion(widget.question);
     final awardBonus =
-        opt.isCorrect && !quizProvider.usedHintForCurrentQuestion;
+        opt.isCorrect &&
+        !quizProvider.usedHintForCurrentQuestion &&
+        canAwardXp;
+    final awardedXp = opt.isCorrect
+        ? (canAwardXp ? widget.xpReward + (awardBonus ? _noHintBonusXp : 0) : 0)
+        : 0;
     final theme = Theme.of(context);
     final t = context.t;
 
@@ -493,6 +509,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       isCorrect = opt.isCorrect;
       _combo = opt.isCorrect ? _combo + 1 : 0;
       _lastBonusXp = awardBonus ? _noHintBonusXp : 0;
+      _awardedXpPreview = awardedXp;
     });
 
     final previousMastery = quizProvider.masteryPercent;
@@ -505,8 +522,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     );
 
     if (isCorrect) {
-      final totalXp = widget.xpReward + _lastBonusXp;
-      quizProvider.addSessionXp(totalXp);
+      final totalXp = _awardedXpPreview;
       _showXpPop(
         xp: totalXp,
         backgroundColor: theme.colorScheme.secondary,
@@ -724,52 +740,150 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     }
   }
 
-  void _showHintModal(BuildContext context) {
+  Future<void> _showHintModal() async {
     final t = context.t;
     final progress = Provider.of<ProgressProvider>(context, listen: false);
+    final quizProvider = Provider.of<QuizProvider>(context, listen: false);
+    final stepByStepFormula = _resolveStepByStepFormula();
+    final lightHint = widget.question.hintLight?.trim();
+    final mediumHint = widget.question.hintMedium?.trim();
+    final fullHint = widget.question.hintFull?.trim();
 
-    showModalBottomSheet(
+    final selectedHint = await showModalBottomSheet<_HintSelection>(
       context: context,
-      builder: (_) => Column(
+      builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
+            leading: Icon(Icons.auto_awesome, color: Colors.deepPurple),
+            title: Text(t.formulaHintTitle),
+            subtitle: stepByStepFormula == null ? Text(t.noHintAvailable) : null,
+            onTap: stepByStepFormula != null
+                ? () {
+                    quizProvider.markHintUsedForCurrentQuestion();
+                    progress.penalizeXp(5);
+                    Navigator.pop(
+                      sheetContext,
+                      _HintSelection(
+                        title: t.formulaHintTitle,
+                        text: stepByStepFormula,
+                        isStepByStep: true,
+                      ),
+                    );
+                  }
+                : null,
+          ),
+          ListTile(
             leading: Icon(Icons.lightbulb_outline, color: Colors.blue),
             title: Text(t.smallHint),
-            subtitle: Text(widget.question.hintLight ?? t.noHintAvailable),
-            onTap: widget.question.hintLight != null
+            subtitle: lightHint == null || lightHint.isEmpty
+                ? Text(t.noHintAvailable)
+                : null,
+            onTap: lightHint != null && lightHint.isNotEmpty
                 ? () {
+                    quizProvider.markHintUsedForCurrentQuestion();
                     progress.penalizeXp(1);
-                    Navigator.pop(context);
+                    Navigator.pop(
+                      sheetContext,
+                      _HintSelection(title: t.smallHint, text: lightHint),
+                    );
                   }
                 : null,
           ),
           ListTile(
             leading: Icon(Icons.lightbulb, color: Colors.orange),
             title: Text(t.mediumHint),
-            subtitle: Text(widget.question.hintMedium ?? t.noHintAvailable),
-            onTap: widget.question.hintMedium != null
+            subtitle: mediumHint == null || mediumHint.isEmpty
+                ? Text(t.noHintAvailable)
+                : null,
+            onTap: mediumHint != null && mediumHint.isNotEmpty
                 ? () {
+                    quizProvider.markHintUsedForCurrentQuestion();
                     progress.penalizeXp(3);
-                    Navigator.pop(context);
+                    Navigator.pop(
+                      sheetContext,
+                      _HintSelection(title: t.mediumHint, text: mediumHint),
+                    );
                   }
                 : null,
           ),
           ListTile(
             leading: Icon(Icons.lightbulb, color: Colors.red),
             title: Text(t.fullHint),
-            subtitle: Text(widget.question.hintFull ?? t.noHintAvailable),
-            onTap: widget.question.hintFull != null
+            subtitle: fullHint == null || fullHint.isEmpty
+                ? Text(t.noHintAvailable)
+                : null,
+            onTap: fullHint != null && fullHint.isNotEmpty
                 ? () {
+                    quizProvider.markHintUsedForCurrentQuestion();
                     progress.penalizeXp(5);
-                    Navigator.pop(context);
+                    Navigator.pop(
+                      sheetContext,
+                      _HintSelection(title: t.fullHint, text: fullHint),
+                    );
                   }
                 : null,
           ),
         ],
       ),
     );
+
+    if (!mounted || selectedHint == null || selectedHint.text.isEmpty) return;
+
+    if (selectedHint.isStepByStep) {
+      await FormulaHintBottomSheet.show(context, selectedHint.text);
+      return;
+    }
+
+    await _showHintTextDialog(title: selectedHint.title, text: selectedHint.text);
   }
+
+  String? _resolveStepByStepFormula() {
+    final candidates = [
+      widget.question.explanation,
+      widget.question.hintFull,
+      widget.question.hintMedium,
+      widget.question.hintLight,
+    ];
+    for (final candidate in candidates) {
+      if (candidate == null) continue;
+      final value = candidate.trim();
+      if (value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  Future<void> _showHintTextDialog({
+    required String title,
+    required String text,
+  }) async {
+    final t = context.t;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(text),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(t.gotIt),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HintSelection {
+  final String title;
+  final String text;
+  final bool isStepByStep;
+
+  const _HintSelection({
+    required this.title,
+    required this.text,
+    this.isStepByStep = false,
+  });
 }
 
 class OptionItem {
