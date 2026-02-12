@@ -198,6 +198,12 @@ class _StreakBadgePresenterState extends State<StreakBadgePresenter> {
     }
 
     if (!doneToday &&
+        _machine.state == StreakVisualState.atRisk &&
+        !_isAtRiskNow()) {
+      _machine.state = StreakVisualState.normal;
+    }
+
+    if (!doneToday &&
         _machine.state == StreakVisualState.normal &&
         _isAtRiskNow()) {
       _machine.onAtRisk();
