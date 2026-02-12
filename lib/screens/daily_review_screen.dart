@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../l10n/app_i18n.dart';
 import '../state/quiz_provider.dart';
 import '../state/progress_provider.dart';
 import '../theme/astrax_theme.dart';
@@ -33,6 +34,7 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     final qp = Provider.of<QuizProvider>(context);
     final progress = Provider.of<ProgressProvider>(context);
     final questions = qp.questions.take(3).toList();
@@ -47,6 +49,20 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    onPressed: () {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/home',
+                        (_) => false,
+                      );
+                    },
+                    icon: const Icon(Icons.home_outlined, color: Colors.white),
+                    tooltip: t.navHome,
+                  ),
+                ),
                 const SizedBox(height: 40),
                 const Text(
                   'Daily Review',

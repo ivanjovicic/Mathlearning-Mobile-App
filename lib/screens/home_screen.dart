@@ -385,6 +385,14 @@ class _HomeScreenState extends State<HomeScreen>
                     ? 0
                     : progress.xp / progress.xpToNextLevel,
               ),
+              const SizedBox(height: 6),
+              Text(
+                t.nextLevelHint,
+                style: TextStyle(
+                  color: colorScheme.onSurface.withValues(alpha: 0.75),
+                  fontSize: 12,
+                ),
+              ),
               const SizedBox(height: 18),
               _buildContinueCard(
                 title: recommendedTopic != null

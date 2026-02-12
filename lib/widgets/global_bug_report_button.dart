@@ -32,7 +32,7 @@ class _GlobalBugReportButtonState extends State<GlobalBugReportButton> {
       child: Padding(
         padding: const EdgeInsets.only(right: 16, bottom: 16),
         child: FloatingActionButton.small(
-          heroTag: 'global_report_fab',
+          heroTag: null,
           tooltip: context.safeTooltip('Prijavi bag ili UX/UI utisak'),
           onPressed: () => _openReportSheet(context),
           child: const Icon(Icons.feedback_outlined),

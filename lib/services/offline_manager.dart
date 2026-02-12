@@ -296,7 +296,7 @@ class OfflineManager {
     int count,
     String? token,
   ) async {
-    if (isOnline) {
+    if (_isOnlineWithToken) {
       try {
         final questions = await _api.getQuestions('topic_$subtopicId', count);
         if (questions != null) {
@@ -312,7 +312,7 @@ class OfflineManager {
   }
 
   Future<void> preloadQuestions(int subtopicId, int count, String? token) async {
-    if (!isOnline) {
+    if (!_isOnlineWithToken) {
       return;
     }
     try {

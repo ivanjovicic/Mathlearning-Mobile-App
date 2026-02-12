@@ -86,7 +86,7 @@ class _RewardScreenState extends State<RewardScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        "+$coinReward coina",
+                        "+$coinReward zlatnika",
                         style: TextStyle(
                           fontSize: 16,
                           color: colorScheme.onSecondaryContainer,

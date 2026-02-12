@@ -3,9 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
 import '../state/quiz_provider.dart';
-import '../theme/astrax_theme.dart';
-import '../widgets/astrax_buttons.dart';
-import '../widgets/astrax_card.dart';
 import 'home/gamified_quiz_screen.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -59,11 +56,13 @@ class _QuizScreenState extends State<QuizScreen> {
   Widget build(BuildContext context) {
     final t = context.t;
     final quiz = Provider.of<QuizProvider>(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (_loading) {
       return Scaffold(
-        backgroundColor: AstraXTheme.bg,
+        backgroundColor: colorScheme.surface,
         body: Center(
-          child: const CircularProgressIndicator(color: AstraXTheme.neonBlue),
+          child: CircularProgressIndicator(color: colorScheme.primary),
         ),
       );
     }
@@ -71,23 +70,30 @@ class _QuizScreenState extends State<QuizScreen> {
     final question = quiz.currentQuestion;
     if (question == null) {
       return Scaffold(
-        backgroundColor: AstraXTheme.bg,
+        backgroundColor: colorScheme.surface,
         body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: AstraCard(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    t.noQuestions,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 12),
-                  AstraNeonButton(text: t.retry, onTap: _retry),
-                ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                t.noQuestions,
+                style: TextStyle(color: colorScheme.onSurface),
               ),
-            ),
+              const SizedBox(height: 12),
+              ElevatedButton(onPressed: _retry, child: Text(t.retry)),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/home',
+                    (_) => false,
+                  );
+                },
+                icon: const Icon(Icons.home_outlined),
+                label: Text(t.navHome),
+              ),
+            ],
           ),
         ),
       );

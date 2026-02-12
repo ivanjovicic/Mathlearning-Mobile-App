@@ -20,15 +20,13 @@ class CoinProvider extends ChangeNotifier {
     try {
       // Load coins
       final coinsData = await _api.getUserCoins();
-      if (coinsData != null) {
-        _coins = coinsData;
-      }
+      _coins = coinsData ?? 10;
 
       // Load daily hints usage
       final hintsData = await _api.getDailyHintUsage();
-      if (hintsData != null) {
-        _dailyHints = UserDailyHints.fromJson(hintsData);
-      }
+      _dailyHints = hintsData != null
+          ? UserDailyHints.fromJson(hintsData)
+          : UserDailyHints(userId: 'local', date: DateTime.now());
     } catch (e) {
       debugPrint('Error loading coins and hints: $e');
       // Fallback values
@@ -59,7 +57,7 @@ class CoinProvider extends ChangeNotifier {
       return 'BESPLATNO';
     }
 
-    return '$cost coina';
+    return '$cost zlatnika';
   }
 
   void _spendCoins(int amount) {

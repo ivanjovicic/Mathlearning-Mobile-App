@@ -31,6 +31,7 @@ import 'theme/theme_controller.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'theme_selector_page.dart';
 import 'widgets/auth_wrapper.dart';
+import 'widgets/screen_wrapper.dart';
 
 import 'widgets/game_theme_transition.dart';
 import 'effects/vertical_portal_transition.dart';
@@ -42,7 +43,6 @@ import 'services/notification_service.dart';
 import 'services/bug_capture_service.dart';
 import 'services/bug_report_service.dart';
 import 'services/route_tracker.dart';
-import 'widgets/global_bug_report_button.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -185,35 +185,27 @@ class _AppRoot extends StatelessWidget {
                     ),
                     child: RepaintBoundary(
                       key: BugCaptureService.instance.rootBoundaryKey,
-                      child: Stack(
-                        children: [
-                          child ?? const SizedBox.shrink(),
-                          const Align(
-                            alignment: Alignment.bottomRight,
-                            child: GlobalBugReportButton(),
-                          ),
-                        ],
-                      ),
+                      child: child ?? const SizedBox.shrink(),
                     ),
                   );
                 },
                 home: const AuthCheckWidget(child: AuthWrapper()),
                 routes: {
-                  "/home": (_) => const HomeEntryScreen(),
-                  "/astrax-home": (_) => const AstraHomeScreen(),
-                  "/daily-review": (_) => const DailyReviewScreen(),
-                  "/quiz": (_) => const QuizScreen(),
-                  "/heatmap": (_) => const HeatmapScreen(),
-                  "/leaderboard": (_) => const LeaderboardScreen(),
-                  "/reward": (_) => const RewardScreen(),
-                  "/badges": (_) => const BadgesScreen(),
-                  "/profile": (_) => const ProfileScreen(),
-                  "/settings": (_) => const SettingsScreen(),
-                  "/login": (_) => const LoginScreen(),
-                  "/themes": (_) => const ThemeSelectorPage(),
-                  "/onboarding": (_) => const OnboardingScreen(),
-                  "/quiz-summary": (_) => const QuizSummaryScreen(),
-                  "/my-feedback": (_) => const MyFeedbackScreen(),
+                  "/home": (_) => const ScreenWrapper(child: HomeEntryScreen()),
+                  "/astrax-home": (_) => const ScreenWrapper(child: AstraHomeScreen()),
+                  "/daily-review": (_) => const ScreenWrapper(child: DailyReviewScreen()),
+                  "/quiz": (_) => const ScreenWrapper(child: QuizScreen()),
+                  "/heatmap": (_) => const ScreenWrapper(child: HeatmapScreen()),
+                  "/leaderboard": (_) => const ScreenWrapper(child: LeaderboardScreen()),
+                  "/reward": (_) => const ScreenWrapper(child: RewardScreen()),
+                  "/badges": (_) => const ScreenWrapper(child: BadgesScreen()),
+                  "/profile": (_) => const ScreenWrapper(child: ProfileScreen()),
+                  "/settings": (_) => const ScreenWrapper(child: SettingsScreen()),
+                  "/login": (_) => const ScreenWrapper(child: LoginScreen()),
+                  "/themes": (_) => const ScreenWrapper(child: ThemeSelectorPage()),
+                  "/onboarding": (_) => const ScreenWrapper(child: OnboardingScreen()),
+                  "/quiz-summary": (_) => const ScreenWrapper(child: QuizSummaryScreen()),
+                  "/my-feedback": (_) => const ScreenWrapper(child: MyFeedbackScreen()),
                 },
               ),
             ),

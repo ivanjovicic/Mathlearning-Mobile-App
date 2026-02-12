@@ -5,9 +5,7 @@ import '../l10n/app_i18n.dart';
 import '../state/auth_provider.dart';
 import '../state/progress_provider.dart';
 import '../state/settings_provider.dart';
-import '../theme/astrax_theme.dart';
 import '../theme/theme_controller.dart';
-import '../widgets/astrax_toggle.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -19,8 +17,19 @@ class SettingsScreen extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(t.settings)),
-      backgroundColor: AstraXTheme.bg,
+      appBar: AppBar(
+        title: Text(t.settings),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+            },
+            icon: const Icon(Icons.home_outlined),
+            tooltip: t.navHome,
+          ),
+        ],
+      ),
+      backgroundColor: colorScheme.surface,
       body:
           Consumer4<
             SettingsProvider,
@@ -478,24 +487,18 @@ class _SettingsSwitchTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Card(
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: enabled ? AstraXTheme.neonBlue : colorScheme.outline,
-        ),
+      child: SwitchListTile(
         title: Text(title),
         subtitle: Text(subtitle),
-        trailing: IgnorePointer(
-          ignoring: !enabled,
-          child: Opacity(
-            opacity: enabled ? 1.0 : 0.5,
-            child: AstraToggle(
-              value: value,
-              onChanged: (nextValue) {
+        value: value,
+        onChanged: enabled
+            ? (nextValue) {
                 onChanged(nextValue);
-              },
-            ),
-          ),
+              }
+            : null,
+        secondary: Icon(
+          icon,
+          color: enabled ? colorScheme.primary : colorScheme.outline,
         ),
       ),
     );
@@ -609,7 +612,7 @@ class _ThemeModeQuickSwitch extends StatelessWidget {
   }
 
   static bool _isDark(AppThemeType type) {
-    return type == AppThemeType.sciFi || type == AppThemeType.retro || type == AppThemeType.astra;
+    return type == AppThemeType.sciFi || type == AppThemeType.retro;
   }
 }
 
@@ -651,10 +654,6 @@ class _ThemeDropdown extends StatelessWidget {
             DropdownMenuItem(
               value: AppThemeType.retro,
               child: Text('Retro Pixel'),
-            ),
-            DropdownMenuItem(
-              value: AppThemeType.astra,
-              child: Text('Astra Dark'),
             ),
           ],
           onChanged: (value) {

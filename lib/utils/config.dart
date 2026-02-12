@@ -1,3 +1,3 @@
 class Config {
-  static const String apiBaseUrl = "https://mathlearning-api.fly.dev"; 
+  static const String apiBaseUrl = "http://localhost:5000"; 
 }

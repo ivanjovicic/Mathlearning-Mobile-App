@@ -8,6 +8,7 @@ import '../screens/home/gamified_home_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
+import 'screen_wrapper.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -43,7 +44,7 @@ class AuthWrapper extends StatelessWidget {
 
         // Navigate based on auth status
         if (!authProvider.isAuthenticated) {
-          return const LoginScreen();
+          return const ScreenWrapper(child: LoginScreen());
         }
 
         // Show onboarding for first-time users
@@ -55,7 +56,7 @@ class AuthWrapper extends StatelessWidget {
           return const SizedBox.shrink(); // wait for prefs to load
         }
         if (!onboarding.isCompleted) {
-          return const OnboardingScreen();
+          return const ScreenWrapper(child: OnboardingScreen());
         }
 
         return const HomeEntryScreen();
@@ -73,9 +74,11 @@ class HomeEntryScreen extends StatelessWidget {
       (controller) => controller.useGamifiedHome,
     );
 
-    return useGamifiedHome
-        ? const GamifiedHomeScreen()
-        : const HomeScreen();
+    return ScreenWrapper(
+      child: useGamifiedHome
+          ? const GamifiedHomeScreen()
+          : const HomeScreen(),
+    );
   }
 }
 

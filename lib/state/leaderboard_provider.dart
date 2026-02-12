@@ -51,7 +51,7 @@ class LeaderboardProvider extends ChangeNotifier {
 
     try {
       // Skip API call if using demo token (backend not ready)
-      if (token?.startsWith('demo_token') != true) {
+      if (token?.startsWith('demo_') != true) {
         final data = await api.getGlobalLeaderboard(range, 50, token);
         if (data != null) {
           global = data.map((e) => LeaderboardEntry.fromJson(e)).toList();
@@ -81,7 +81,7 @@ class LeaderboardProvider extends ChangeNotifier {
 
     try {
       // Skip API call if using demo token (backend not ready)
-      if (token?.startsWith('demo_token') != true) {
+      if (token?.startsWith('demo_') != true) {
         final data = await api.getFriendsLeaderboard(range, 50, token);
         if (data != null) {
           friends = data.map((e) => LeaderboardEntry.fromJson(e)).toList();

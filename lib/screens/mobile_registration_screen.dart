@@ -348,7 +348,7 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                               ),
                             ),
                             Text(
-                              'Dobijas 100 coina za pocetak ucenja',
+                              'Dobijas 100 zlatnika za pocetak ucenja',
                               style: TextStyle(
                                 color: colorScheme.onTertiaryContainer,
                               ),

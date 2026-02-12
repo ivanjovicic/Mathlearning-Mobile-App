@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../utils/config.dart';
 import 'connectivity_service.dart';
 
@@ -11,24 +12,32 @@ class AuthService {
 
   AuthService._();
 
-  // Secure storage for refresh token
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
 
-  // Keys for storage
   static const String _refreshTokenKey = 'refresh_token';
   static const String _accessTokenKey = 'access_token';
   static const String _userIdKey = 'user_id';
   static const String _usernameKey = 'username';
 
-  // In-memory access token (faster access)
   String? _accessToken;
   String? _userId;
   String? _username;
 
-  // Dio client with interceptor
   late Dio _dio;
+
+  String _tokenKind(String? token) {
+    if (token == null || token.isEmpty) return 'none';
+    if (token.startsWith('demo_')) return 'demo';
+    return 'real';
+  }
+
+  String _mask(String? value) {
+    if (value == null || value.isEmpty) return 'none';
+    if (value.length <= 8) return '***';
+    return '${value.substring(0, 4)}...${value.substring(value.length - 4)}';
+  }
 
   Future<void> initialize() async {
     _dio = Dio(
@@ -40,23 +49,30 @@ class AuthService {
       ),
     );
 
-    // Add auto-refresh interceptor
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          // Add access token to all requests
           if (_accessToken != null) {
             options.headers['Authorization'] = 'Bearer $_accessToken';
           }
           handler.next(options);
         },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
-            debugPrint('🔄 Token expired, attempting refresh...');
+          final path = error.requestOptions.path;
+          final isAuthRoute = path.startsWith('/auth/');
+          final isRefreshRoute = path == '/auth/refresh';
+          final hadAuthHeader =
+              error.requestOptions.headers['Authorization'] != null;
+          final canAttemptRefresh =
+              _accessToken != null && hadAuthHeader && !isAuthRoute;
+
+          if (error.response?.statusCode == 401 &&
+              canAttemptRefresh &&
+              !isRefreshRoute) {
+            debugPrint('Token expired, attempting refresh...');
 
             final refreshed = await _refreshTokens();
             if (refreshed) {
-              // Retry original request with new token
               final opts = error.requestOptions;
               opts.headers['Authorization'] = 'Bearer $_accessToken';
 
@@ -64,10 +80,9 @@ class AuthService {
                 final response = await _dio.fetch(opts);
                 return handler.resolve(response);
               } catch (e) {
-                debugPrint('❌ Retry request failed: $e');
+                debugPrint('Retry request failed: $e');
               }
             } else {
-              // Refresh failed - logout user
               await logout();
             }
           }
@@ -76,41 +91,57 @@ class AuthService {
       ),
     );
 
-    // Load cached identity/token so offline mode can start with auth context.
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString(_accessTokenKey);
     _userId = prefs.getString(_userIdKey);
     _username = prefs.getString(_usernameKey);
+    debugPrint(
+      '[AUTH] initialize: token=${_tokenKind(_accessToken)} user=$_username userId=$_userId',
+    );
   }
 
-  // Login with username/password
   Future<AuthResult> login(String username, String password) async {
+    debugPrint('[AUTH] login start: username=$username');
     try {
       final response = await _dio.post(
-        '/api/auth/login',
+        '/auth/login',
         data: {'username': username, 'password': password},
       );
+      debugPrint('[AUTH] login response: status=${response.statusCode}');
 
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = response.data as Map<String, dynamic>;
+        final accessToken = data['accessToken'] ?? data['AccessToken'];
+        final refreshToken = data['refreshToken'] ?? data['RefreshToken'];
+        final userId = data['userId'] ?? data['UserId'];
+        final responseUsername = data['username'] ?? data['Username'];
+
+        if (accessToken == null || refreshToken == null) {
+          debugPrint('[AUTH] login invalid payload: missing tokens');
+          return AuthResult(success: false, error: 'Invalid auth response');
+        }
+
         await _storeTokens(
-          accessToken: data['accessToken'],
-          refreshToken: data['refreshToken'],
-          userId: data['user']['id']?.toString(),
-          username: data['user']['username'],
+          accessToken: accessToken.toString(),
+          refreshToken: refreshToken.toString(),
+          userId: userId?.toString(),
+          username: responseUsername?.toString() ?? username,
         );
 
+        debugPrint(
+          '[AUTH] login success: token=${_tokenKind(_accessToken)} user=$_username userId=$_userId',
+        );
         return AuthResult(success: true);
       }
     } catch (e) {
-      debugPrint('❌ Login failed: $e');
+      debugPrint('[AUTH] login failed: $e');
 
-      // Demo mode fallback - allow specific test credentials
-      if (_isDemoCredentials(username, password)) {
-        debugPrint('🎯 Using demo mode credentials');
+      final useDemo = _isDemoCredentials(username, password);
+      debugPrint('[AUTH] login fallback check: demoCredentials=$useDemo');
+      if (useDemo) {
+        debugPrint('[AUTH] using demo mode credentials');
         await _storeTokens(
-          accessToken:
-              'demo_access_token_${DateTime.now().millisecondsSinceEpoch}',
+          accessToken: 'demo_token_${DateTime.now().millisecondsSinceEpoch}',
           refreshToken:
               'demo_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
           userId: '1',
@@ -120,10 +151,10 @@ class AuthService {
       }
     }
 
+    debugPrint('[AUTH] login end: failed');
     return AuthResult(success: false, error: 'Invalid credentials');
   }
 
-  // Check if credentials are demo credentials
   bool _isDemoCredentials(String username, String password) {
     const demoCredentials = [
       {'username': 'demo', 'password': 'demo'},
@@ -138,7 +169,6 @@ class AuthService {
     );
   }
 
-  // Register new user
   Future<AuthResult> register(
     String username,
     String password,
@@ -146,25 +176,22 @@ class AuthService {
   ) async {
     try {
       final response = await _dio.post(
-        '/api/auth/register',
+        '/auth/register',
         data: {'username': username, 'password': password, 'email': email},
       );
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return AuthResult(success: true);
       }
     } catch (e) {
-      debugPrint('❌ Register failed: $e');
-
-      // Demo mode fallback - allow registration with any credentials
-      debugPrint('🎯 Using demo mode registration');
+      debugPrint('Register failed: $e');
+      debugPrint('Using demo mode registration');
       return AuthResult(success: true);
     }
 
     return AuthResult(success: false, error: 'Registration failed');
   }
 
-  // NEW: Register mobile user with full profile data
   Future<AuthResult> registerMobileUser({
     required String username,
     required String email,
@@ -183,34 +210,58 @@ class AuthService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = response.data;
+        final data = response.data as Map<String, dynamic>;
+        final tokens = data['tokens'] as Map<String, dynamic>?;
+        final profile = data['profile'] as Map<String, dynamic>?;
 
-        // Store tokens and profile data from registration response
+        final accessToken =
+            tokens?['accessToken'] ??
+            tokens?['AccessToken'] ??
+            data['accessToken'] ??
+            data['AccessToken'];
+        final refreshToken =
+            tokens?['refreshToken'] ??
+            tokens?['RefreshToken'] ??
+            data['refreshToken'] ??
+            data['RefreshToken'];
+        final userId =
+            tokens?['userId'] ??
+            tokens?['UserId'] ??
+            profile?['userId'] ??
+            profile?['UserId'] ??
+            profile?['id'];
+        final responseUsername =
+            tokens?['username'] ??
+            tokens?['Username'] ??
+            profile?['username'] ??
+            profile?['Username'] ??
+            username;
+
+        if (accessToken == null || refreshToken == null) {
+          return AuthResult(
+            success: false,
+            error: 'Mobile registration did not return tokens',
+          );
+        }
+
         await _storeTokens(
-          accessToken: data['accessToken'] ?? data['access_token'],
-          refreshToken: data['refreshToken'] ?? data['refresh_token'],
-          userId:
-              data['user']?['id']?.toString() ??
-              data['profile']?['id']?.toString(),
-          username:
-              data['user']?['username'] ??
-              data['profile']?['username'] ??
-              username,
+          accessToken: accessToken.toString(),
+          refreshToken: refreshToken.toString(),
+          userId: userId?.toString(),
+          username: responseUsername.toString(),
         );
 
         debugPrint(
-          '✅ Mobile registration successful with ${data['profile']?['coins'] ?? 100} coins',
+          'Mobile registration successful with ${profile?['coins'] ?? 100} coins',
         );
         return AuthResult(success: true, userData: data);
       }
     } catch (e) {
-      debugPrint('❌ Mobile register failed: $e');
+      debugPrint('Mobile register failed: $e');
 
-      // Demo mode fallback - simulate successful registration with 100 coins
-      debugPrint('🎯 Using demo mode mobile registration');
+      debugPrint('Using demo mode mobile registration');
       await _storeTokens(
-        accessToken:
-            'demo_access_token_${DateTime.now().millisecondsSinceEpoch}',
+        accessToken: 'demo_token_${DateTime.now().millisecondsSinceEpoch}',
         refreshToken:
             'demo_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
         userId: '1',
@@ -236,96 +287,117 @@ class AuthService {
     return AuthResult(success: false, error: 'Mobile registration failed');
   }
 
-  // Auto-login on app start
   Future<bool> autoLogin() async {
     try {
-      // Load cached session for offline mode.
+      debugPrint('[AUTH] autoLogin start');
       final cachedPrefs = await SharedPreferences.getInstance();
       _userId = cachedPrefs.getString(_userIdKey);
       _username = cachedPrefs.getString(_usernameKey);
       final cachedAccessToken = cachedPrefs.getString(_accessTokenKey);
+      debugPrint(
+        '[AUTH] autoLogin cached: token=${_tokenKind(cachedAccessToken)} user=$_username userId=$_userId',
+      );
       if (cachedAccessToken != null && cachedAccessToken.isNotEmpty) {
         _accessToken = cachedAccessToken;
       }
 
       if (_accessToken != null) {
-        // Refresh in background when online; keep cached session for offline mode.
+        debugPrint(
+          '[AUTH] autoLogin using cached token: kind=${_tokenKind(_accessToken)}',
+        );
         if (ConnectivityService.instance.isOnline) {
+          debugPrint('[AUTH] autoLogin online -> background refresh');
           _refreshTokens();
         }
         return true;
       }
 
-      // Load tokens from storage
       final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
       if (refreshToken == null) {
-        debugPrint('No refresh token found');
+        debugPrint('[AUTH] autoLogin: no refresh token found');
         return _accessToken != null;
       }
+      debugPrint('[AUTH] autoLogin: refresh token exists (${_mask(refreshToken)})');
 
-      // Load user data from SharedPreferences (faster)
       final prefs = await SharedPreferences.getInstance();
       _userId = prefs.getString(_userIdKey);
       _username = prefs.getString(_usernameKey);
 
-      debugPrint('🔄 Attempting auto-login for user: $_username');
+      debugPrint('[AUTH] autoLogin attempting refresh for user=$_username');
 
-      // Try to refresh tokens
       if (await _refreshTokens()) {
-        debugPrint('✅ Auto-login successful');
+        debugPrint('[AUTH] autoLogin successful');
         return true;
       }
     } catch (e) {
-      debugPrint('❌ Auto-login failed: $e');
+      debugPrint('[AUTH] autoLogin failed: $e');
     }
 
+    debugPrint(
+      '[AUTH] autoLogin end: returning ${_accessToken != null} token=${_tokenKind(_accessToken)}',
+    );
     return _accessToken != null;
   }
 
-  // Refresh access and refresh tokens
   Future<bool> _refreshTokens() async {
     try {
+      debugPrint('[AUTH] refresh start');
       final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
       if (refreshToken == null) {
-        debugPrint('No refresh token available');
+        debugPrint('[AUTH] refresh: no refresh token available');
         return false;
       }
+      debugPrint('[AUTH] refresh token found: ${_mask(refreshToken)}');
 
       final response = await _dio.post(
-        '/api/auth/refresh',
+        '/auth/refresh',
         data: {'refreshToken': refreshToken},
       );
+      debugPrint('[AUTH] refresh response: status=${response.statusCode}');
 
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = response.data as Map<String, dynamic>;
+        final accessToken = data['accessToken'] ?? data['AccessToken'];
+        final newRefreshToken = data['refreshToken'] ?? data['RefreshToken'];
+        final userId = data['userId'] ?? data['UserId'] ?? _userId;
+        final username = data['username'] ?? data['Username'] ?? _username;
+
+        if (accessToken == null || newRefreshToken == null) {
+          debugPrint('[AUTH] refresh invalid payload: missing tokens');
+          return false;
+        }
+
         await _storeTokens(
-          accessToken: data['accessToken'],
-          refreshToken: data['refreshToken'],
-          userId: _userId, // Keep existing user data
-          username: _username,
+          accessToken: accessToken.toString(),
+          refreshToken: newRefreshToken.toString(),
+          userId: userId?.toString(),
+          username: username?.toString(),
         );
 
-        debugPrint('✅ Tokens refreshed successfully');
+        debugPrint(
+          '[AUTH] refresh success: token=${_tokenKind(_accessToken)} user=$_username userId=$_userId',
+        );
         return true;
       }
     } catch (e) {
-      debugPrint('❌ Token refresh failed: $e');
+      debugPrint('[AUTH] refresh failed: $e');
     }
 
+    debugPrint('[AUTH] refresh end: false');
     return false;
   }
 
-  // Store tokens securely
   Future<void> _storeTokens({
     required String accessToken,
     required String refreshToken,
     String? userId,
     String? username,
   }) async {
-    // Store refresh token securely
+    debugPrint(
+      '[AUTH] storeTokens: access=${_tokenKind(accessToken)} refresh=${_mask(refreshToken)} user=$username userId=$userId',
+    );
     await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
 
-    // Store access token in SharedPreferences (faster access)
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_accessTokenKey, accessToken);
 
@@ -336,24 +408,27 @@ class AuthService {
       await prefs.setString(_usernameKey, username);
     }
 
-    // Update in-memory variables
     _accessToken = accessToken;
     if (userId != null) _userId = userId;
     if (username != null) _username = username;
   }
 
-  // Logout and clear all tokens
   Future<void> logout() async {
     try {
-      // Notify server about logout (optional)
+      debugPrint('[AUTH] logout start: token=${_tokenKind(_accessToken)}');
       if (_accessToken != null) {
-        await _dio.post('/api/auth/logout');
+        final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          debugPrint('[AUTH] logout request with refresh=${_mask(refreshToken)}');
+          await _dio.post('/auth/logout', data: {'refreshToken': refreshToken});
+        } else {
+          debugPrint('[AUTH] logout skipped API call: no refresh token');
+        }
       }
     } catch (e) {
-      debugPrint('Logout API call failed: $e');
+      debugPrint('[AUTH] logout API call failed: $e');
     }
 
-    // Clear all stored data
     await _secureStorage.delete(key: _refreshTokenKey);
 
     final prefs = await SharedPreferences.getInstance();
@@ -361,24 +436,20 @@ class AuthService {
     await prefs.remove(_userIdKey);
     await prefs.remove(_usernameKey);
 
-    // Clear in-memory data
     _accessToken = null;
     _userId = null;
     _username = null;
 
-    debugPrint('✅ Logged out successfully');
+    debugPrint('[AUTH] logged out successfully');
   }
 
-  // Getters
   String? get accessToken => _accessToken;
   String? get userId => _userId;
   String? get username => _username;
   bool get isLoggedIn => _accessToken != null;
 
-  // Check if current session is demo mode
   bool get isDemoMode => _accessToken?.startsWith('demo_') ?? false;
 
-  // Get Dio client for API calls
   Dio get client => _dio;
 }
 

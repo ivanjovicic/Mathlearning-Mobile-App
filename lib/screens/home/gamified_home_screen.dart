@@ -37,12 +37,14 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
       coinProvider.loadCoinsAndHints();
 
       progress.onLevelUp = () {
+        if (!mounted) return;
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (_) => LevelUpAnimation(
             level: progress.level,
             onFinished: () {
+              if (!mounted) return;
               Navigator.pop(context);
             },
           ),
@@ -419,6 +421,13 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
           ),
           const SizedBox(height: 8),
           AnimatedXpBar(currentXp: xp, maxXp: xpToNextLevel),
+          const SizedBox(height: 6),
+          Text(
+            t.nextLevelHint,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onPrimaryContainer.withValues(alpha: 0.85),
+            ),
+          ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,

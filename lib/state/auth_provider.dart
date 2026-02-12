@@ -21,9 +21,13 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
 
     try {
+      debugPrint('[AUTH_PROVIDER] autoLogin start');
       final success = await _authService.autoLogin().timeout(
         const Duration(seconds: 8),
         onTimeout: () => false,
+      );
+      debugPrint(
+        '[AUTH_PROVIDER] autoLogin result: success=$success demo=$isDemoMode user=$username',
       );
       if (success) {
         await OfflineManager.instance.syncPendingData();
@@ -46,19 +50,25 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
+      debugPrint('[AUTH_PROVIDER] login start: username=$username');
       final result = await _authService.login(username, password);
 
       if (result.success) {
+        debugPrint(
+          '[AUTH_PROVIDER] login success: demo=$isDemoMode tokenPresent=${token != null} user=$username',
+        );
         await OfflineManager.instance.syncPendingData();
         notifyListeners();
         return true;
       } else {
+        debugPrint('[AUTH_PROVIDER] login failed: error=${result.error}');
         _setError(
           _localizeAuthError(result.error, fallback: 'Prijava nije uspela'),
         );
         return false;
       }
     } catch (e) {
+      debugPrint('[AUTH_PROVIDER] login exception: $e');
       _setError('Doslo je do greske u mrezi');
       return false;
     } finally {

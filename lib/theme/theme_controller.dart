@@ -11,7 +11,7 @@ import 'theme_retro.dart';
 enum AppThemeType { sciFi, fantasy, pastel, minimal, retro, astra }
 
 class ThemeController extends ChangeNotifier {
-  AppThemeType _currentType = AppThemeType.astra;
+  AppThemeType _currentType = AppThemeType.sciFi;
   bool _reduceMotion = false;
   bool _highContrast = false;
   bool _useGamifiedHome = true;
