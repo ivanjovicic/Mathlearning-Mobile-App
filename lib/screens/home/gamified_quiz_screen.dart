@@ -9,6 +9,7 @@ import '../../l10n/app_i18n.dart';
 import '../../state/quiz_provider.dart';
 import '../../state/progress_provider.dart';
 import '../../state/settings_provider.dart';
+import '../../utils/overlay_safety.dart';
 import '../../widgets/gamified_math_panel.dart';
 import '../../widgets/game_button.dart';
 import '../../widgets/cooldown_circle.dart';
@@ -58,6 +59,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
   OverlayEntry? _xpOverlay;
   OverlayEntry? _streakOverlay;
   OverlayEntry? _masteryOverlay;
+  OverlayState? _rootOverlayOrNull() => Overlay.maybeOf(context, rootOverlay: true);
   bool get _reduceMotion =>
       MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
@@ -333,7 +335,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                     color: colorScheme.primary,
                   ),
                   onPressed: answered ? null : _showHintModal,
-                  tooltip: t.hint,
+                  tooltip: context.safeTooltip(t.hint),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -581,6 +583,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     IconData? icon,
   }) {
     if (_reduceMotion) return;
+    final overlay = _rootOverlayOrNull();
+    if (overlay == null) return;
     _xpOverlay?.remove();
     _xpOverlay = OverlayEntry(
       builder: (context) => Positioned(
@@ -598,7 +602,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         ),
       ),
     );
-    Overlay.of(context, rootOverlay: true).insert(_xpOverlay!);
+    overlay.insert(_xpOverlay!);
     Future.delayed(const Duration(milliseconds: 900), () {
       _xpOverlay?.remove();
       _xpOverlay = null;
@@ -607,6 +611,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
 
   void _showStreakFlame(int streak) {
     if (_reduceMotion) return;
+    final overlay = _rootOverlayOrNull();
+    if (overlay == null) return;
     _streakOverlay?.remove();
     _streakOverlay = OverlayEntry(
       builder: (context) => Positioned(
@@ -618,7 +624,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         ),
       ),
     );
-    Overlay.of(context, rootOverlay: true).insert(_streakOverlay!);
+    overlay.insert(_streakOverlay!);
     Future.delayed(const Duration(milliseconds: 650), () {
       _streakOverlay?.remove();
       _streakOverlay = null;
@@ -650,6 +656,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     required String label,
     required Color color,
   }) {
+    final overlay = _rootOverlayOrNull();
+    if (overlay == null) return;
     _masteryOverlay?.remove();
     _masteryOverlay = OverlayEntry(
       builder: (context) => Positioned(
@@ -667,7 +675,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         ),
       ),
     );
-    Overlay.of(context, rootOverlay: true).insert(_masteryOverlay!);
+    overlay.insert(_masteryOverlay!);
     Future.delayed(const Duration(milliseconds: 700), () {
       _masteryOverlay?.remove();
       _masteryOverlay = null;
@@ -748,6 +756,23 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     final lightHint = widget.question.hintLight?.trim();
     final mediumHint = widget.question.hintMedium?.trim();
     final fullHint = widget.question.hintFull?.trim();
+    final correctOptionText = _resolveCorrectOptionText();
+    final resolvedLightHint = _firstNonEmptyText([
+      lightHint,
+      _buildFallbackLightHint(correctOptionText),
+    ]);
+    final resolvedMediumHint = _firstNonEmptyText([
+      mediumHint,
+      _buildFallbackMediumHint(correctOptionText),
+    ]);
+    final resolvedFullHint = _firstNonEmptyText([
+      fullHint,
+      _buildFallbackFullHint(correctOptionText),
+    ]);
+    final stepItems = widget.question.steps.isNotEmpty
+        ? widget.question.steps
+        : quizProvider.currentSteps;
+    final hasStepExplanations = stepItems.isNotEmpty;
 
     final selectedHint = await showModalBottomSheet<_HintSelection>(
       context: context,
@@ -776,16 +801,16 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
           ListTile(
             leading: Icon(Icons.lightbulb_outline, color: Colors.blue),
             title: Text(t.smallHint),
-            subtitle: lightHint == null || lightHint.isEmpty
+            subtitle: resolvedLightHint == null
                 ? Text(t.noHintAvailable)
                 : null,
-            onTap: lightHint != null && lightHint.isNotEmpty
+            onTap: resolvedLightHint != null
                 ? () {
                     quizProvider.markHintUsedForCurrentQuestion();
                     progress.penalizeXp(1);
                     Navigator.pop(
                       sheetContext,
-                      _HintSelection(title: t.smallHint, text: lightHint),
+                      _HintSelection(title: t.smallHint, text: resolvedLightHint),
                     );
                   }
                 : null,
@@ -793,16 +818,16 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
           ListTile(
             leading: Icon(Icons.lightbulb, color: Colors.orange),
             title: Text(t.mediumHint),
-            subtitle: mediumHint == null || mediumHint.isEmpty
+            subtitle: resolvedMediumHint == null
                 ? Text(t.noHintAvailable)
                 : null,
-            onTap: mediumHint != null && mediumHint.isNotEmpty
+            onTap: resolvedMediumHint != null
                 ? () {
                     quizProvider.markHintUsedForCurrentQuestion();
                     progress.penalizeXp(3);
                     Navigator.pop(
                       sheetContext,
-                      _HintSelection(title: t.mediumHint, text: mediumHint),
+                      _HintSelection(title: t.mediumHint, text: resolvedMediumHint),
                     );
                   }
                 : null,
@@ -810,17 +835,25 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
           ListTile(
             leading: Icon(Icons.lightbulb, color: Colors.red),
             title: Text(t.fullHint),
-            subtitle: fullHint == null || fullHint.isEmpty
+            subtitle: !hasStepExplanations && resolvedFullHint == null
                 ? Text(t.noHintAvailable)
                 : null,
-            onTap: fullHint != null && fullHint.isNotEmpty
+            onTap: hasStepExplanations || resolvedFullHint != null
                 ? () {
                     quizProvider.markHintUsedForCurrentQuestion();
                     progress.penalizeXp(5);
-                    Navigator.pop(
-                      sheetContext,
-                      _HintSelection(title: t.fullHint, text: fullHint),
-                    );
+                    if (hasStepExplanations) {
+                      Navigator.pop(sheetContext);
+                      FormulaHintBottomSheet.showSteps(
+                        context,
+                        stepItems,
+                      );
+                    } else if (resolvedFullHint != null) {
+                      Navigator.pop(
+                        sheetContext,
+                        _HintSelection(title: t.fullHint, text: resolvedFullHint),
+                      );
+                    }
                   }
                 : null,
           ),
@@ -851,6 +884,41 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       if (value.isNotEmpty) return value;
     }
     return null;
+  }
+
+  String? _firstNonEmptyText(List<String?> candidates) {
+    for (final candidate in candidates) {
+      if (candidate == null) continue;
+      final value = candidate.trim();
+      if (value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  String? _resolveCorrectOptionText() {
+    for (final option in widget.options) {
+      if (!option.isCorrect) continue;
+      final value = option.text.trim();
+      if (value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  String? _buildFallbackLightHint(String? correctOptionText) {
+    if (correctOptionText == null || correctOptionText.isEmpty) return null;
+    final firstChar = correctOptionText.trim()[0];
+    return 'Tacan odgovor pocinje slovom/simbolom "$firstChar".';
+  }
+
+  String? _buildFallbackMediumHint(String? correctOptionText) {
+    if (correctOptionText == null || correctOptionText.isEmpty) return null;
+    final length = correctOptionText.trim().length;
+    return 'Tacan odgovor ima oko $length karaktera.';
+  }
+
+  String? _buildFallbackFullHint(String? correctOptionText) {
+    if (correctOptionText == null || correctOptionText.isEmpty) return null;
+    return 'Tacan odgovor je: $correctOptionText';
   }
 
   Future<void> _showHintTextDialog({

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/bug_capture_service.dart';
 import '../services/bug_report_service.dart';
 import '../services/route_tracker.dart';
+import '../utils/overlay_safety.dart';
 
 enum _ReportMode { bug, uxUiFeedback }
 
@@ -32,7 +33,7 @@ class _GlobalBugReportButtonState extends State<GlobalBugReportButton> {
         padding: const EdgeInsets.only(right: 16, bottom: 16),
         child: FloatingActionButton.small(
           heroTag: 'global_report_fab',
-          tooltip: 'Prijavi bag ili UX/UI utisak',
+          tooltip: context.safeTooltip('Prijavi bag ili UX/UI utisak'),
           onPressed: () => _openReportSheet(context),
           child: const Icon(Icons.feedback_outlined),
         ),
@@ -142,7 +143,7 @@ class _ReportSheetState extends State<_ReportSheet> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<_ReportMode>(
-            value: _mode,
+            initialValue: _mode,
             decoration: const InputDecoration(
               labelText: 'Tip prijave',
               border: OutlineInputBorder(),
@@ -167,7 +168,7 @@ class _ReportSheetState extends State<_ReportSheet> {
           const SizedBox(height: 12),
           if (_mode == _ReportMode.bug) ...[
             DropdownButtonFormField<String>(
-              value: _severity,
+              initialValue: _severity,
               decoration: const InputDecoration(
                 labelText: 'Severity',
                 border: OutlineInputBorder(),

@@ -6,6 +6,7 @@ import '../services/srs_service.dart';
 import '../models/question.dart';
 import '../models/option.dart';
 import '../models/hint_models.dart';
+import '../models/step_explanation.dart';
 import '../screens/quiz_summary_screen.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/achievement_popup.dart';
@@ -61,6 +62,8 @@ class QuizProvider extends ChangeNotifier {
   int get totalQuestions => _allQuestions.length;
   int get currentQuestionNumber => _currentQuestionIndex + 1;
   List<Question> get questions => List.unmodifiable(_allQuestions);
+  List<StepExplanation> _currentSteps = [];
+  List<StepExplanation> get currentSteps => List.unmodifiable(_currentSteps);
   double _masteryPercent = 0.0;
   double get masteryPercent => _masteryPercent;
 
@@ -115,6 +118,17 @@ class QuizProvider extends ChangeNotifier {
     _masteryPercent = 0.0;
   }
 
+  void setSteps(List<StepExplanation> steps, {bool notify = true}) {
+    _currentSteps = List<StepExplanation>.from(steps);
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  void _syncStepsFromCurrentQuestion({bool notify = false}) {
+    setSteps(currentQuestion?.steps ?? const [], notify: notify);
+  }
+
   void applyMasteryDelta({required bool isCorrect}) {
     final delta = isCorrect ? 0.12 : -0.06;
     _masteryPercent = (_masteryPercent + delta).clamp(0.0, 1.0);
@@ -141,10 +155,12 @@ class QuizProvider extends ChangeNotifier {
     if (_allQuestions.isNotEmpty) {
       quizId = "srs-review-${DateTime.now().millisecondsSinceEpoch}";
       currentQuestion = _allQuestions[0];
+      _syncStepsFromCurrentQuestion();
       _questionStartTime = DateTime.now().millisecondsSinceEpoch;
     } else {
       quizId = null;
       currentQuestion = null;
+      _syncStepsFromCurrentQuestion();
     }
 
     notifyListeners();
@@ -179,6 +195,7 @@ class QuizProvider extends ChangeNotifier {
         _isSrsMode = true;
         quizId = "srs-quiz-${DateTime.now().millisecondsSinceEpoch}";
         currentQuestion = _allQuestions[0];
+        _syncStepsFromCurrentQuestion();
         _questionStartTime = DateTime.now().millisecondsSinceEpoch;
         notifyListeners();
         return true;
@@ -201,6 +218,7 @@ class QuizProvider extends ChangeNotifier {
 
         // Set first question
         currentQuestion = _allQuestions[0];
+        _syncStepsFromCurrentQuestion();
         _questionStartTime = DateTime.now().millisecondsSinceEpoch;
         notifyListeners();
         return true;
@@ -278,6 +296,7 @@ class QuizProvider extends ChangeNotifier {
 
     _currentQuestionIndex = 0;
     currentQuestion = _allQuestions[0];
+    _syncStepsFromCurrentQuestion();
     _questionStartTime = DateTime.now().millisecondsSinceEpoch;
     _sessionStartTotalXp = _currentProgressTotalXp();
 
@@ -346,7 +365,7 @@ class QuizProvider extends ChangeNotifier {
         }
 
         // Submit answer (online or queue for offline sync)
-        final submitResult = await _offline.submitAnswer(
+        serverResponse = await _offline.submitAnswer(
           quizId: quizId!,
           questionId: currentQuestion!.id,
           answer: selectedOption?.text ?? answer,
@@ -354,7 +373,6 @@ class QuizProvider extends ChangeNotifier {
           isCorrect: isCorrect,
           token: token,
         );
-        serverResponse = submitResult.response;
       } catch (e) {
         debugPrint('Error submitting answer: $e');
         // Continue anyway - answer is saved for sync
@@ -462,6 +480,7 @@ class QuizProvider extends ChangeNotifier {
     _currentQuestionIndex++;
     if (_currentQuestionIndex < _allQuestions.length) {
       currentQuestion = _allQuestions[_currentQuestionIndex];
+      _syncStepsFromCurrentQuestion();
       _resetHints(); // Reset hints for new question
       _questionStartTime =
           DateTime.now().millisecondsSinceEpoch; // Reset timer for new question
@@ -542,6 +561,7 @@ class QuizProvider extends ChangeNotifier {
     _currentQuestionIndex = 0;
     _allQuestions = [];
     currentQuestion = null;
+    _syncStepsFromCurrentQuestion();
     _correctCount = 0;
     _sessionXp = 0;
     _sessionStartTotalXp = null;
@@ -689,6 +709,9 @@ class QuizProvider extends ChangeNotifier {
     if (!_isHintEnabled(context, HintType.formula)) return;
 
     final coinProvider = Provider.of<CoinProvider>(context, listen: false);
+    final inlineSteps = currentQuestion!.steps.isNotEmpty
+        ? currentQuestion!.steps
+        : _currentSteps;
 
     // Check if user can afford the hint
     if (!coinProvider.canAffordHint(HintType.formula)) {
@@ -700,6 +723,17 @@ class QuizProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      if (inlineSteps.isNotEmpty) {
+        await coinProvider.useHint(HintType.formula);
+        _usedHintForCurrentQuestion = true;
+        notifyListeners();
+
+        if (context.mounted) {
+          await FormulaHintBottomSheet.showSteps(context, inlineSteps);
+        }
+        return;
+      }
+
       final formula = await api.fetchFormulaHint(currentQuestion!.id);
 
       if (formula != null) {
@@ -710,7 +744,7 @@ class QuizProvider extends ChangeNotifier {
 
         // Show formula in bottom sheet
         if (context.mounted) {
-          FormulaHintBottomSheet.show(context, formula);
+          await FormulaHintBottomSheet.show(context, formula);
         }
       } else {
         if (context.mounted) {

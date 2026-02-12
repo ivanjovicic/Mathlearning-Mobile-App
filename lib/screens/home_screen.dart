@@ -12,6 +12,7 @@ import '../state/coin_provider.dart';
 import '../state/progress_provider.dart';
 import '../state/quiz_provider.dart';
 import '../theme/astrax_theme.dart';
+import '../utils/overlay_safety.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/offline_status_widget.dart';
 import '../widgets/daily_streak_badge.dart';
@@ -313,14 +314,14 @@ class _HomeScreenState extends State<HomeScreen>
                             Navigator.pushNamed(context, "/badges"),
                         icon: const Icon(Icons.workspace_premium_outlined),
                         color: colorScheme.onSurface,
-                        tooltip: t.badges,
+                        tooltip: context.safeTooltip(t.badges),
                       ),
                       IconButton(
                         onPressed: () =>
                             Navigator.pushNamed(context, "/heatmap"),
                         icon: const Icon(Icons.calendar_month),
                         color: colorScheme.onSurface,
-                        tooltip: t.activity,
+                        tooltip: context.safeTooltip(t.activity),
                       ),
                     ],
                   ),
@@ -754,8 +755,9 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 const SizedBox(width: 8),
                 if (onRefresh != null)
-                  Tooltip(
-                    message: "Osvezi",
+                  Semantics(
+                    button: true,
+                    label: "Osvezi",
                     child: InkResponse(
                       onTap: () {
                         HapticFeedback.selectionClick();

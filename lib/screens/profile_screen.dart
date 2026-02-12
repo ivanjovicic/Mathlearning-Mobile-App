@@ -4,6 +4,7 @@ import '../state/progress_provider.dart';
 import '../state/badge_provider.dart';
 import '../state/auth_provider.dart';
 import '../theme/theme_controller.dart';
+import '../utils/overlay_safety.dart';
 import '../widgets/animated_xp_bar.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
 // user_service and user_profile imports removed (unused)
@@ -39,12 +40,12 @@ class ProfileScreen extends StatelessWidget {
           IconButton(
             onPressed: () => Navigator.pushNamed(context, "/settings"),
             icon: Icon(Icons.settings_outlined, color: colorScheme.onSurface),
-            tooltip: 'Podesavanja',
+            tooltip: context.safeTooltip('Podesavanja'),
           ),
           IconButton(
             onPressed: () => Navigator.pushNamed(context, "/themes"),
             icon: Icon(Icons.palette_outlined, color: colorScheme.onSurface),
-            tooltip: 'Tema i kretanje',
+            tooltip: context.safeTooltip('Tema i kretanje'),
           ),
           // Search users button
           IconButton(
@@ -56,13 +57,13 @@ class ProfileScreen extends StatelessWidget {
               );
             },
             icon: Icon(Icons.search, color: colorScheme.onSurface),
-            tooltip: 'Pretraga korisnika',
+            tooltip: context.safeTooltip('Pretraga korisnika'),
           ),
           // Edit profile button
           IconButton(
             onPressed: () => _showEditProfileDialog(context),
             icon: Icon(Icons.edit, color: colorScheme.onSurface),
-            tooltip: 'Izmeni profil',
+            tooltip: context.safeTooltip('Izmeni profil'),
           ),
           // Logout button
           IconButton(
@@ -75,7 +76,7 @@ class ProfileScreen extends StatelessWidget {
               }
             },
             icon: Icon(Icons.logout, color: colorScheme.error),
-            tooltip: 'Odjava',
+            tooltip: context.safeTooltip('Odjava'),
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/connectivity_service.dart';
 import '../services/offline_manager.dart';
+import '../utils/overlay_safety.dart';
 
 class OfflineStatusWidget extends StatelessWidget {
   const OfflineStatusWidget({super.key});
@@ -88,7 +89,7 @@ class OfflineStatusWidget extends StatelessWidget {
                   if (isOnline && pendingCount > 0) ...[
                     IconButton(
                       onPressed: () => _syncNow(context),
-                      tooltip: 'Sinhronizuj',
+                      tooltip: context.safeTooltip('Sinhronizuj'),
                       icon: Icon(Icons.sync, color: statusFg, size: 18),
                       constraints:
                           const BoxConstraints(minWidth: 40, minHeight: 40),

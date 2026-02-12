@@ -325,7 +325,7 @@ class OfflineManager {
     }
   }
 
-  Future<bool> submitAnswer({
+  Future<Map<String, dynamic>?> submitAnswer({
     required String quizId,
     required int questionId,
     required String answer,
@@ -344,7 +344,7 @@ class OfflineManager {
         );
         if (result != null) {
           await emitPendingCount();
-          return true;
+          return result;
         }
       } catch (_) {}
     }
@@ -357,7 +357,7 @@ class OfflineManager {
       isCorrect: isCorrect,
     );
     await emitPendingCount();
-    return true;
+    return null;
   }
 
   Future<int> getPendingAnswersCount() async {
