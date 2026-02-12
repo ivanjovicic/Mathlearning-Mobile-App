@@ -25,12 +25,12 @@ class TestAuthProvider extends ChangeNotifier implements AuthProvider {
     String? userId = '1',
     String? username = 'Alex',
     String? error,
-  })  : _isLoading = isLoading,
-        _isAuthenticated = isAuthenticated,
-        _token = token,
-        _userId = userId,
-        _username = username,
-        _error = error;
+  }) : _isLoading = isLoading,
+       _isAuthenticated = isAuthenticated,
+       _token = token,
+       _userId = userId,
+       _username = username,
+       _error = error;
 
   void setUser({
     required bool isAuthenticated,
@@ -109,13 +109,11 @@ class TestCoinProvider extends ChangeNotifier implements CoinProvider {
     int coins = 10,
     bool isLoading = false,
     UserDailyHints? dailyHints,
-  })  : _coins = coins,
-        _isLoading = isLoading,
-        _dailyHints = dailyHints ??
-            UserDailyHints(
-              userId: 'demo',
-              date: DateTime(2026, 2, 6),
-            );
+  }) : _coins = coins,
+       _isLoading = isLoading,
+       _dailyHints =
+           dailyHints ??
+           UserDailyHints(userId: 'demo', date: DateTime(2026, 2, 6));
 
   @override
   int get coins => _coins;
@@ -149,6 +147,18 @@ class TestCoinProvider extends ChangeNotifier implements CoinProvider {
     _coins += amount;
     notifyListeners();
   }
+
+  @override
+  bool canAfford(int amount) => _coins >= amount;
+
+  @override
+  bool trySpendCoins(int amount) {
+    if (amount <= 0) return true;
+    if (_coins < amount) return false;
+    _coins -= amount;
+    notifyListeners();
+    return true;
+  }
 }
 
 class TestQuizProvider extends QuizProvider {
@@ -157,9 +167,9 @@ class TestQuizProvider extends QuizProvider {
     List<Question>? reviewQuestions,
     List<Question>? quizQuestions,
     this.pendingAnswersCount = 0,
-  })  : _onGetDailySrsCount = onGetDailySrsCount ?? (() async => 0),
-        _reviewQuestions = reviewQuestions ?? <Question>[],
-        _quizQuestions = quizQuestions ?? <Question>[];
+  }) : _onGetDailySrsCount = onGetDailySrsCount ?? (() async => 0),
+       _reviewQuestions = reviewQuestions ?? <Question>[],
+       _quizQuestions = quizQuestions ?? <Question>[];
 
   final Future<int> Function() _onGetDailySrsCount;
   int getDailySrsCountCalls = 0;

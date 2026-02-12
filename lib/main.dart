@@ -26,6 +26,7 @@ import 'state/heatmap_provider.dart';
 import 'state/coin_provider.dart';
 import 'state/settings_provider.dart';
 import 'state/onboarding_provider.dart';
+import 'state/streak_freeze_provider.dart';
 
 import 'theme/theme_controller.dart';
 import 'screens/onboarding/onboarding_screen.dart';
@@ -82,7 +83,15 @@ class MathLearningApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeController()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => ProgressProvider()),
+        ChangeNotifierProvider(create: (_) => StreakFreezeProvider()..load()),
+        ChangeNotifierProxyProvider<StreakFreezeProvider, ProgressProvider>(
+          create: (_) => ProgressProvider(),
+          update: (_, streakFreeze, previous) {
+            final provider = previous ?? ProgressProvider();
+            provider.updateStreakFreezeProvider(streakFreeze);
+            return provider;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => CoinProvider()),
         ChangeNotifierProxyProvider<ProgressProvider, BadgeProvider>(
           create: (context) => BadgeProvider(

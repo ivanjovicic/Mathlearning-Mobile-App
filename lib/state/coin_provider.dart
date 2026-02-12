@@ -93,6 +93,16 @@ class CoinProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool canAfford(int amount) => _coins >= amount;
+
+  /// Generic coin spending for shop/power-ups (not only hints).
+  bool trySpendCoins(int amount) {
+    if (amount <= 0) return true;
+    if (_coins < amount) return false;
+    _spendCoins(amount);
+    return true;
+  }
+
   void _useFreeHint(String hintType) {
     if (_dailyHints == null) return;
 

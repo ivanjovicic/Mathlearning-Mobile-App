@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
 import '../models/topic_item.dart';
-import '../services/srs_service.dart';
 import '../state/auth_provider.dart';
 import '../state/coin_provider.dart';
 import '../state/progress_provider.dart';
@@ -15,7 +14,7 @@ import '../theme/astrax_theme.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/offline_status_widget.dart';
-import '../widgets/daily_streak_badge.dart';
+import '../widgets/streak_badge_presenter.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
 import '../widgets/astrax_bottom_nav.dart';
 import '../widgets/astrax_xp_bar.dart';
@@ -35,8 +34,6 @@ class _HomeScreenState extends State<HomeScreen>
   late final AnimationController _refreshSpinController;
   bool _isRefreshingDailyReview = false;
   bool _showRefreshSuccess = false;
-  int? _bestStreakOverride;
-  bool? _todayCompletedOverride;
 
   @override
   void initState() {
@@ -47,8 +44,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
     WidgetsBinding.instance.addObserver(this);
     _refreshDailyReviewCount();
-    _loadStreakBadge();
-    Future.microtask(() {
+    Future.microtask(() async {
       if (!mounted) return;
 
       final progress = Provider.of<ProgressProvider>(context, listen: false);
@@ -71,7 +67,9 @@ class _HomeScreenState extends State<HomeScreen>
         );
       };
 
-      progress.loadProgress();
+      await progress.loadProgress();
+      await progress.rollDailyStreakIfNeeded();
+      if (!mounted) return;
       progress.loadTopics();
     });
   }
@@ -87,70 +85,22 @@ class _HomeScreenState extends State<HomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _refreshDailyReviewCount();
-      _loadStreakBadge();
+      Future.microtask(() async {
+        if (!mounted) return;
+        final progress = Provider.of<ProgressProvider>(context, listen: false);
+        await progress.rollDailyStreakIfNeeded();
+      });
     }
-  }
-
-  Future<void> _loadStreakBadge() async {
-    final data = await SrsService.instance.fetchStreakBadge();
-    if (!mounted || data == null) return;
-
-    final best = _readInt(data, const [
-      'bestStreak',
-      'best_streak',
-      'maxStreak',
-      'max_streak',
-    ]);
-    final todayDone = _readBool(data, const [
-      'isTodayCompleted',
-      'todayCompleted',
-      'todayDone',
-      'doneToday',
-    ]);
-
-    setState(() {
-      if (best != null) {
-        _bestStreakOverride = best;
-      }
-      if (todayDone != null) {
-        _todayCompletedOverride = todayDone;
-      }
-    });
-  }
-
-  int? _readInt(Map<String, dynamic> data, List<String> keys) {
-    for (final key in keys) {
-      final value = data[key];
-      if (value is int) return value;
-      if (value is num) return value.toInt();
-      if (value is String) {
-        final parsed = int.tryParse(value);
-        if (parsed != null) return parsed;
-      }
-    }
-    return null;
-  }
-
-  bool? _readBool(Map<String, dynamic> data, List<String> keys) {
-    for (final key in keys) {
-      final value = data[key];
-      if (value is bool) return value;
-      if (value is num) return value != 0;
-      if (value is String) {
-        final normalized = value.toLowerCase();
-        if (normalized == 'true' || normalized == '1') return true;
-        if (normalized == 'false' || normalized == '0') return false;
-      }
-    }
-    return null;
   }
 
   void _refreshDailyReviewCount() {
     if (!mounted) return;
     setState(() {
       _isRefreshingDailyReview = true;
-      _dailyReviewCountFuture =
-          Provider.of<QuizProvider>(context, listen: false).getDailySrsCount();
+      _dailyReviewCountFuture = Provider.of<QuizProvider>(
+        context,
+        listen: false,
+      ).getDailySrsCount();
     });
     _refreshSpinController
       ..reset()
@@ -273,8 +223,6 @@ class _HomeScreenState extends State<HomeScreen>
     final username = auth.username?.trim();
     final recommendedTopic = _findRecommendedTopic(progress);
     final dailyDone = progress.totalAttempts % _dailyGoalTarget;
-    final isTodayCompleted = _todayCompletedOverride ?? (dailyDone > 0);
-    final bestStreak = _bestStreakOverride ?? progress.streak;
 
     return Scaffold(
       backgroundColor: AstraXTheme.bg,
@@ -354,12 +302,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
               const SizedBox(height: 20),
-              DailyStreakBadge(
-                currentStreak: progress.streak,
-                bestStreak: bestStreak,
-                isTodayCompleted: isTodayCompleted,
-                onTap: () => Navigator.pushNamed(context, "/heatmap"),
-              ),
+              const StreakBadgePresenter(),
               const SizedBox(height: 16),
               Text(
                 t.level(progress.level),
@@ -412,8 +355,8 @@ class _HomeScreenState extends State<HomeScreen>
                 future: _dailyReviewCountFuture,
                 builder: (context, snapshot) {
                   final count = snapshot.data ?? 0;
-                  final isLoading = snapshot.connectionState ==
-                          ConnectionState.waiting ||
+                  final isLoading =
+                      snapshot.connectionState == ConnectionState.waiting ||
                       _isRefreshingDailyReview;
                   final subtitle = isLoading
                       ? "Ucitavam dnevni review..."
@@ -441,8 +384,9 @@ class _HomeScreenState extends State<HomeScreen>
                             );
                           }
                         : null,
-                    onRefresh:
-                        _isRefreshingDailyReview ? null : _refreshDailyReviewCount,
+                    onRefresh: _isRefreshingDailyReview
+                        ? null
+                        : _refreshDailyReviewCount,
                     subtitleLoading: isLoading,
                   );
 
@@ -453,10 +397,7 @@ class _HomeScreenState extends State<HomeScreen>
                   return card
                       .animate()
                       .fadeIn(duration: 250.ms)
-                      .scale(
-                        duration: 300.ms,
-                        curve: Curves.easeOutBack,
-                      )
+                      .scale(duration: 300.ms, curve: Curves.easeOutBack)
                       .then()
                       .shimmer(
                         duration: 1200.ms,
@@ -744,20 +685,23 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: colorScheme.onSurface
-                              .withValues(alpha: enabled ? 0.7 : 0.45),
-                          fontSize: 13,
-                        ),
-                      ).animate(
-                        target: subtitleLoading && !reduceMotion ? 1 : 0,
-                      ).shimmer(
-                        duration: 900.ms,
-                        color: colorScheme.secondary.withValues(alpha: 0.6),
-                      ),
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: enabled ? 0.7 : 0.45,
+                              ),
+                              fontSize: 13,
+                            ),
+                          )
+                          .animate(
+                            target: subtitleLoading && !reduceMotion ? 1 : 0,
+                          )
+                          .shimmer(
+                            duration: 900.ms,
+                            color: colorScheme.secondary.withValues(alpha: 0.6),
+                          ),
                     ],
                   ),
                 ),
@@ -793,36 +737,38 @@ class _HomeScreenState extends State<HomeScreen>
                                   size: 18,
                                   color: colorScheme.secondary,
                                 ).animate().scale(
-                                    duration: 200.ms,
-                                    curve: Curves.easeOutBack,
-                                  )
+                                  duration: 200.ms,
+                                  curve: Curves.easeOutBack,
+                                )
                               : RotationTransition(
                                   key: const ValueKey('refresh_spin'),
                                   turns: _refreshSpinController,
-                                  child: Icon(
-                                    Icons.refresh,
-                                    size: 18,
-                                    color: colorScheme.secondary,
-                                  )
-                                      .animate(
-                                        target: _isRefreshingDailyReview &&
-                                                !reduceMotion
-                                            ? 1
-                                            : 0,
-                                      )
-                                      .scale(
-                                        begin: const Offset(1.0, 1.0),
-                                        end: const Offset(1.15, 1.15),
-                                        duration: 500.ms,
-                                        curve: Curves.easeInOut,
-                                      )
-                                      .then()
-                                      .scale(
-                                        begin: const Offset(1.15, 1.15),
-                                        end: const Offset(1.0, 1.0),
-                                        duration: 500.ms,
-                                        curve: Curves.easeInOut,
-                                      ),
+                                  child:
+                                      Icon(
+                                            Icons.refresh,
+                                            size: 18,
+                                            color: colorScheme.secondary,
+                                          )
+                                          .animate(
+                                            target:
+                                                _isRefreshingDailyReview &&
+                                                    !reduceMotion
+                                                ? 1
+                                                : 0,
+                                          )
+                                          .scale(
+                                            begin: const Offset(1.0, 1.0),
+                                            end: const Offset(1.15, 1.15),
+                                            duration: 500.ms,
+                                            curve: Curves.easeInOut,
+                                          )
+                                          .then()
+                                          .scale(
+                                            begin: const Offset(1.15, 1.15),
+                                            end: const Offset(1.0, 1.0),
+                                            duration: 500.ms,
+                                            curve: Curves.easeInOut,
+                                          ),
                                 ),
                         ),
                       ),

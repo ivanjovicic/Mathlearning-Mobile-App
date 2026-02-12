@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/progress_service.dart';
 import '../models/topic_dto.dart';
 import '../services/offline_storage_service.dart';
+import 'streak_freeze_provider.dart';
+import 'dart:math' as math;
 
 class ProgressProvider extends ChangeNotifier {
   final api = ApiService();
   final ProgressService _progressService = ProgressService.instance;
   static const Duration _reloadDebounce = Duration(seconds: 4);
+  static const String _keyLastStreakDayMs = 'progress_last_streak_day_ms_v1';
+
+  StreakFreezeProvider? _streakFreeze;
+  DateTime? _lastStreakDay;
+  ({int freezesUsed, bool streakBroken})? _pendingStreakRollEvent;
 
   String? token;
 
@@ -25,6 +33,92 @@ class ProgressProvider extends ChangeNotifier {
   DateTime? _lastProgressLoadedAt;
   DateTime? _lastTopicsLoadedAt;
 
+  void updateStreakFreezeProvider(StreakFreezeProvider provider) {
+    _streakFreeze = provider;
+  }
+
+  DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+  bool get isStreakDoneToday {
+    final last = _lastStreakDay;
+    if (last == null) return false;
+    return _dateOnly(DateTime.now()) == _dateOnly(last);
+  }
+
+  DateTime? get lastStreakDay => _lastStreakDay;
+
+  ({int freezesUsed, bool streakBroken})? takeStreakRollEvent() {
+    final event = _pendingStreakRollEvent;
+    _pendingStreakRollEvent = null;
+    return event;
+  }
+
+  Future<void> _loadLastStreakDayFromPrefs() async {
+    if (_lastStreakDay != null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final ms = prefs.getInt(_keyLastStreakDayMs);
+    if (ms == null) return;
+    _lastStreakDay = _dateOnly(DateTime.fromMillisecondsSinceEpoch(ms));
+  }
+
+  Future<void> _persistLastStreakDayToPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ms = _lastStreakDay?.millisecondsSinceEpoch;
+    if (ms == null) {
+      await prefs.remove(_keyLastStreakDayMs);
+      return;
+    }
+    await prefs.setInt(_keyLastStreakDayMs, ms);
+  }
+
+  /// If the user missed one or more days, attempt to consume streak freezes.
+  /// Returns how many freezes were used and whether the streak was broken.
+  Future<({int freezesUsed, bool streakBroken})> rollDailyStreakIfNeeded({
+    DateTime? now,
+  }) async {
+    await _loadLastStreakDayFromPrefs();
+
+    final last = _lastStreakDay;
+    if (last == null) {
+      return (freezesUsed: 0, streakBroken: false);
+    }
+
+    final today = _dateOnly(now ?? DateTime.now());
+    final diffDays = today.difference(_dateOnly(last)).inDays;
+    if (diffDays <= 1) {
+      return (freezesUsed: 0, streakBroken: false);
+    }
+
+    final missedDays = diffDays - 1;
+    var freezesUsed = 0;
+
+    if (_streakFreeze != null) {
+      if (!_streakFreeze!.isLoaded) {
+        await _streakFreeze!.load();
+      }
+      freezesUsed = await _streakFreeze!.consumeUpTo(missedDays);
+      if (freezesUsed > 0) {
+        _lastStreakDay = _dateOnly(last.add(Duration(days: freezesUsed)));
+      }
+    }
+
+    final remainingMissedDays = math.max(0, missedDays - freezesUsed);
+    if (remainingMissedDays > 0) {
+      // Not enough freezes to cover the gap -> streak breaks.
+      streak = 0;
+      _lastStreakDay = null;
+    }
+
+    _pendingStreakRollEvent = (
+      freezesUsed: freezesUsed,
+      streakBroken: remainingMissedDays > 0,
+    );
+
+    await _cacheProgressLocally();
+    notifyListeners();
+    return (freezesUsed: freezesUsed, streakBroken: remainingMissedDays > 0);
+  }
+
   // ─── Optimistic update: apply XP / streak instantly ───
 
   /// Called by QuizProvider right after answering a question.
@@ -34,7 +128,6 @@ class ProgressProvider extends ChangeNotifier {
 
     if (isCorrect) {
       xp += xpForQuestion;
-      streak++;
 
       // Level-up check
       while (xp >= xpToNextLevel) {
@@ -44,6 +137,25 @@ class ProgressProvider extends ChangeNotifier {
       }
     } else {
       // Wrong answer doesn't break streak, but doesn't increase it
+    }
+
+    // Daily streak: count at most once per calendar day (practice == any attempt).
+    final today = _dateOnly(DateTime.now());
+    final last = _lastStreakDay;
+    if (last == null) {
+      // If we have a streak number but no date, don't rewrite history.
+      if (streak <= 0) streak = 1;
+      _lastStreakDay = today;
+    } else {
+      final diff = today.difference(_dateOnly(last)).inDays;
+      if (diff == 1) {
+        streak = (streak < 1 ? 1 : streak) + 1;
+        _lastStreakDay = today;
+      } else if (diff > 1) {
+        // If rollDailyStreakIfNeeded wasn't called yet, consider the streak broken.
+        streak = 1;
+        _lastStreakDay = today;
+      }
     }
 
     // Recalculate accuracy optimistically
@@ -91,6 +203,9 @@ class ProgressProvider extends ChangeNotifier {
       _applyFromCache(cached, notify: false);
     }
 
+    // Ensure meta (like last streak day) is present even when SQLite cache is used.
+    await _loadLastStreakDayFromPrefs();
+
     final localAttempts = totalAttempts;
     final localAccuracy = accuracy;
     final localStreak = streak;
@@ -125,6 +240,7 @@ class ProgressProvider extends ChangeNotifier {
           }
 
           await _cacheProgressLocally();
+          await rollDailyStreakIfNeeded();
           _lastProgressLoadedAt = DateTime.now();
           notifyListeners();
           return;
@@ -147,6 +263,7 @@ class ProgressProvider extends ChangeNotifier {
       xp = calculateXp(totalAttempts, accuracy);
     }
 
+    await rollDailyStreakIfNeeded();
     _lastProgressLoadedAt = DateTime.now();
     notifyListeners();
   }
@@ -213,6 +330,14 @@ class ProgressProvider extends ChangeNotifier {
     streak = cached['streak'] ?? streak;
     totalAttempts = cached['total_attempts'] ?? totalAttempts;
     accuracy = (cached['accuracy'] as num?)?.toDouble() ?? accuracy;
+    final lastStreakMs = cached['last_streak_day_ms'];
+    if (lastStreakMs is int) {
+      _lastStreakDay = _dateOnly(DateTime.fromMillisecondsSinceEpoch(lastStreakMs));
+    } else if (lastStreakMs is num) {
+      _lastStreakDay = _dateOnly(
+        DateTime.fromMillisecondsSinceEpoch(lastStreakMs.toInt()),
+      );
+    }
     if (notify) notifyListeners();
   }
 
@@ -223,6 +348,7 @@ class ProgressProvider extends ChangeNotifier {
       'streak': streak,
       'total_attempts': totalAttempts,
       'accuracy': accuracy,
+      'last_streak_day_ms': _lastStreakDay?.millisecondsSinceEpoch,
     };
 
     await OfflineStorageService.cacheUserProgress(
@@ -233,6 +359,7 @@ class ProgressProvider extends ChangeNotifier {
       accuracy: accuracy,
     );
     await OfflineStorageService.cacheProgressV1(data);
+    await _persistLastStreakDayToPrefs();
   }
 
   Future<void> persistLocalProgress() async {

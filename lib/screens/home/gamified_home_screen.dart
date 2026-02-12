@@ -9,8 +9,8 @@ import '../../state/progress_provider.dart';
 import '../../widgets/animated_xp_bar.dart';
 import '../../widgets/level_up_animation.dart';
 import '../../widgets/offline_status_widget.dart';
+import '../../widgets/streak_badge_presenter.dart';
 import '../../widgets/theme_accessibility_mini_preview.dart';
-import '../../widgets/daily_streak_widget.dart';
 import '../quiz/pick_topic_screen.dart';
 
 class GamifiedHomeScreen extends StatefulWidget {
@@ -26,7 +26,7 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
+    Future.microtask(() async {
       if (!mounted) return;
 
       final progress = Provider.of<ProgressProvider>(context, listen: false);
@@ -51,7 +51,9 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
         );
       };
 
-      progress.loadProgress();
+      await progress.loadProgress();
+      await progress.rollDailyStreakIfNeeded();
+      if (!mounted) return;
       progress.loadTopics();
     });
   }
@@ -191,7 +193,10 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
               builder: (context, auth, child) {
                 if (!auth.isDemoMode) return const SizedBox.shrink();
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   margin: const EdgeInsets.only(bottom: 4),
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
@@ -237,12 +242,7 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
               },
             ),
             const SizedBox(height: 12),
-            Center(
-              child: DailyStreakWidget(
-                streak: progress.streak,
-                xpEarnedToday: 0, // Could be tracked separately if needed
-              ),
-            ),
+            const Center(child: StreakBadgePresenter()),
             const SizedBox(height: 12),
             Wrap(
               spacing: 10,
