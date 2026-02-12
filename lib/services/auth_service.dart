@@ -24,6 +24,7 @@ class AuthService {
   String? _accessToken;
   String? _userId;
   String? _username;
+  Future<bool>? _refreshInFlight;
 
   late Dio _dio;
 
@@ -317,7 +318,9 @@ class AuthService {
         debugPrint('[AUTH] autoLogin: no refresh token found');
         return _accessToken != null;
       }
-      debugPrint('[AUTH] autoLogin: refresh token exists (${_mask(refreshToken)})');
+      debugPrint(
+        '[AUTH] autoLogin: refresh token exists (${_mask(refreshToken)})',
+      );
 
       final prefs = await SharedPreferences.getInstance();
       _userId = prefs.getString(_userIdKey);
@@ -339,7 +342,19 @@ class AuthService {
     return _accessToken != null;
   }
 
-  Future<bool> _refreshTokens() async {
+  Future<bool> _refreshTokens() {
+    if (_refreshInFlight != null) {
+      return _refreshInFlight!;
+    }
+
+    final task = _refreshTokensInternal().whenComplete(() {
+      _refreshInFlight = null;
+    });
+    _refreshInFlight = task;
+    return task;
+  }
+
+  Future<bool> _refreshTokensInternal() async {
     try {
       debugPrint('[AUTH] refresh start');
       final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
@@ -419,7 +434,9 @@ class AuthService {
       if (_accessToken != null) {
         final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
         if (refreshToken != null && refreshToken.isNotEmpty) {
-          debugPrint('[AUTH] logout request with refresh=${_mask(refreshToken)}');
+          debugPrint(
+            '[AUTH] logout request with refresh=${_mask(refreshToken)}',
+          );
           await _dio.post('/auth/logout', data: {'refreshToken': refreshToken});
         } else {
           debugPrint('[AUTH] logout skipped API call: no refresh token');

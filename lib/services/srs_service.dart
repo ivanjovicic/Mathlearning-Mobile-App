@@ -6,6 +6,7 @@ import 'offline_storage_service.dart';
 class SrsService {
   static final SrsService instance = SrsService._internal();
   SrsService._internal();
+  Future<List<Map<String, dynamic>>>? _dailyFetchInFlight;
 
   bool get _canUseProtectedEndpoints =>
       AuthService.instance.isLoggedIn && !AuthService.instance.isDemoMode;
@@ -24,6 +25,21 @@ class SrsService {
     if (userId != null && !ConnectivityService.instance.isOnline) {
       return OfflineStorageService.getCachedDailySrsQuestions(userId: userId);
     }
+
+    if (_dailyFetchInFlight != null) {
+      return _dailyFetchInFlight!;
+    }
+
+    final task = _fetchDailySrsQuestionsInternal(userId).whenComplete(() {
+      _dailyFetchInFlight = null;
+    });
+    _dailyFetchInFlight = task;
+    return task;
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchDailySrsQuestionsInternal(
+    String? userId,
+  ) async {
     try {
       final dio = AuthService.instance.client;
       final response = await dio.get('/api/quiz/srs/daily');

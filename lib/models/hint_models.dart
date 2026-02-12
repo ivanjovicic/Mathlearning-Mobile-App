@@ -58,12 +58,19 @@ class UserDailyHints {
   });
 
   factory UserDailyHints.fromJson(Map<String, dynamic> json) {
+    final rawUserId = json['userId'] ?? json['user_id'];
+    final rawDate = json['date'] ?? json['Date'];
+
     return UserDailyHints(
-      userId: json['userId'],
-      date: DateTime.parse(json['date']),
-      formulaHintsUsed: json['formulaHintsUsed'] ?? 0,
-      clueHintsUsed: json['clueHintsUsed'] ?? 0,
-      eliminateHintsUsed: json['eliminateHintsUsed'] ?? 0,
+      userId: rawUserId?.toString() ?? 'unknown',
+      date: _parseDate(rawDate),
+      formulaHintsUsed: _asInt(
+        json['formulaHintsUsed'] ?? json['formula_hints_used'],
+      ),
+      clueHintsUsed: _asInt(json['clueHintsUsed'] ?? json['clue_hints_used']),
+      eliminateHintsUsed: _asInt(
+        json['eliminateHintsUsed'] ?? json['eliminate_hints_used'],
+      ),
     );
   }
 
@@ -94,5 +101,21 @@ class UserDailyHints {
     final used = getUsedHints(hintType);
     final limit = DailyHintLimits.getFreeLimit(hintType);
     return used < limit;
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static DateTime _parseDate(dynamic value) {
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) return parsed;
+    }
+    return DateTime.now();
   }
 }

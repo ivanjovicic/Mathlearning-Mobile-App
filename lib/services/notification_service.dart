@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_native_timezone/flutter_native_timezone.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -28,17 +28,27 @@ class NotificationService {
       '@mipmap/ic_launcher',
     );
     const iosSettings = DarwinInitializationSettings();
+    const linuxSettings = LinuxInitializationSettings(
+      defaultActionName: 'Open notification',
+    );
+    const windowsSettings = WindowsInitializationSettings(
+      appName: 'Math Learning',
+      appUserModelId: 'com.mathlearning.app',
+      guid: '5e1c1d9a-c748-4dc4-a2d4-f9a2a6e8f142',
+    );
     const settings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
       macOS: iosSettings,
+      linux: linuxSettings,
+      windows: windowsSettings,
     );
 
-    await _notifications.initialize(settings);
+    await _notifications.initialize(settings: settings);
 
     tz.initializeTimeZones();
     try {
-      final localTimezone = await FlutterNativeTimezone.getLocalTimezone();
+      final localTimezone = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(localTimezone));
     } catch (e) {
       debugPrint('Notification timezone fallback: $e');
@@ -58,7 +68,7 @@ class NotificationService {
     await initialize();
 
     if (!enabled) {
-      await _notifications.cancel(_dailyReminderId);
+      await _notifications.cancel(id: _dailyReminderId);
       return true;
     }
 
@@ -69,13 +79,13 @@ class NotificationService {
       }
     }
 
-    await _notifications.cancel(_dailyReminderId);
+    await _notifications.cancel(id: _dailyReminderId);
     await _notifications.zonedSchedule(
-      _dailyReminderId,
-      'Math podsetnik',
-      'Vreme je za kratki dnevni kviz.',
-      _nextInstanceOf(time),
-      const NotificationDetails(
+      id: _dailyReminderId,
+      title: 'Math podsetnik',
+      body: 'Vreme je za kratki dnevni kviz.',
+      scheduledDate: _nextInstanceOf(time),
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           _dailyChannelId,
           _dailyChannelName,
@@ -85,10 +95,8 @@ class NotificationService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      matchDateTimeComponents: DateTimeComponents.time,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
       payload: 'daily_reminder',
     );
 

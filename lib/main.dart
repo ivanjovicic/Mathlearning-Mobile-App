@@ -180,7 +180,8 @@ class _AppRoot extends StatelessWidget {
                   final mediaQuery = MediaQuery.of(context);
                   return MediaQuery(
                     data: mediaQuery.copyWith(
-                      disableAnimations: reduceMotion,
+                      disableAnimations:
+                          mediaQuery.disableAnimations || reduceMotion,
                       highContrast: mediaQuery.highContrast || highContrast,
                     ),
                     child: RepaintBoundary(

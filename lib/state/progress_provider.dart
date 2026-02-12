@@ -7,6 +7,7 @@ import '../services/offline_storage_service.dart';
 class ProgressProvider extends ChangeNotifier {
   final api = ApiService();
   final ProgressService _progressService = ProgressService.instance;
+  static const Duration _reloadDebounce = Duration(seconds: 4);
 
   String? token;
 
@@ -19,6 +20,10 @@ class ProgressProvider extends ChangeNotifier {
   double accuracy = 0;
 
   VoidCallback? onLevelUp; // callback za animaciju
+  Future<void>? _loadProgressInFlight;
+  Future<void>? _loadTopicsInFlight;
+  DateTime? _lastProgressLoadedAt;
+  DateTime? _lastTopicsLoadedAt;
 
   // ─── Optimistic update: apply XP / streak instantly ───
 
@@ -57,7 +62,28 @@ class ProgressProvider extends ChangeNotifier {
 
   // ─── Load progress (cache-first, then server) ───
 
-  Future<void> loadProgress() async {
+  Future<void> loadProgress({bool forceRefresh = false}) {
+    if (!forceRefresh && _loadProgressInFlight != null) {
+      return _loadProgressInFlight!;
+    }
+
+    final now = DateTime.now();
+    final hasFreshData =
+        _lastProgressLoadedAt != null &&
+        now.difference(_lastProgressLoadedAt!) < _reloadDebounce &&
+        (totalAttempts > 0 || level > 1 || xp > 0);
+    if (!forceRefresh && hasFreshData) {
+      return Future.value();
+    }
+
+    final task = _loadProgressInternal().whenComplete(() {
+      _loadProgressInFlight = null;
+    });
+    _loadProgressInFlight = task;
+    return task;
+  }
+
+  Future<void> _loadProgressInternal() async {
     // 1) Try from cache first (instant UI)
     var cached = await OfflineStorageService.getCachedUserProgress();
     cached ??= await OfflineStorageService.loadCachedProgressV1();
@@ -99,6 +125,7 @@ class ProgressProvider extends ChangeNotifier {
           }
 
           await _cacheProgressLocally();
+          _lastProgressLoadedAt = DateTime.now();
           notifyListeners();
           return;
         }
@@ -120,6 +147,7 @@ class ProgressProvider extends ChangeNotifier {
       xp = calculateXp(totalAttempts, accuracy);
     }
 
+    _lastProgressLoadedAt = DateTime.now();
     notifyListeners();
   }
 
@@ -234,7 +262,28 @@ class ProgressProvider extends ChangeNotifier {
   // Daily progress for heatmap
   Map<String, int> dailyProgress = {};
 
-  Future<void> loadTopics() async {
+  Future<void> loadTopics({bool forceRefresh = false}) {
+    if (!forceRefresh && _loadTopicsInFlight != null) {
+      return _loadTopicsInFlight!;
+    }
+
+    final now = DateTime.now();
+    final hasFreshData =
+        _lastTopicsLoadedAt != null &&
+        now.difference(_lastTopicsLoadedAt!) < _reloadDebounce &&
+        topics.isNotEmpty;
+    if (!forceRefresh && hasFreshData) {
+      return Future.value();
+    }
+
+    final task = _loadTopicsInternal().whenComplete(() {
+      _loadTopicsInFlight = null;
+    });
+    _loadTopicsInFlight = task;
+    return task;
+  }
+
+  Future<void> _loadTopicsInternal() async {
     try {
       // Skip API call if using demo token (backend not ready)
       if (token?.startsWith('demo_') != true) {
@@ -249,6 +298,7 @@ class ProgressProvider extends ChangeNotifier {
               topicId: dto.id,
             );
           }).toList();
+          _lastTopicsLoadedAt = DateTime.now();
           notifyListeners();
           return;
         }
@@ -286,6 +336,7 @@ class ProgressProvider extends ChangeNotifier {
       ),
     ];
 
+    _lastTopicsLoadedAt = DateTime.now();
     notifyListeners();
   }
 

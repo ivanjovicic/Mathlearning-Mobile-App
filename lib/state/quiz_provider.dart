@@ -18,6 +18,7 @@ import 'settings_provider.dart';
 class QuizProvider extends ChangeNotifier {
   static const int _baseXpReward = 20;
   static const int _noHintBonusXp = 5;
+  static const Duration _dailySrsCacheTtl = Duration(seconds: 20);
 
   final api = ApiService();
   final _offline = OfflineManager.instance;
@@ -41,6 +42,9 @@ class QuizProvider extends ChangeNotifier {
   int _questionStartTime =
       0; // Track when question started for time calculation
   bool _isSubmittingAnswer = false;
+  List<Map<String, dynamic>>? _cachedDailySrsQuestions;
+  DateTime? _cachedDailySrsAt;
+  Future<List<Map<String, dynamic>>>? _dailySrsFetchInFlight;
 
   // Hint system state
   String? _currentClue;
@@ -147,7 +151,7 @@ class QuizProvider extends ChangeNotifier {
     _resetHints();
     resetMastery();
 
-    final srsQuestions = await _srs.fetchDailySrsQuestions();
+    final srsQuestions = await _fetchDailySrsQuestions();
     final limited = srsQuestions.take(count);
     _allQuestions = limited.map((q) => Question.fromJson(q)).toList();
     _allQuestions = _dedupeQuestionsByContent(_allQuestions);
@@ -167,7 +171,7 @@ class QuizProvider extends ChangeNotifier {
   }
 
   Future<int> getDailySrsCount() async {
-    final srsQuestions = await _srs.fetchDailySrsQuestions();
+    final srsQuestions = await _fetchDailySrsQuestions();
     return srsQuestions.length;
   }
 
@@ -186,7 +190,7 @@ class QuizProvider extends ChangeNotifier {
       resetMastery();
 
       // 1ï¸âƒ£ FIRST: Try to get SRS questions (priority)
-      final srsQuestions = await _srs.fetchDailySrsQuestions();
+      final srsQuestions = await _fetchDailySrsQuestions();
 
       if (srsQuestions.isNotEmpty) {
         debugPrint('âœ… Found ${srsQuestions.length} SRS questions for review');
@@ -229,6 +233,37 @@ class QuizProvider extends ChangeNotifier {
 
     // Use fallback questions for demo mode
     return await _startFallbackQuiz();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchDailySrsQuestions({
+    bool forceRefresh = false,
+  }) async {
+    final now = DateTime.now();
+    final hasFreshCache =
+        !forceRefresh &&
+        _cachedDailySrsQuestions != null &&
+        _cachedDailySrsAt != null &&
+        now.difference(_cachedDailySrsAt!) < _dailySrsCacheTtl;
+
+    if (hasFreshCache) {
+      return List<Map<String, dynamic>>.from(_cachedDailySrsQuestions!);
+    }
+
+    if (_dailySrsFetchInFlight != null) {
+      return _dailySrsFetchInFlight!;
+    }
+
+    final task = _srs.fetchDailySrsQuestions().then((questions) {
+      final copy = List<Map<String, dynamic>>.from(questions);
+      _cachedDailySrsQuestions = copy;
+      _cachedDailySrsAt = DateTime.now();
+      return copy;
+    }).whenComplete(() {
+      _dailySrsFetchInFlight = null;
+    });
+
+    _dailySrsFetchInFlight = task;
+    return task;
   }
 
   Future<bool> _startFallbackQuiz() async {
@@ -290,6 +325,110 @@ class QuizProvider extends ChangeNotifier {
           Option(id: 18, text: "12"),
           Option(id: 19, text: "14"),
           Option(id: 20, text: "15"),
+        ],
+      ),
+      // Plain sentence (tests regular text rendering and spacing).
+      Question(
+        id: 6,
+        text: "What is the perimeter of a triangle with sides 3, 4, and 5?",
+        correctAnswerId: 101,
+        options: [
+          Option(id: 101, text: "12"),
+          Option(id: 102, text: "10"),
+          Option(id: 103, text: "11"),
+          Option(id: 104, text: "13"),
+        ],
+        hintLight: "Perimeter is the sum of all side lengths.",
+        hintMedium: "Add all three sides: 3 + 4 + 5.",
+        hintFull: "3 + 4 + 5 = 12",
+        explanation:
+            "Perimeter = a + b + c\nPerimeter = 3 + 4 + 5\nPerimeter = 12",
+      ),
+      // Fraction LaTeX.
+      Question(
+        id: 7,
+        text: r"\frac{3}{4} + \frac{1}{4} = ?",
+        correctAnswerId: 201,
+        options: [
+          Option(id: 201, text: "1"),
+          Option(id: 202, text: r"\frac{1}{2}"),
+          Option(id: 203, text: r"\frac{3}{2}"),
+          Option(id: 204, text: "2"),
+        ],
+      ),
+      // Radical.
+      Question(
+        id: 8,
+        text: r"\sqrt{49} = ?",
+        correctAnswerId: 301,
+        options: [
+          Option(id: 301, text: "7"),
+          Option(id: 302, text: "14"),
+          Option(id: 303, text: "6"),
+          Option(id: 304, text: "8"),
+        ],
+      ),
+      // Exponent.
+      Question(
+        id: 9,
+        text: "2^5 = ?",
+        correctAnswerId: 401,
+        options: [
+          Option(id: 401, text: "32"),
+          Option(id: 402, text: "16"),
+          Option(id: 403, text: "64"),
+          Option(id: 404, text: "25"),
+        ],
+      ),
+      // Plain text linear equation.
+      Question(
+        id: 10,
+        text: "Solve the equation: 3x + 2 = 11. What is x?",
+        correctAnswerId: 501,
+        options: [
+          Option(id: 501, text: "3"),
+          Option(id: 502, text: "2"),
+          Option(id: 503, text: "4"),
+          Option(id: 504, text: "5"),
+        ],
+        hintLight: "Isolate x.",
+        hintMedium: "Subtract 2 from both sides first.",
+        hintFull: "3x + 2 = 11 => 3x = 9 => x = 3",
+      ),
+      // Trigonometric LaTeX.
+      Question(
+        id: 11,
+        text: r"\sin\left(\frac{\pi}{2}\right) = ?",
+        correctAnswerId: 601,
+        options: [
+          Option(id: 601, text: "1"),
+          Option(id: 602, text: "0"),
+          Option(id: 603, text: "-1"),
+          Option(id: 604, text: r"\frac{1}{2}"),
+        ],
+      ),
+      // Integral LaTeX.
+      Question(
+        id: 12,
+        text: r"\int_0^2 x \, dx = ?",
+        correctAnswerId: 701,
+        options: [
+          Option(id: 701, text: "2"),
+          Option(id: 702, text: "1"),
+          Option(id: 703, text: "4"),
+          Option(id: 704, text: "0"),
+        ],
+      ),
+      // Probability sentence.
+      Question(
+        id: 13,
+        text: "A fair coin is tossed once. What is the probability of heads?",
+        correctAnswerId: 801,
+        options: [
+          Option(id: 801, text: "1/2"),
+          Option(id: 802, text: "1/3"),
+          Option(id: 803, text: "1/4"),
+          Option(id: 804, text: "2/3"),
         ],
       ),
     ];

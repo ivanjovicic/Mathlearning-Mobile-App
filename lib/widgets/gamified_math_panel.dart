@@ -19,6 +19,7 @@ class GamifiedMathPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final expression = _normalizeInlineMathDelimiters(formula.trim());
 
     return Container(
       width: double.infinity,
@@ -75,25 +76,121 @@ class GamifiedMathPanel extends StatelessWidget {
                 color: colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
-            child: Math.tex(
-              formula,
-              mathStyle: MathStyle.display,
-              textStyle: theme.textTheme.headlineSmall?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.w700,
-              ),
-              onErrorFallback: (err) => Text(
-                formula,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+            child: _buildExpressionContent(context, expression),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildExpressionContent(BuildContext context, String expression) {
+    if (_hasInlineMathSegments(expression)) {
+      return _buildInlineMixedText(context, expression);
+    }
+
+    if (_looksLikeMathExpression(expression)) {
+      return Math.tex(
+        expression,
+        mathStyle: MathStyle.display,
+        textStyle: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurface,
+          fontWeight: FontWeight.w700,
+        ),
+        onErrorFallback: (_) => _buildPlainText(context, expression),
+      );
+    }
+
+    return _buildPlainText(context, expression);
+  }
+
+  Widget _buildPlainText(BuildContext context, String value) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Text(
+      value,
+      softWrap: true,
+      style: theme.textTheme.titleLarge?.copyWith(
+        color: colorScheme.onSurface,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+
+  Widget _buildInlineMixedText(BuildContext context, String value) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textStyle = theme.textTheme.titleLarge?.copyWith(
+      color: colorScheme.onSurface,
+      fontWeight: FontWeight.w700,
+    );
+    final pattern = RegExp(r'\$([^$]+)\$');
+    final spans = <InlineSpan>[];
+    var current = 0;
+
+    for (final match in pattern.allMatches(value)) {
+      if (match.start > current) {
+        spans.add(TextSpan(text: value.substring(current, match.start), style: textStyle));
+      }
+
+      final tex = match.group(1);
+      if (tex == null || tex.isEmpty) {
+        spans.add(TextSpan(text: match.group(0), style: textStyle));
+      } else {
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Math.tex(
+              tex,
+              mathStyle: MathStyle.text,
+              textStyle: textStyle,
+              onErrorFallback: (_) => Text(
+                '\$$tex\$',
+                style: textStyle,
+              ),
+            ),
+          ),
+        );
+      }
+
+      current = match.end;
+    }
+
+    if (current < value.length) {
+      spans.add(TextSpan(text: value.substring(current), style: textStyle));
+    }
+
+    return RichText(
+      text: TextSpan(children: spans),
+      softWrap: true,
+    );
+  }
+
+  bool _hasInlineMathSegments(String value) {
+    return RegExp(r'\$[^$]+\$').hasMatch(value);
+  }
+
+  String _normalizeInlineMathDelimiters(String value) {
+    // Backend can return escaped inline delimiters like "\$...\$".
+    return value.replaceAll(r'\$', r'$');
+  }
+
+  bool _looksLikeMathExpression(String value) {
+    if (value.isEmpty) return false;
+
+    // Strong TeX indicators.
+    if (value.contains(r'$$') ||
+        value.contains(r'\(') ||
+        value.contains(r'\[') ||
+        value.contains('{') ||
+        value.contains('}') ||
+        RegExp(r'\\[a-zA-Z]+').hasMatch(value)) {
+      return true;
+    }
+
+    // Operator-heavy short expressions (e.g. "2 + 2 = ?", "x^2 + 3x = 0").
+    final hasMathOps = RegExp(r'[+\-*/=^_]').hasMatch(value);
+    final hasLongWord = RegExp(r'[A-Za-z]{4,}').hasMatch(value);
+    return hasMathOps && !hasLongWord;
   }
 }

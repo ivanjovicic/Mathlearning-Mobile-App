@@ -52,7 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
       leaderboardProvider.token = authProvider.token;
       quizProvider.token = authProvider.token;
 
-      Navigator.of(context).pushReplacementNamed("/home");
+      final routeName = ModalRoute.of(context)?.settings.name;
+      // When login is rendered by AuthWrapper (root route), AuthWrapper will
+      // automatically swap to home. Navigating again to /home duplicates
+      // screen init and causes duplicate bootstrap API calls.
+      if (routeName == '/login') {
+        Navigator.of(context).pushNamedAndRemoveUntil("/home", (_) => false);
+      }
     } else if (mounted) {
       ScaffoldMessenger.of(
         context,

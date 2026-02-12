@@ -4,29 +4,57 @@ import '../models/hint_models.dart';
 
 class CoinProvider extends ChangeNotifier {
   final ApiService _api = ApiService();
+  static const Duration _reloadDebounce = Duration(seconds: 4);
 
   int _coins = 0;
   UserDailyHints? _dailyHints;
   bool _isLoading = false;
+  Future<void>? _loadInFlight;
+  DateTime? _lastLoadedAt;
 
   int get coins => _coins;
   UserDailyHints? get dailyHints => _dailyHints;
   bool get isLoading => _isLoading;
 
-  Future<void> loadCoinsAndHints() async {
+  Future<void> loadCoinsAndHints({bool forceRefresh = false}) {
+    if (!forceRefresh && _loadInFlight != null) {
+      return _loadInFlight!;
+    }
+
+    final now = DateTime.now();
+    final hasFreshData =
+        _dailyHints != null &&
+        _lastLoadedAt != null &&
+        now.difference(_lastLoadedAt!) < _reloadDebounce;
+    if (!forceRefresh && hasFreshData) {
+      return Future.value();
+    }
+
+    final task = _loadCoinsAndHintsInternal().whenComplete(() {
+      _loadInFlight = null;
+    });
+    _loadInFlight = task;
+    return task;
+  }
+
+  Future<void> _loadCoinsAndHintsInternal() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Load coins
-      final coinsData = await _api.getUserCoins();
+      final responses = await Future.wait<dynamic>([
+        _api.getUserCoins(),
+        _api.getDailyHintUsage(),
+      ]);
+      final coinsData = responses[0] as int?;
+      final hintsData = responses[1] as Map<String, dynamic>?;
+
       _coins = coinsData ?? 10;
 
-      // Load daily hints usage
-      final hintsData = await _api.getDailyHintUsage();
       _dailyHints = hintsData != null
           ? UserDailyHints.fromJson(hintsData)
           : UserDailyHints(userId: 'local', date: DateTime.now());
+      _lastLoadedAt = DateTime.now();
     } catch (e) {
       debugPrint('Error loading coins and hints: $e');
       // Fallback values

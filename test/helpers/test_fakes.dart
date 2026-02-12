@@ -127,7 +127,7 @@ class TestCoinProvider extends ChangeNotifier implements CoinProvider {
   bool get isLoading => _isLoading;
 
   @override
-  Future<void> loadCoinsAndHints() async {
+  Future<void> loadCoinsAndHints({bool forceRefresh = false}) async {
     _isLoading = true;
     notifyListeners();
     await Future<void>.delayed(Duration.zero);

@@ -464,20 +464,10 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Math.tex(
-            option.text,
-            textStyle: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-            onErrorFallback: (err) => Text(
-              option.text,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            mathStyle: MathStyle.text,
+          child: _buildOptionExpression(
+            theme: theme,
+            rawValue: option.text,
+            textColor: textColor,
           ),
         ),
         if (isPicked) ...[
@@ -545,6 +535,109 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       );
       _wrongAnimation();
     }
+  }
+
+  Widget _buildOptionExpression({
+    required ThemeData theme,
+    required String rawValue,
+    required Color textColor,
+  }) {
+    final value = _normalizeInlineMathDelimiters(rawValue.trim());
+    final textStyle = theme.textTheme.bodyLarge?.copyWith(
+      fontWeight: FontWeight.bold,
+      color: textColor,
+    );
+
+    if (_hasInlineMathSegments(value)) {
+      return _buildInlineOptionText(value: value, textStyle: textStyle);
+    }
+
+    if (_optionLooksLikeMathExpression(value)) {
+      return Math.tex(
+        value,
+        textStyle: textStyle,
+        mathStyle: MathStyle.text,
+        onErrorFallback: (_) => Text(value, style: textStyle),
+      );
+    }
+
+    return Text(value, style: textStyle, softWrap: true);
+  }
+
+  Widget _buildInlineOptionText({
+    required String value,
+    required TextStyle? textStyle,
+  }) {
+    final pattern = RegExp(r'\$([^$]+)\$');
+    final spans = <InlineSpan>[];
+    var current = 0;
+
+    for (final match in pattern.allMatches(value)) {
+      if (match.start > current) {
+        spans.add(
+          TextSpan(
+            text: value.substring(current, match.start),
+            style: textStyle,
+          ),
+        );
+      }
+
+      final tex = match.group(1);
+      if (tex == null || tex.isEmpty) {
+        spans.add(TextSpan(text: match.group(0), style: textStyle));
+      } else {
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Math.tex(
+              tex,
+              mathStyle: MathStyle.text,
+              textStyle: textStyle,
+              onErrorFallback: (_) => Text('\$$tex\$', style: textStyle),
+            ),
+          ),
+        );
+      }
+
+      current = match.end;
+    }
+
+    if (current < value.length) {
+      spans.add(TextSpan(text: value.substring(current), style: textStyle));
+    }
+
+    return RichText(
+      text: TextSpan(children: spans),
+      softWrap: true,
+    );
+  }
+
+  String _normalizeInlineMathDelimiters(String value) {
+    return value.replaceAll(r'\$', r'$');
+  }
+
+  bool _hasInlineMathSegments(String value) {
+    return RegExp(r'\$[^$]+\$').hasMatch(value);
+  }
+
+  bool _optionLooksLikeMathExpression(String value) {
+    if (value.isEmpty) return false;
+
+    final hasStrongTex =
+        value.contains(r'$$') ||
+        value.contains(r'\(') ||
+        value.contains(r'\[') ||
+        value.contains('{') ||
+        value.contains('}') ||
+        RegExp(r'\\[a-zA-Z]+').hasMatch(value);
+    if (hasStrongTex) return true;
+
+    // If there are normal words (e.g. "ili", "or"), render as plain text.
+    if (RegExp(r'\b[a-zA-Z]{2,}\b').hasMatch(value)) {
+      return false;
+    }
+
+    return RegExp(r'[+\-*/=^|_]').hasMatch(value);
   }
 
   Future<void> _submitAndContinue() async {

@@ -1,13 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../models/progress_overview.dart';
 import 'auth_service.dart';
 
 class ApiService {
+  static final Map<String, Future<Response<dynamic>>> _inFlightRequests = {};
+
   /// Fetches topic progress for the user
   Future<List<Map<String, dynamic>>?> getTopicsProgress() async {
     try {
-      final response = await _dio.get('/api/progress/topics');
+      final response = await _getWithDedup('/api/progress/topics');
       if (response.data != null && response.data is List) {
         return List<Map<String, dynamic>>.from(response.data);
       }
@@ -22,6 +26,79 @@ class ApiService {
 
   ApiService() {
     _dio = AuthService.instance.client;
+  }
+
+  Future<Response<dynamic>> _getWithDedup(
+    String endpoint, {
+    Map<String, dynamic>? queryParameters,
+  }) {
+    final key = _buildRequestKey(
+      'GET',
+      endpoint,
+      queryParameters: queryParameters,
+    );
+    return _runDedupedRequest(
+      key,
+      () => _dio.get(endpoint, queryParameters: queryParameters),
+    );
+  }
+
+  Future<Response<dynamic>> _postWithDedup(
+    String endpoint, {
+    Map<String, dynamic>? data,
+  }) {
+    final key = _buildRequestKey('POST', endpoint, data: data);
+    return _runDedupedRequest(key, () => _dio.post(endpoint, data: data));
+  }
+
+  Future<Response<dynamic>> _runDedupedRequest(
+    String key,
+    Future<Response<dynamic>> Function() requestBuilder,
+  ) {
+    final existing = _inFlightRequests[key];
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = requestBuilder();
+    _inFlightRequests[key] = future;
+    future.whenComplete(() {
+      if (identical(_inFlightRequests[key], future)) {
+        _inFlightRequests.remove(key);
+      }
+    });
+
+    return future;
+  }
+
+  String _buildRequestKey(
+    String method,
+    String endpoint, {
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? data,
+  }) {
+    final queryPart = queryParameters == null
+        ? ''
+        : _canonicalJson(queryParameters);
+    final bodyPart = data == null ? '' : _canonicalJson(data);
+    return '$method|$endpoint|$queryPart|$bodyPart';
+  }
+
+  String _canonicalJson(Object value) => jsonEncode(_normalizeForKey(value));
+
+  Object? _normalizeForKey(Object? value) {
+    if (value is Map) {
+      final sortedEntries = value.entries.toList()
+        ..sort((a, b) => a.key.toString().compareTo(b.key.toString()));
+      return {
+        for (final entry in sortedEntries)
+          entry.key.toString(): _normalizeForKey(entry.value),
+      };
+    }
+    if (value is List) {
+      return value.map(_normalizeForKey).toList();
+    }
+    return value;
   }
 
   Future<Map<String, dynamic>?> post(
@@ -50,7 +127,7 @@ class ApiService {
 
   Future<Map<String, dynamic>?> get(String endpoint, String? token) async {
     try {
-      final response = await _dio.get(endpoint);
+      final response = await _getWithDedup(endpoint);
 
       debugPrint(
         "GET $endpoint - Status: ${response.statusCode}, Token: ${token != null ? 'Present' : 'None'}",
@@ -170,7 +247,7 @@ class ApiService {
   // Get user coins
   Future<int?> getUserCoins() async {
     try {
-      final response = await _dio.get("/api/user/coins");
+      final response = await _getWithDedup("/api/user/coins");
       return response.data["coins"];
     } catch (e) {
       debugPrint('Error fetching coins: $e');
@@ -181,7 +258,7 @@ class ApiService {
   // Get daily hint usage
   Future<Map<String, dynamic>?> getDailyHintUsage() async {
     try {
-      final response = await _dio.get("/api/user/daily-hints");
+      final response = await _getWithDedup("/api/user/daily-hints");
       return response.data;
     } catch (e) {
       debugPrint('Error fetching daily hints: $e');
@@ -277,7 +354,7 @@ class ApiService {
     );
 
     try {
-      final response = await _dio.get('/api/progress/overview');
+      final response = await _getWithDedup('/api/progress/overview');
       if (response.data != null && response.data is Map<String, dynamic>) {
         final data = response.data as Map<String, dynamic>;
 
@@ -313,7 +390,7 @@ class ApiService {
     int count,
   ) async {
     try {
-      final response = await _dio.post(
+      final response = await _postWithDedup(
         '/api/quiz/questions',
         data: {'topic': topic, 'count': count},
       );

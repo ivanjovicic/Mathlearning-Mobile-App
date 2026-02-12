@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'astrax_theme.dart';
 import 'theme_sci_fi.dart';
@@ -16,6 +17,7 @@ class ThemeController extends ChangeNotifier {
   bool _highContrast = false;
   bool _useGamifiedHome = true;
   bool isSwitching = false;
+  bool _autoTuningInProgress = false;
 
   AppThemeType get currentType => _currentType;
   bool get reduceMotion => _reduceMotion;
@@ -101,6 +103,7 @@ class ThemeController extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final index = prefs.getInt('app_theme');
+      final hasReduceMotionPref = prefs.containsKey('reduce_motion');
       _reduceMotion = prefs.getBool('reduce_motion') ?? false;
       _highContrast = prefs.getBool('high_contrast') ?? false;
       _useGamifiedHome = prefs.getBool('use_gamified_home') ?? true;
@@ -108,9 +111,49 @@ class ThemeController extends ChangeNotifier {
         _currentType = AppThemeType.values[index];
       }
       notifyListeners();
+
+      // First-install auto-tune: enable reduced motion automatically
+      // on weaker devices if the user hasn't picked a preference yet.
+      if (!hasReduceMotionPref && !_reduceMotion) {
+        _autoTuneMotionForDevice();
+      }
     } catch (_) {
       // ignore and keep default
     }
+  }
+
+  void _autoTuneMotionForDevice() {
+    if (_autoTuningInProgress) return;
+    _autoTuningInProgress = true;
+
+    const sampleFrames = 30;
+    final samples = <double>[];
+    late TimingsCallback callback;
+
+    callback = (List<FrameTiming> timings) {
+      for (final timing in timings) {
+        samples.add(timing.totalSpan.inMicroseconds / 1000.0);
+        if (samples.length >= sampleFrames) break;
+      }
+
+      if (samples.length < sampleFrames) return;
+
+      SchedulerBinding.instance.removeTimingsCallback(callback);
+      _autoTuningInProgress = false;
+
+      final avgMs =
+          samples.reduce((sum, value) => sum + value) / samples.length;
+      final jankyCount = samples.where((ms) => ms > 20.0).length;
+      final jankRatio = jankyCount / samples.length;
+
+      // Heuristic: if startup is frequently over frame budget, enable
+      // reduced motion by default for smoother experience.
+      if (avgMs > 22.0 || jankRatio >= 0.35) {
+        setReduceMotion(true);
+      }
+    };
+
+    SchedulerBinding.instance.addTimingsCallback(callback);
   }
 
   ThemeData _mapTheme(AppThemeType type) {
