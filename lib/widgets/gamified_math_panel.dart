@@ -87,14 +87,25 @@ class GamifiedMathPanel extends StatelessWidget {
 
   Widget _buildExpressionContent(BuildContext context, String expression) {
     if (_hasInlineMathSegments(expression)) {
+      final parts = _splitInlineMath(expression);
+      final hasMultiline = parts.any(
+        (part) => part.kind == _InlinePartKind.math && _isMultilineTex(part.raw),
+      );
+      if (hasMultiline) {
+        return _buildMixedBlock(context, parts);
+      }
       return _buildInlineMixedText(context, expression);
     }
 
     if (_looksLikeMathExpression(expression)) {
+      if (_isMultilineTex(expression)) {
+        return _buildMultilineMath(context, expression);
+      }
+
       final theme = Theme.of(context);
       final colorScheme = theme.colorScheme;
       return Math.tex(
-        expression,
+        _normalizeTex(expression, allowLineBreaks: false),
         mathStyle: MathStyle.display,
         textStyle:
             expressionTextStyle ??
@@ -125,6 +136,60 @@ class GamifiedMathPanel extends StatelessWidget {
     );
   }
 
+  Widget _buildMixedBlock(BuildContext context, List<_InlinePart> parts) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final style =
+        expressionTextStyle ??
+        theme.textTheme.titleLarge?.copyWith(
+          color: colorScheme.onSurface,
+          fontWeight: FontWeight.w700,
+        );
+
+    final children = <Widget>[];
+
+    for (final part in parts) {
+      final raw = part.raw;
+      if (raw.trim().isEmpty) continue;
+
+      if (part.kind == _InlinePartKind.text) {
+        // Skip punctuation-only fragments like "," that come from "..., $tex$,".
+        final trimmed = raw.trim();
+        if (RegExp(r'^[,.;:]+$').hasMatch(trimmed)) continue;
+        children.add(Text(raw, style: style, softWrap: true));
+        continue;
+      }
+
+      if (_isMultilineTex(raw)) {
+        children.add(_buildMultilineMath(context, raw));
+      } else {
+        children.add(
+          Math.tex(
+            _normalizeTex(raw, allowLineBreaks: false),
+            mathStyle: MathStyle.display,
+            textStyle: style,
+            onErrorFallback: (_) => Text(raw, style: style, softWrap: true),
+          ),
+        );
+      }
+    }
+
+    if (children.isEmpty) {
+      return _buildPlainText(context, parts.map((p) => p.raw).join());
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < children.length; i++) ...[
+          children[i],
+          if (i != children.length - 1) const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
   Widget _buildInlineMixedText(BuildContext context, String value) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -152,11 +217,12 @@ class GamifiedMathPanel extends StatelessWidget {
       if (tex == null || tex.isEmpty) {
         spans.add(TextSpan(text: match.group(0), style: textStyle));
       } else {
+        final normalized = _normalizeTex(tex, allowLineBreaks: false);
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Math.tex(
-              tex,
+              normalized,
               mathStyle: MathStyle.text,
               textStyle: textStyle,
               onErrorFallback: (_) => Text('\$$tex\$', style: textStyle),
@@ -177,6 +243,132 @@ class GamifiedMathPanel extends StatelessWidget {
 
   bool _hasInlineMathSegments(String value) {
     return RegExp(r'\$[^$]+\$').hasMatch(value);
+  }
+
+  List<_InlinePart> _splitInlineMath(String value) {
+    final pattern = RegExp(r'\$([^$]+)\$');
+    final parts = <_InlinePart>[];
+    var current = 0;
+
+    for (final match in pattern.allMatches(value)) {
+      if (match.start > current) {
+        parts.add(
+          _InlinePart(_InlinePartKind.text, value.substring(current, match.start)),
+        );
+      }
+
+      final tex = match.group(1);
+      parts.add(
+        _InlinePart(_InlinePartKind.math, tex ?? ''),
+      );
+      current = match.end;
+    }
+
+    if (current < value.length) {
+      parts.add(_InlinePart(_InlinePartKind.text, value.substring(current)));
+    }
+
+    return parts;
+  }
+
+  bool _isMultilineTex(String tex) {
+    final value = tex.trim();
+    if (value.isEmpty) return false;
+
+    // TeX environments or explicit line breaks indicate a multiline block.
+    if (value.contains(r'\begin{') && value.contains(r'\end{')) return true;
+    return value.contains(r'\\');
+  }
+
+  Widget _buildMultilineMath(BuildContext context, String tex) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final style =
+        expressionTextStyle ??
+        theme.textTheme.headlineSmall?.copyWith(
+          color: colorScheme.onSurface,
+          fontWeight: FontWeight.w700,
+        );
+
+    final normalized = _normalizeTex(tex, allowLineBreaks: true);
+    final cleaned = normalized
+        .replaceAll(RegExp(r'\\begin\{[^}]+\}'), '')
+        .replaceAll(RegExp(r'\\end\{[^}]+\}'), '')
+        // Alignment markers are common in aligned/cases envs.
+        .replaceAll('&', '');
+
+    final lines =
+        cleaned
+            .split(RegExp(r'\\\\(\[[^\]]+\])?'))
+            .map((line) => line.trim())
+            .where((line) => line.isNotEmpty)
+            .toList();
+
+    if (lines.isEmpty) {
+      return Text(tex, style: style, softWrap: true);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < lines.length; i++) ...[
+          Math.tex(
+            _normalizeTex(lines[i], allowLineBreaks: false),
+            mathStyle: MathStyle.display,
+            textStyle: style,
+            onErrorFallback: (_) => Text(lines[i], style: style, softWrap: true),
+          ),
+          if (i != lines.length - 1) const SizedBox(height: 6),
+        ],
+      ],
+    );
+  }
+
+  String _normalizeTex(String tex, {required bool allowLineBreaks}) {
+    final value = tex.trim();
+
+    // If the backend double-escaped backslashes, TeX commands arrive like
+    // "\\sqrt" (which then fails to render). For single-line math, we can safely
+    // collapse backslash runs. For multiline blocks, only do this when we see
+    // doubled line breaks ("\\\\").
+    if (allowLineBreaks) {
+      if (!value.contains(r'\\\\')) return value;
+      return _halveBackslashRuns(value);
+    }
+
+    return _halveBackslashRuns(value);
+  }
+
+  String _halveBackslashRuns(String input) {
+    if (!input.contains(r'\\')) return input;
+
+    final sb = StringBuffer();
+    var i = 0;
+
+    while (i < input.length) {
+      final code = input.codeUnitAt(i);
+      if (code != 92) {
+        sb.writeCharCode(code);
+        i++;
+        continue;
+      }
+
+      var j = i;
+      while (j < input.length && input.codeUnitAt(j) == 92) {
+        j++;
+      }
+
+      final runLength = j - i;
+      final reduced = (runLength + 1) ~/ 2; // ceil(runLength / 2)
+      for (var k = 0; k < reduced; k++) {
+        sb.write('\\');
+      }
+
+      i = j;
+    }
+
+    return sb.toString();
   }
 
   String _normalizeInlineMathDelimiters(String value) {
@@ -202,4 +394,13 @@ class GamifiedMathPanel extends StatelessWidget {
     final hasLongWord = RegExp(r'[A-Za-z]{4,}').hasMatch(value);
     return hasMathOps && !hasLongWord;
   }
+}
+
+enum _InlinePartKind { text, math }
+
+class _InlinePart {
+  final _InlinePartKind kind;
+  final String raw;
+
+  _InlinePart(this.kind, this.raw);
 }
