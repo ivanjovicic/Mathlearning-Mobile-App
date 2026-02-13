@@ -21,6 +21,15 @@ import '../../widgets/formula_hint_bottom_sheet.dart';
 
 import '../../models/question.dart';
 
+enum _QuizBreakpoint { compactPhone, phone, tabletPortrait, tabletLandscape }
+
+_QuizBreakpoint _quizBreakpointForWidth(double width) {
+  if (width < 360) return _QuizBreakpoint.compactPhone;
+  if (width < 600) return _QuizBreakpoint.phone;
+  if (width < 900) return _QuizBreakpoint.tabletPortrait;
+  return _QuizBreakpoint.tabletLandscape;
+}
+
 class GamifiedQuizScreen extends StatefulWidget {
   final Question question;
   final List<OptionItem> options;
@@ -59,7 +68,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
   OverlayEntry? _xpOverlay;
   OverlayEntry? _streakOverlay;
   OverlayEntry? _masteryOverlay;
-  OverlayState? _rootOverlayOrNull() => Overlay.maybeOf(context, rootOverlay: true);
+  OverlayState? _rootOverlayOrNull() =>
+      Overlay.maybeOf(context, rootOverlay: true);
   bool get _reduceMotion =>
       MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
@@ -99,36 +109,100 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            children: [
-              const SizedBox(height: 16),
-              _buildHeader(theme, colorScheme, progress),
-              const SizedBox(height: 8),
-              _buildMasteryRow(
-                theme: theme,
-                colorScheme: colorScheme,
-                masteryProgress: quizProvider.masteryPercent,
-              ),
-              if (_combo > 1) ...[
-                const SizedBox(height: 8),
-                _buildComboChip(theme, colorScheme, t.comboLabel(_combo)),
-              ],
-              const SizedBox(height: 12),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      AnimatedContainer(
-                        duration: _reduceMotion
-                            ? Duration.zero
-                            : const Duration(milliseconds: 150),
-                        transform:
-                            Matrix4.translationValues(shakeOffset, 0.0, 0.0) *
-                            Matrix4.diagonal3Values(questionScale, questionScale, 1.0),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final height = constraints.maxHeight;
+            final bp = _quizBreakpointForWidth(width);
+
+            final isCompact = bp == _QuizBreakpoint.compactPhone;
+            final isLandscape = bp == _QuizBreakpoint.tabletLandscape;
+            final columns =
+                (bp == _QuizBreakpoint.tabletPortrait ||
+                    bp == _QuizBreakpoint.tabletLandscape)
+                ? 2
+                : 1;
+
+            double padFactor;
+            switch (bp) {
+              case _QuizBreakpoint.compactPhone:
+                padFactor = 0.04;
+                break;
+              case _QuizBreakpoint.phone:
+                padFactor = 0.06;
+                break;
+              case _QuizBreakpoint.tabletPortrait:
+                padFactor = 0.10;
+                break;
+              case _QuizBreakpoint.tabletLandscape:
+                padFactor = 0.08;
+                break;
+            }
+
+            final horizontalPadding = (width * padFactor)
+                .clamp(12.0, 96.0)
+                .toDouble();
+            final topGap = (height * (isCompact ? 0.012 : 0.02))
+                .clamp(10.0, 18.0)
+                .toDouble();
+            final betweenHeaderGap = isCompact ? 6.0 : 8.0;
+            final sectionGap = isCompact ? 10.0 : 12.0;
+
+            final questionCardPadding = EdgeInsets.all(isCompact ? 16.0 : 20.0);
+            final afterQuestionGap = isCompact ? 18.0 : 28.0;
+
+            final optionSpacing = isCompact ? 10.0 : 12.0;
+            final optionPadding = EdgeInsets.symmetric(
+              vertical: isCompact ? 14.0 : 18.0,
+              horizontal: isCompact ? 14.0 : 16.0,
+            );
+
+            final optionDensity = isCompact
+                ? 0.92
+                : (bp == _QuizBreakpoint.tabletLandscape ? 1.05 : 1.0);
+
+            double questionFontSize;
+            switch (bp) {
+              case _QuizBreakpoint.compactPhone:
+                questionFontSize = (width * 0.065).clamp(18.0, 26.0).toDouble();
+                break;
+              case _QuizBreakpoint.phone:
+                questionFontSize = (width * 0.07).clamp(20.0, 30.0).toDouble();
+                break;
+              case _QuizBreakpoint.tabletPortrait:
+                questionFontSize = 32.0;
+                break;
+              case _QuizBreakpoint.tabletLandscape:
+                questionFontSize = 36.0;
+                break;
+            }
+
+            final questionExpressionStyle =
+                theme.textTheme.headlineSmall?.copyWith(
+                  fontSize: questionFontSize,
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ) ??
+                TextStyle(
+                  fontSize: questionFontSize,
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                );
+
+            final optionFontSize = isCompact
+                ? 16.0
+                : (bp == _QuizBreakpoint.tabletLandscape ? 19.0 : 18.0);
+
+            Widget buildQuestionCard() {
+              return AnimatedContainer(
+                duration: _reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 150),
+                transform:
+                    Matrix4.translationValues(shakeOffset, 0.0, 0.0) *
+                    Matrix4.diagonal3Values(questionScale, questionScale, 1.0),
+                padding: questionCardPadding,
+                decoration: BoxDecoration(
                   color: theme.cardColor,
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
@@ -145,164 +219,204 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                   formula: widget.question.text,
                   title: t.mathChallengeTitle,
                   subtitle: t.mathChallengeSubtitle,
+                  expressionTextStyle: questionExpressionStyle,
                 ),
-              ),
-              const SizedBox(height: 28),
-              ...widget.options.asMap().entries.map((entry) {
-                final index = entry.key;
-                final opt = entry.value;
-                final correct = answered && opt.isCorrect;
-                final wrong =
-                    answered && selectedAnswer == opt.id && !opt.isCorrect;
-                final optionTextColor = correct
-                    ? colorScheme.onTertiary
-                    : wrong
-                    ? colorScheme.onError
-                    : colorScheme.onPrimary;
+              );
+            }
 
-                return GameButton(
-                  text: opt.text,
-                  disabled:
-                      answered ||
-                      isSubmitting ||
-                      quizProvider.isCooldown ||
-                      quizProvider.isSubmittingAnswer,
-                  isCorrect: correct,
-                  isWrong: wrong,
-                  onTap: () => _handleAnswer(opt),
-                  child: _buildOptionContent(
+            Widget buildOptionButton(int index) {
+              final opt = widget.options[index];
+              final correct = answered && opt.isCorrect;
+              final wrong =
+                  answered && selectedAnswer == opt.id && !opt.isCorrect;
+              final optionTextColor = correct
+                  ? colorScheme.onTertiary
+                  : wrong
+                  ? colorScheme.onError
+                  : colorScheme.onPrimary;
+
+              final optionTextStyle =
+                  theme.textTheme.bodyLarge?.copyWith(
+                    fontSize: optionFontSize * optionDensity,
+                    fontWeight: FontWeight.bold,
+                    color: optionTextColor,
+                  ) ??
+                  TextStyle(
+                    fontSize: optionFontSize * optionDensity,
+                    fontWeight: FontWeight.bold,
+                    color: optionTextColor,
+                  );
+
+              return GameButton(
+                text: opt.text,
+                padding: optionPadding,
+                margin: EdgeInsets.zero,
+                disabled:
+                    answered ||
+                    isSubmitting ||
+                    quizProvider.isCooldown ||
+                    quizProvider.isSubmittingAnswer,
+                isCorrect: correct,
+                isWrong: wrong,
+                onTap: () => _handleAnswer(opt),
+                child: _buildOptionContent(
+                  theme: theme,
+                  colorScheme: colorScheme,
+                  option: opt,
+                  optionIndex: index,
+                  textColor: optionTextColor,
+                  density: optionDensity,
+                  optionTextStyle: optionTextStyle,
+                ),
+              );
+            }
+
+            SliverPadding buildOptionsSliver({required double topPadding}) {
+              final ratio = isCompact ? 2.5 : 3.0;
+              return SliverPadding(
+                padding: EdgeInsets.only(top: topPadding, bottom: 12),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    mainAxisSpacing: optionSpacing,
+                    crossAxisSpacing: optionSpacing,
+                    childAspectRatio: ratio,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => buildOptionButton(index),
+                    childCount: widget.options.length,
+                  ),
+                ),
+              );
+            }
+
+            final body = isLandscape
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: CustomScrollView(
+                          key: ValueKey('quiz_left_${widget.question.id}'),
+                          slivers: [
+                            SliverToBoxAdapter(child: buildQuestionCard()),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: (width * 0.04).clamp(20.0, 40.0).toDouble(),
+                      ),
+                      Expanded(
+                        child: CustomScrollView(
+                          key: ValueKey('quiz_right_${widget.question.id}'),
+                          slivers: [
+                            buildOptionsSliver(topPadding: 0),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : CustomScrollView(
+                    key: ValueKey('quiz_portrait_${widget.question.id}'),
+                    slivers: [
+                      SliverToBoxAdapter(child: buildQuestionCard()),
+                      buildOptionsSliver(topPadding: afterQuestionGap),
+                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    ],
+                  );
+
+            final actionMaxWidth =
+                (bp == _QuizBreakpoint.tabletPortrait || isLandscape)
+                ? 520.0
+                : double.infinity;
+
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              child: Column(
+                children: [
+                  SizedBox(height: topGap),
+                  _buildHeader(theme, colorScheme, progress),
+                  SizedBox(height: betweenHeaderGap),
+                  _buildMasteryRow(
                     theme: theme,
                     colorScheme: colorScheme,
-                    option: opt,
-                    optionIndex: index,
-                    textColor: optionTextColor,
+                    masteryProgress: quizProvider.masteryPercent,
                   ),
-                );
-              }),
-              if (answered) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isCorrect
-                        ? colorScheme.tertiaryContainer.withValues(alpha: 0.5)
-                        : colorScheme.errorContainer.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isCorrect
-                          ? colorScheme.tertiary
-                          : colorScheme.error,
+                  if (_combo > 1) ...[
+                    SizedBox(height: betweenHeaderGap),
+                    _buildComboChip(theme, colorScheme, t.comboLabel(_combo)),
+                  ],
+                  SizedBox(height: sectionGap),
+                  Expanded(child: body),
+                  if (answered) ...[
+                    const SizedBox(height: 10),
+                    _buildAnswerFeedback(
+                      theme: theme,
+                      colorScheme: colorScheme,
+                      t: t,
                     ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isCorrect ? Icons.check_circle : Icons.cancel,
-                        color: isCorrect
-                            ? colorScheme.tertiary
-                            : colorScheme.error,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        isCorrect
-                            ? _combo > 1
-                                  ? "${t.correctXp(_awardedXpPreview)} - ${t.comboLabel(_combo)}"
-                                  : t.correctXp(_awardedXpPreview)
-                            : t.wrongKeepGoing,
-                        style: TextStyle(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isCorrect && _lastBonusXp > 0) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.secondaryContainer.withValues(
-                        alpha: 0.55,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.auto_awesome,
-                          size: 18,
-                          color: colorScheme.onSecondaryContainer,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          t.noHintBonus(_lastBonusXp),
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: colorScheme.onSecondaryContainer,
-                            fontWeight: FontWeight.w800,
+                  ],
+                  if (quizProvider.isCooldown)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 24),
+                      child: Center(child: CooldownCircle(seconds: 1)),
+                    )
+                  else if (answered)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: actionMaxWidth),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed:
+                                  (isSubmitting ||
+                                      quizProvider.isSubmittingAnswer)
+                                  ? null
+                                  : _submitAndContinue,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colorScheme.secondary,
+                                foregroundColor: colorScheme.onSecondary,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: isSubmitting
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      widget.questionNumber >=
+                                              widget.totalQuestions
+                                          ? t.finishQuiz
+                                          : t.nextQuestion,
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                ),
-              ),
-              if (quizProvider.isCooldown)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: Center(child: CooldownCircle(seconds: 1)),
-                )
-              else if (answered)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed:
-                          (isSubmitting || quizProvider.isSubmittingAnswer)
-                          ? null
-                          : _submitAndContinue,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.secondary,
-                        foregroundColor: colorScheme.onSecondary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
                       ),
-                      child: isSubmitting
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(
-                              widget.questionNumber >= widget.totalQuestions
-                                  ? t.finishQuiz
-                                  : t.nextQuestion,
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                     ),
-                  ),
-                ),
-            ],
-          ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -392,10 +506,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
           ],
         ),
         const SizedBox(height: 6),
-        MasteryProgressBar(
-          progress: masteryProgress,
-          animate: !_reduceMotion,
-        ),
+        MasteryProgressBar(progress: masteryProgress, animate: !_reduceMotion),
       ],
     );
   }
@@ -433,21 +544,103 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     );
   }
 
+  Widget _buildAnswerFeedback({
+    required ThemeData theme,
+    required ColorScheme colorScheme,
+    required AppI18n t,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isCorrect
+                ? colorScheme.tertiaryContainer.withValues(alpha: 0.5)
+                : colorScheme.errorContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isCorrect ? colorScheme.tertiary : colorScheme.error,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isCorrect ? Icons.check_circle : Icons.cancel,
+                color: isCorrect ? colorScheme.tertiary : colorScheme.error,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  isCorrect
+                      ? _combo > 1
+                            ? '${t.correctXp(_awardedXpPreview)} - ${t.comboLabel(_combo)}'
+                            : t.correctXp(_awardedXpPreview)
+                      : t.wrongKeepGoing,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (isCorrect && _lastBonusXp > 0) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: colorScheme.secondaryContainer.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: 18,
+                  color: colorScheme.onSecondaryContainer,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  t.noHintBonus(_lastBonusXp),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: colorScheme.onSecondaryContainer,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildOptionContent({
     required ThemeData theme,
     required ColorScheme colorScheme,
     required OptionItem option,
     required int optionIndex,
     required Color textColor,
+    required double density,
+    required TextStyle optionTextStyle,
   }) {
     final optionLabel = String.fromCharCode(65 + optionIndex);
     final isPicked = answered && selectedAnswer == option.id;
+    final circle = 28.0 * density;
+    final gap = 10.0 * density;
+    final pickedGap = 8.0 * density;
+    final pickedIcon = 18.0 * density;
 
     return Row(
       children: [
         Container(
-          width: 28,
-          height: 28,
+          width: circle,
+          height: circle,
           decoration: BoxDecoration(
             color: textColor.withValues(alpha: 0.22),
             shape: BoxShape.circle,
@@ -459,20 +652,22 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
             style: theme.textTheme.labelLarge?.copyWith(
               color: textColor,
               fontWeight: FontWeight.w900,
+              fontSize: 14.0 * density,
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: gap),
         Expanded(
           child: _buildOptionExpression(
             theme: theme,
             rawValue: option.text,
             textColor: textColor,
+            textStyle: optionTextStyle,
           ),
         ),
         if (isPicked) ...[
-          const SizedBox(width: 8),
-          Icon(Icons.auto_awesome, color: textColor, size: 18),
+          SizedBox(width: pickedGap),
+          Icon(Icons.auto_awesome, color: textColor, size: pickedIcon),
         ],
       ],
     );
@@ -480,13 +675,13 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
 
   void _handleAnswer(OptionItem opt) {
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
-    final progressProvider =
-        Provider.of<ProgressProvider>(context, listen: false);
+    final progressProvider = Provider.of<ProgressProvider>(
+      context,
+      listen: false,
+    );
     final canAwardXp = quizProvider.canAwardXpForQuestion(widget.question);
     final awardBonus =
-        opt.isCorrect &&
-        !quizProvider.usedHintForCurrentQuestion &&
-        canAwardXp;
+        opt.isCorrect && !quizProvider.usedHintForCurrentQuestion && canAwardXp;
     final awardedXp = opt.isCorrect
         ? (canAwardXp ? widget.xpReward + (awardBonus ? _noHintBonusXp : 0) : 0)
         : 0;
@@ -541,27 +736,34 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     required ThemeData theme,
     required String rawValue,
     required Color textColor,
+    TextStyle? textStyle,
   }) {
     final value = _normalizeInlineMathDelimiters(rawValue.trim());
-    final textStyle = theme.textTheme.bodyLarge?.copyWith(
-      fontWeight: FontWeight.bold,
-      color: textColor,
-    );
+    final effectiveTextStyle =
+        (textStyle ??
+            theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            )) ??
+        TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor);
 
     if (_hasInlineMathSegments(value)) {
-      return _buildInlineOptionText(value: value, textStyle: textStyle);
+      return _buildInlineOptionText(
+        value: value,
+        textStyle: effectiveTextStyle,
+      );
     }
 
     if (_optionLooksLikeMathExpression(value)) {
       return Math.tex(
         value,
-        textStyle: textStyle,
+        textStyle: effectiveTextStyle,
         mathStyle: MathStyle.text,
-        onErrorFallback: (_) => Text(value, style: textStyle),
+        onErrorFallback: (_) => Text(value, style: effectiveTextStyle),
       );
     }
 
-    return Text(value, style: textStyle, softWrap: true);
+    return Text(value, style: effectiveTextStyle, softWrap: true);
   }
 
   Widget _buildInlineOptionText({
@@ -606,10 +808,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       spans.add(TextSpan(text: value.substring(current), style: textStyle));
     }
 
-    return RichText(
-      text: TextSpan(children: spans),
-      softWrap: true,
-    );
+    return RichText(text: TextSpan(children: spans), softWrap: true);
   }
 
   String _normalizeInlineMathDelimiters(String value) {
@@ -738,17 +937,11 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       );
     }
     if (previous < 1.0 && current >= 1.0) {
-      _showMasteryBurst(
-        label: t.masteryMax,
-        color: theme.colorScheme.primary,
-      );
+      _showMasteryBurst(label: t.masteryMax, color: theme.colorScheme.primary);
     }
   }
 
-  void _showMasteryBurst({
-    required String label,
-    required Color color,
-  }) {
+  void _showMasteryBurst({required String label, required Color color}) {
     final overlay = _rootOverlayOrNull();
     if (overlay == null) return;
     _masteryOverlay?.remove();
@@ -875,7 +1068,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
           ListTile(
             leading: Icon(Icons.auto_awesome, color: Colors.deepPurple),
             title: Text(t.formulaHintTitle),
-            subtitle: stepByStepFormula == null ? Text(t.noHintAvailable) : null,
+            subtitle: stepByStepFormula == null
+                ? Text(t.noHintAvailable)
+                : null,
             onTap: stepByStepFormula != null
                 ? () {
                     quizProvider.markHintUsedForCurrentQuestion();
@@ -903,7 +1098,10 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                     progress.penalizeXp(1);
                     Navigator.pop(
                       sheetContext,
-                      _HintSelection(title: t.smallHint, text: resolvedLightHint),
+                      _HintSelection(
+                        title: t.smallHint,
+                        text: resolvedLightHint,
+                      ),
                     );
                   }
                 : null,
@@ -920,7 +1118,10 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                     progress.penalizeXp(3);
                     Navigator.pop(
                       sheetContext,
-                      _HintSelection(title: t.mediumHint, text: resolvedMediumHint),
+                      _HintSelection(
+                        title: t.mediumHint,
+                        text: resolvedMediumHint,
+                      ),
                     );
                   }
                 : null,
@@ -937,14 +1138,14 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                     progress.penalizeXp(5);
                     if (hasStepExplanations) {
                       Navigator.pop(sheetContext);
-                      FormulaHintBottomSheet.showSteps(
-                        context,
-                        stepItems,
-                      );
+                      FormulaHintBottomSheet.showSteps(context, stepItems);
                     } else if (resolvedFullHint != null) {
                       Navigator.pop(
                         sheetContext,
-                        _HintSelection(title: t.fullHint, text: resolvedFullHint),
+                        _HintSelection(
+                          title: t.fullHint,
+                          text: resolvedFullHint,
+                        ),
                       );
                     }
                   }
@@ -961,7 +1162,10 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       return;
     }
 
-    await _showHintTextDialog(title: selectedHint.title, text: selectedHint.text);
+    await _showHintTextDialog(
+      title: selectedHint.title,
+      text: selectedHint.text,
+    );
   }
 
   String? _resolveStepByStepFormula() {

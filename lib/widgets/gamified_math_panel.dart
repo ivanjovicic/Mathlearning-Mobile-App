@@ -6,6 +6,7 @@ class GamifiedMathPanel extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
+  final TextStyle? expressionTextStyle;
 
   const GamifiedMathPanel({
     super.key,
@@ -13,6 +14,7 @@ class GamifiedMathPanel extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.icon = Icons.calculate_rounded,
+    this.expressionTextStyle,
   });
 
   @override
@@ -89,13 +91,17 @@ class GamifiedMathPanel extends StatelessWidget {
     }
 
     if (_looksLikeMathExpression(expression)) {
+      final theme = Theme.of(context);
+      final colorScheme = theme.colorScheme;
       return Math.tex(
         expression,
         mathStyle: MathStyle.display,
-        textStyle: Theme.of(context).textTheme.headlineSmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurface,
-          fontWeight: FontWeight.w700,
-        ),
+        textStyle:
+            expressionTextStyle ??
+            theme.textTheme.headlineSmall?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
         onErrorFallback: (_) => _buildPlainText(context, expression),
       );
     }
@@ -110,27 +116,36 @@ class GamifiedMathPanel extends StatelessWidget {
     return Text(
       value,
       softWrap: true,
-      style: theme.textTheme.titleLarge?.copyWith(
-        color: colorScheme.onSurface,
-        fontWeight: FontWeight.w700,
-      ),
+      style:
+          expressionTextStyle ??
+          theme.textTheme.titleLarge?.copyWith(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
     );
   }
 
   Widget _buildInlineMixedText(BuildContext context, String value) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final textStyle = theme.textTheme.titleLarge?.copyWith(
-      color: colorScheme.onSurface,
-      fontWeight: FontWeight.w700,
-    );
+    final textStyle =
+        expressionTextStyle ??
+        theme.textTheme.titleLarge?.copyWith(
+          color: colorScheme.onSurface,
+          fontWeight: FontWeight.w700,
+        );
     final pattern = RegExp(r'\$([^$]+)\$');
     final spans = <InlineSpan>[];
     var current = 0;
 
     for (final match in pattern.allMatches(value)) {
       if (match.start > current) {
-        spans.add(TextSpan(text: value.substring(current, match.start), style: textStyle));
+        spans.add(
+          TextSpan(
+            text: value.substring(current, match.start),
+            style: textStyle,
+          ),
+        );
       }
 
       final tex = match.group(1);
@@ -144,10 +159,7 @@ class GamifiedMathPanel extends StatelessWidget {
               tex,
               mathStyle: MathStyle.text,
               textStyle: textStyle,
-              onErrorFallback: (_) => Text(
-                '\$$tex\$',
-                style: textStyle,
-              ),
+              onErrorFallback: (_) => Text('\$$tex\$', style: textStyle),
             ),
           ),
         );
@@ -160,10 +172,7 @@ class GamifiedMathPanel extends StatelessWidget {
       spans.add(TextSpan(text: value.substring(current), style: textStyle));
     }
 
-    return RichText(
-      text: TextSpan(children: spans),
-      softWrap: true,
-    );
+    return RichText(text: TextSpan(children: spans), softWrap: true);
   }
 
   bool _hasInlineMathSegments(String value) {

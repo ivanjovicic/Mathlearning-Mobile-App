@@ -7,6 +7,8 @@ class GameButton extends StatefulWidget {
   final bool isCorrect;
   final bool isWrong;
   final VoidCallback onTap;
+  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry margin;
 
   const GameButton({
     super.key,
@@ -16,6 +18,8 @@ class GameButton extends StatefulWidget {
     this.disabled = false,
     this.isCorrect = false,
     this.isWrong = false,
+    this.padding = const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+    this.margin = const EdgeInsets.symmetric(vertical: 8),
   });
 
   @override
@@ -29,7 +33,8 @@ class _GameButtonState extends State<GameButton>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     late final Color bgColor;
     late final Color fgColor;
 
@@ -46,7 +51,9 @@ class _GameButtonState extends State<GameButton>
 
     return AnimatedScale(
       scale: _scale,
-      duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 120),
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 120),
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
@@ -61,8 +68,8 @@ class _GameButtonState extends State<GameButton>
                   });
                 },
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-            margin: const EdgeInsets.symmetric(vertical: 8),
+            padding: widget.padding,
+            margin: widget.margin,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
