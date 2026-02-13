@@ -38,14 +38,10 @@ import 'widgets/game_theme_transition.dart';
 import 'effects/vertical_portal_transition.dart';
 import 'effects/glass_break_transition.dart';
 
-import 'services/offline_manager.dart';
-import 'services/auth_service.dart';
-import 'services/notification_service.dart';
 import 'services/bug_capture_service.dart';
-import 'services/bug_report_service.dart';
 import 'services/route_tracker.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Allow google_fonts to fetch from Google CDN at runtime.
@@ -59,17 +55,12 @@ void main() async {
     FlutterError.onError = (FlutterErrorDetails details) {
       final msg = details.exceptionAsString();
       if (msg.contains('AssetManifest') || msg.contains('Unable to load asset')) {
-        debugPrint('⚠️ Suppressed web asset error: $msg');
+        debugPrint('[WEB] Suppressed asset error: $msg');
         return;
       }
       FlutterError.presentError(details);
     };
   }
-
-  await AuthService.instance.initialize();
-  await OfflineManager.instance.initialize();
-  await BugReportService.instance.syncPendingReports();
-  await NotificationService.instance.initialize();
 
   runApp(const MathLearningApp());
 }

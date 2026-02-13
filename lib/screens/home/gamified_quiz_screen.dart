@@ -182,11 +182,15 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                   fontSize: questionFontSize,
                   color: colorScheme.onSurface,
                   fontWeight: FontWeight.w700,
+                  height: 1.35,
+                  letterSpacing: 0.3,
                 ) ??
                 TextStyle(
                   fontSize: questionFontSize,
                   color: colorScheme.onSurface,
                   fontWeight: FontWeight.w700,
+                  height: 1.35,
+                  letterSpacing: 0.3,
                 );
 
             final optionFontSize = isCompact
@@ -776,8 +780,14 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
             theme.textTheme.bodyLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: textColor,
+              height: 1.3,
             )) ??
-        TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor);
+        TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: textColor,
+          height: 1.3,
+        );
 
     if (_hasInlineMathSegments(value)) {
       return _buildInlineOptionText(
@@ -791,16 +801,26 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         value,
         textStyle: effectiveTextStyle,
         mathStyle: MathStyle.text,
-        onErrorFallback: (_) => Text(value, style: effectiveTextStyle),
+        onErrorFallback: (_) => Text(
+          value,
+          style: effectiveTextStyle,
+          softWrap: true,
+          textWidthBasis: TextWidthBasis.longestLine,
+        ),
       );
     }
 
-    return Text(value, style: effectiveTextStyle, softWrap: true);
+    return Text(
+      value,
+      style: effectiveTextStyle,
+      softWrap: true,
+      textWidthBasis: TextWidthBasis.longestLine,
+    );
   }
 
   Widget _buildInlineOptionText({
     required String value,
-    required TextStyle? textStyle,
+    required TextStyle textStyle,
   }) {
     final pattern = RegExp(r'\$([^$]+)\$');
     final spans = <InlineSpan>[];
@@ -823,10 +843,13 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
+            baseline: TextBaseline.alphabetic,
             child: Math.tex(
               tex,
               mathStyle: MathStyle.text,
-              textStyle: textStyle,
+              textStyle: textStyle.copyWith(
+                fontSize: (textStyle.fontSize ?? 18) * 1.05,
+              ),
               onErrorFallback: (_) => Text('\$$tex\$', style: textStyle),
             ),
           ),
@@ -840,7 +863,11 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       spans.add(TextSpan(text: value.substring(current), style: textStyle));
     }
 
-    return RichText(text: TextSpan(children: spans), softWrap: true);
+    return RichText(
+      text: TextSpan(children: spans),
+      softWrap: true,
+      textWidthBasis: TextWidthBasis.longestLine,
+    );
   }
 
   String _normalizeInlineMathDelimiters(String value) {

@@ -5,8 +5,22 @@ import 'package:dio/dio.dart';
 import '../models/progress_overview.dart';
 import 'auth_service.dart';
 
+class ApiRateLimitedException implements Exception {
+  final Duration retryAfter;
+  final int statusCode;
+
+  ApiRateLimitedException({
+    required this.retryAfter,
+    this.statusCode = 429,
+  });
+
+  @override
+  String toString() => 'ApiRateLimitedException($statusCode, retryAfter=$retryAfter)';
+}
+
 class ApiService {
   static final Map<String, Future<Response<dynamic>>> _inFlightRequests = {};
+  static final Map<String, DateTime> _rateLimitedUntil = {};
 
   /// Fetches topic progress for the user
   Future<List<Map<String, dynamic>>?> getTopicsProgress() async {
@@ -26,6 +40,49 @@ class ApiService {
 
   ApiService() {
     _dio = AuthService.instance.client;
+  }
+
+  Duration _parseRetryAfter(dynamic value) {
+    if (value == null) return const Duration(seconds: 5);
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return const Duration(seconds: 5);
+
+    Duration clampDuration(Duration d, Duration min, Duration max) {
+      if (d < min) return min;
+      if (d > max) return max;
+      return d;
+    }
+
+    // Retry-After: <seconds>
+    final seconds = int.tryParse(raw);
+    if (seconds != null && seconds >= 0) {
+      return clampDuration(
+        Duration(seconds: seconds),
+        const Duration(seconds: 1),
+        const Duration(seconds: 30),
+      );
+    }
+
+    // Retry-After: <http-date>
+    try {
+      final dt = DateTime.parse(raw).toUtc();
+      final now = DateTime.now().toUtc();
+      final diff = dt.difference(now);
+      if (diff.isNegative) return const Duration(seconds: 1);
+      return clampDuration(
+        diff,
+        const Duration(seconds: 1),
+        const Duration(seconds: 30),
+      );
+    } catch (_) {
+      return const Duration(seconds: 5);
+    }
+  }
+
+  Duration _retryAfterFromDio(DioException e) {
+    final headers = e.response?.headers;
+    final ra = headers?.value('retry-after') ?? headers?.value('Retry-After');
+    return _parseRetryAfter(ra);
   }
 
   Future<Response<dynamic>> _getWithDedup(
@@ -119,6 +176,9 @@ class ApiService {
 
       debugPrint("API ERROR: ${response.statusCode} => ${response.data}");
       return null;
+    } on DioException catch (e) {
+      debugPrint("Network error on $endpoint: $e");
+      return null;
     } catch (e) {
       debugPrint("Network error on $endpoint: $e");
       return null;
@@ -185,14 +245,61 @@ class ApiService {
     int timeSpentSeconds,
     String? token,
   ) async {
+    final endpoint = '/api/quiz/answer';
+    final now = DateTime.now();
+    final limitedUntil = _rateLimitedUntil[endpoint];
+    if (limitedUntil != null && now.isBefore(limitedUntil)) {
+      throw ApiRateLimitedException(retryAfter: limitedUntil.difference(now));
+    }
+
     try {
-      return await post('/api/quiz/answer', {
-        'quizId': quizId,
-        'questionId': questionId,
-        'answer': answer,
-        'timeSpentSeconds': timeSpentSeconds,
-      }, token);
+      // Quiz answer can take longer on slower backends; don't fail at 10s.
+      final response = await _dio.post(
+        endpoint,
+        data: {
+          'quizId': quizId,
+          'questionId': questionId,
+          'answer': answer,
+          'timeSpentSeconds': timeSpentSeconds,
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 25),
+          // Let us handle 429/5xx without throwing purely due to validateStatus.
+          validateStatus: (status) => status != null && status >= 200 && status < 500,
+        ),
+      );
+
+      debugPrint("POST $endpoint - Status: ${response.statusCode}");
+
+      if (response.statusCode == 429) {
+        final retryAfter = _parseRetryAfter(
+          response.headers.value('retry-after') ??
+              response.headers.value('Retry-After'),
+        );
+        _rateLimitedUntil[endpoint] = DateTime.now().add(retryAfter);
+        throw ApiRateLimitedException(retryAfter: retryAfter);
+      }
+
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        return response.data is Map<String, dynamic> ? response.data : null;
+      }
+
+      debugPrint("API ERROR: ${response.statusCode} => ${response.data}");
+      return null;
+    } on DioException catch (e) {
+      // If Dio throws (timeouts, etc.), keep behavior as "null" for callers that
+      // queue offline, but still apply local backoff for 429.
+      if (e.response?.statusCode == 429) {
+        final retryAfter = _retryAfterFromDio(e);
+        _rateLimitedUntil[endpoint] = DateTime.now().add(retryAfter);
+        throw ApiRateLimitedException(retryAfter: retryAfter);
+      }
+      debugPrint("Network error on $endpoint: $e");
+      return null;
     } catch (e) {
+      debugPrint("Network error on $endpoint: $e");
       return null;
     }
   }

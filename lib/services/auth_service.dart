@@ -25,8 +25,16 @@ class AuthService {
   String? _userId;
   String? _username;
   Future<bool>? _refreshInFlight;
+  bool _initialized = false;
 
-  late Dio _dio;
+  final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: Config.apiBaseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+      headers: {'Content-Type': 'application/json'},
+    ),
+  );
 
   String _tokenKind(String? token) {
     if (token == null || token.isEmpty) return 'none';
@@ -41,15 +49,10 @@ class AuthService {
   }
 
   Future<void> initialize() async {
-    _dio = Dio(
-      BaseOptions(
-        baseUrl: Config.apiBaseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-        headers: {'Content-Type': 'application/json'},
-      ),
-    );
+    if (_initialized) return;
+    _initialized = true;
 
+    // Interceptors only need to be attached once.
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {

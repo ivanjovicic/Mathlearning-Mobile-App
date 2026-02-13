@@ -49,7 +49,7 @@ class OfflineManager {
 
     // Auto-sync on start if user is already logged in
     if (AuthService.instance.isLoggedIn) {
-      await syncPendingData();
+      unawaited(syncPendingData());
     }
   }
 
@@ -172,7 +172,8 @@ class OfflineManager {
 
     final failed = <Map<String, dynamic>>[];
 
-    for (final answer in pendingAnswers) {
+    for (var idx = 0; idx < pendingAnswers.length; idx++) {
+      final answer = pendingAnswers[idx];
       final quizId = answer['quiz_id']?.toString();
       final questionId = (answer['question_id'] as num?)?.toInt();
       final value = answer['answer']?.toString();
@@ -196,8 +197,18 @@ class OfflineManager {
             throw Exception('submitAnswer returned null');
           }
         });
+      } on ApiRateLimitedException catch (e) {
+        debugPrint(
+          'OfflineManager: rate limited (429). Pausing sync for ${e.retryAfter}.',
+        );
+        // Keep current + remaining items in queue; don't hammer the server.
+        failed.add(answer);
+        for (var j = idx + 1; j < pendingAnswers.length; j++) {
+          failed.add(pendingAnswers[j]);
+        }
+        break;
       } catch (_) {
-        // Even after backoff retries failed → keep in queue
+        // Even after backoff retries failed -> keep in queue
         failed.add(answer);
       }
     }
@@ -346,6 +357,20 @@ class OfflineManager {
           await emitPendingCount();
           return result;
         }
+      } on ApiRateLimitedException catch (e) {
+        debugPrint(
+          'OfflineManager.submitAnswer: rate limited (429). Queueing answer for later (retryAfter=${e.retryAfter}).',
+        );
+        // Preserve the answer offline, but allow caller to show UI feedback.
+        await OfflineStorageService.savePendingAnswer(
+          quizId: quizId,
+          questionId: questionId,
+          answer: answer,
+          timeSpentSeconds: timeSpentSeconds,
+          isCorrect: isCorrect,
+        );
+        await emitPendingCount();
+        rethrow;
       } catch (_) {}
     }
 

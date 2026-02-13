@@ -512,6 +512,21 @@ class QuizProvider extends ChangeNotifier {
           isCorrect: isCorrect,
           token: token,
         );
+      } on ApiRateLimitedException catch (e) {
+        if (context.mounted) {
+          final seconds = e.retryAfter.inSeconds.clamp(1, 60);
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                'Server je zauzet (429). Pokusaj za $seconds s. Odgovor je sacuvan offline.',
+              ),
+              duration: Duration(seconds: seconds < 5 ? 5 : seconds),
+            ),
+          );
+        }
+        // Continue: answer is already queued offline by OfflineManager.
       } catch (e) {
         debugPrint('Error submitting answer: $e');
         // Continue anyway - answer is saved for sync

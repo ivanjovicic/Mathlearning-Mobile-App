@@ -24,11 +24,29 @@ class ProfileScreen extends StatelessWidget {
     final auth = Provider.of<AuthProvider>(context);
     final themeController = Provider.of<ThemeController>(context);
 
+    void openUserSearch() {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const UserSearchScreen(),
+        ),
+      );
+    }
+
+    void logout() {
+      auth.logout().then((_) {
+        if (!context.mounted) return;
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/login',
+          (route) => false,
+        );
+      });
+    }
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          "👤 Profil",
+          "Profil",
           style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -37,48 +55,86 @@ class ProfileScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         actions: [
-          IconButton(
-            onPressed: () => Navigator.pushNamed(context, "/settings"),
-            icon: Icon(Icons.settings_outlined, color: colorScheme.onSurface),
-            tooltip: context.safeTooltip('Podesavanja'),
-          ),
-          IconButton(
-            onPressed: () => Navigator.pushNamed(context, "/themes"),
-            icon: Icon(Icons.palette_outlined, color: colorScheme.onSurface),
-            tooltip: context.safeTooltip('Tema i kretanje'),
-          ),
-          // Search users button
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const UserSearchScreen(),
-                ),
-              );
-            },
-            icon: Icon(Icons.search, color: colorScheme.onSurface),
-            tooltip: context.safeTooltip('Pretraga korisnika'),
-          ),
-          // Edit profile button
-          IconButton(
-            onPressed: () => _showEditProfileDialog(context),
-            icon: Icon(Icons.edit, color: colorScheme.onSurface),
-            tooltip: context.safeTooltip('Izmeni profil'),
-          ),
-          // Logout button
-          IconButton(
-            onPressed: () async {
-              await auth.logout();
-              if (context.mounted) {
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil('/login', (route) => false);
+          PopupMenuButton<_ProfileMenuAction>(
+            icon: Icon(Icons.more_vert, color: colorScheme.onSurface),
+            tooltip: context.safeTooltip('Meni'),
+            onSelected: (value) {
+              switch (value) {
+                case _ProfileMenuAction.settings:
+                  Navigator.pushNamed(context, '/settings');
+                  break;
+                case _ProfileMenuAction.themes:
+                  Navigator.pushNamed(context, '/themes');
+                  break;
+                case _ProfileMenuAction.userSearch:
+                  openUserSearch();
+                  break;
+                case _ProfileMenuAction.editProfile:
+                  _showEditProfileDialog(context);
+                  break;
+                case _ProfileMenuAction.logout:
+                  logout();
+                  break;
               }
             },
-            icon: Icon(Icons.logout, color: colorScheme.error),
-            tooltip: context.safeTooltip('Odjava'),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: _ProfileMenuAction.settings,
+                child: Row(
+                  children: [
+                    Icon(Icons.settings_outlined),
+                    SizedBox(width: 10),
+                    Text('Podesavanja'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: _ProfileMenuAction.themes,
+                child: Row(
+                  children: [
+                    Icon(Icons.palette_outlined),
+                    SizedBox(width: 10),
+                    Text('Tema i kretanje'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: _ProfileMenuAction.userSearch,
+                child: Row(
+                  children: [
+                    Icon(Icons.search),
+                    SizedBox(width: 10),
+                    Text('Pretraga korisnika'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: _ProfileMenuAction.editProfile,
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_outlined),
+                    SizedBox(width: 10),
+                    Text('Izmeni profil'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: _ProfileMenuAction.logout,
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: colorScheme.error),
+                    SizedBox(width: 10),
+                    Text(
+                      'Odjava',
+                      style: TextStyle(color: colorScheme.error),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
+
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(18),
@@ -462,4 +518,12 @@ class ProfileScreen extends StatelessWidget {
       emailController.dispose();
     });
   }
+}
+
+enum _ProfileMenuAction {
+  settings,
+  themes,
+  userSearch,
+  editProfile,
+  logout,
 }

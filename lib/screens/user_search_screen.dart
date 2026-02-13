@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/user_profile.dart';
@@ -13,6 +15,7 @@ class UserSearchScreen extends StatefulWidget {
 class _UserSearchScreenState extends State<UserSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final UserService _userService = UserService.instance;
+  Timer? _debounce;
 
   List<UserSearchResult> _searchResults = [];
   bool _isLoading = false;
@@ -20,12 +23,14 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _searchUsers(String query) async {
     if (query.trim().isEmpty) {
+      if (!mounted) return;
       setState(() {
         _searchResults = [];
         _errorMessage = '';
@@ -33,6 +38,7 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       return;
     }
 
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -40,11 +46,13 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
 
     try {
       final results = await _userService.searchUsers(query);
+      if (!mounted) return;
       setState(() {
         _searchResults = results;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Pretraga trenutno nije uspela. Pokusaj ponovo.';
         _isLoading = false;
@@ -61,97 +69,114 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Pretrazi korisnike...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          _searchUsers('');
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.35,
-                ),
-              ),
-              onChanged: (value) {
-                Future.delayed(const Duration(milliseconds: 500), () {
-                  if (_searchController.text == value) {
-                    _searchUsers(value);
-                  }
-                });
-              },
-            ),
-          ),
-          if (_isLoading)
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: CircularProgressIndicator(color: colorScheme.primary),
-            ),
-          if (_errorMessage.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colorScheme.errorContainer,
-                  border: Border.all(color: colorScheme.error),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _errorMessage,
-                  style: TextStyle(color: colorScheme.onErrorContainer),
+      body: SafeArea(
+        child: CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Pretrazi korisnike...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _debounce?.cancel();
+                              _searchController.clear();
+                              _searchUsers('');
+                              setState(() {}); // refresh suffix icon
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.35,
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() {}); // refresh suffix icon
+                    _debounce?.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 400), () {
+                      _searchUsers(value);
+                    });
+                  },
                 ),
               ),
             ),
-          Expanded(
-            child:
-                _searchResults.isEmpty &&
-                    !_isLoading &&
-                    _searchController.text.isNotEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 64,
+            if (_isLoading)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Center(
+                    child: CircularProgressIndicator(color: colorScheme.primary),
+                  ),
+                ),
+              ),
+            if (_errorMessage.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer,
+                      border: Border.all(color: colorScheme.error),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _errorMessage,
+                      style: TextStyle(color: colorScheme.onErrorContainer),
+                    ),
+                  ),
+                ),
+              ),
+            if (_searchResults.isEmpty &&
+                !_isLoading &&
+                _searchController.text.isNotEmpty &&
+                _errorMessage.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.search_off,
+                        size: 64,
+                        color: colorScheme.onSurface,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nema rezultata',
+                        style: TextStyle(
+                          fontSize: 18,
                           color: colorScheme.onSurface,
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Nema rezultata',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _searchResults.length,
-                    itemBuilder: (context, index) {
-                      final user = _searchResults[index];
-                      return _UserTile(user: user);
-                    },
+                      ),
+                    ],
                   ),
-          ),
-        ],
+                ),
+              )
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final user = _searchResults[index];
+                    return _UserTile(user: user);
+                  },
+                  childCount: _searchResults.length,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

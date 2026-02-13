@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 
+/// Helper widget for rendering mathematical expressions with optimal quality.
+/// 
+/// Supports:
+/// - Pure LaTeX expressions (e.g., `\frac{a}{b}`, `\int x dx`)
+/// - Inline mixed text with LaTeX (e.g., "Calculate $x^2 + 3x$ when...")
+/// - Plain text fallback
+/// - Multi-line LaTeX blocks
 class GamifiedMathPanel extends StatelessWidget {
   final String formula;
   final String title;
@@ -21,7 +28,7 @@ class GamifiedMathPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final expression = _normalizeInlineMathDelimiters(formula.trim());
+    final expression = _normalizeMathDelimiters(formula.trim());
 
     return Container(
       width: double.infinity,
@@ -70,7 +77,7 @@ class GamifiedMathPanel extends StatelessWidget {
           const SizedBox(height: 14),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
             decoration: BoxDecoration(
               color: colorScheme.surface.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(12),
@@ -94,7 +101,9 @@ class GamifiedMathPanel extends StatelessWidget {
       if (hasMultiline) {
         return _buildMixedBlock(context, parts);
       }
-      return _buildInlineMixedText(context, expression);
+      // Avoid RichText+WidgetSpan baseline quirks (especially on web) by using
+      // a normal Wrap with Math widgets.
+      return _buildInlineMixedWrap(context, parts);
     }
 
     if (_looksLikeMathExpression(expression)) {
@@ -112,6 +121,7 @@ class GamifiedMathPanel extends StatelessWidget {
             theme.textTheme.headlineSmall?.copyWith(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w700,
+              height: 1.3,
             ),
         onErrorFallback: (_) => _buildPlainText(context, expression),
       );
@@ -127,11 +137,14 @@ class GamifiedMathPanel extends StatelessWidget {
     return Text(
       value,
       softWrap: true,
+      textWidthBasis: TextWidthBasis.longestLine,
       style:
           expressionTextStyle ??
           theme.textTheme.titleLarge?.copyWith(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w700,
+            height: 1.4,
+            letterSpacing: 0.5,
           ),
     );
   }
@@ -144,6 +157,7 @@ class GamifiedMathPanel extends StatelessWidget {
         theme.textTheme.titleLarge?.copyWith(
           color: colorScheme.onSurface,
           fontWeight: FontWeight.w700,
+          height: 1.4,
         );
 
     final children = <Widget>[];
@@ -156,7 +170,14 @@ class GamifiedMathPanel extends StatelessWidget {
         // Skip punctuation-only fragments like "," that come from "..., $tex$,".
         final trimmed = raw.trim();
         if (RegExp(r'^[,.;:]+$').hasMatch(trimmed)) continue;
-        children.add(Text(raw, style: style, softWrap: true));
+        children.add(
+          Text(
+            raw,
+            style: style,
+            softWrap: true,
+            textWidthBasis: TextWidthBasis.longestLine,
+          ),
+        );
         continue;
       }
 
@@ -168,7 +189,12 @@ class GamifiedMathPanel extends StatelessWidget {
             _normalizeTex(raw, allowLineBreaks: false),
             mathStyle: MathStyle.display,
             textStyle: style,
-            onErrorFallback: (_) => Text(raw, style: style, softWrap: true),
+            onErrorFallback: (_) => Text(
+              raw,
+              style: style,
+              softWrap: true,
+              textWidthBasis: TextWidthBasis.longestLine,
+            ),
           ),
         );
       }
@@ -190,7 +216,7 @@ class GamifiedMathPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildInlineMixedText(BuildContext context, String value) {
+  Widget _buildInlineMixedWrap(BuildContext context, List<_InlinePart> parts) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textStyle =
@@ -198,47 +224,61 @@ class GamifiedMathPanel extends StatelessWidget {
         theme.textTheme.titleLarge?.copyWith(
           color: colorScheme.onSurface,
           fontWeight: FontWeight.w700,
+          height: 1.4, // Better line height for mixed text
+        ) ??
+        TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          height: 1.4,
         );
-    final pattern = RegExp(r'\$([^$]+)\$');
-    final spans = <InlineSpan>[];
-    var current = 0;
+    final children = <Widget>[];
 
-    for (final match in pattern.allMatches(value)) {
-      if (match.start > current) {
-        spans.add(
-          TextSpan(
-            text: value.substring(current, match.start),
+    for (final part in parts) {
+      final raw = part.raw;
+      if (raw.trim().isEmpty) continue;
+
+      if (part.kind == _InlinePartKind.text) {
+        children.add(
+          Text(
+            raw,
             style: textStyle,
+            softWrap: true,
+            textWidthBasis: TextWidthBasis.longestLine,
           ),
         );
+        continue;
       }
 
-      final tex = match.group(1);
-      if (tex == null || tex.isEmpty) {
-        spans.add(TextSpan(text: match.group(0), style: textStyle));
-      } else {
-        final normalized = _normalizeTex(tex, allowLineBreaks: false);
-        spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Math.tex(
-              normalized,
-              mathStyle: MathStyle.text,
-              textStyle: textStyle,
-              onErrorFallback: (_) => Text('\$$tex\$', style: textStyle),
-            ),
+      final normalized = _normalizeTex(raw, allowLineBreaks: false);
+      children.add(
+        Math.tex(
+          normalized,
+          mathStyle: MathStyle.text,
+          textStyle: textStyle.copyWith(
+            fontSize: (textStyle.fontSize ?? 18) * 1.05,
           ),
-        );
-      }
-
-      current = match.end;
+          onErrorFallback: (_) => Text(
+            '\$$raw\$',
+            style: textStyle,
+            softWrap: true,
+            textWidthBasis: TextWidthBasis.longestLine,
+          ),
+        ),
+      );
     }
 
-    if (current < value.length) {
-      spans.add(TextSpan(text: value.substring(current), style: textStyle));
+    if (children.isEmpty) {
+      return _buildPlainText(context, parts.map((p) => p.raw).join());
     }
 
-    return RichText(text: TextSpan(children: spans), softWrap: true);
+    return Wrap(
+      alignment: WrapAlignment.start,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: 8,
+      spacing: 6,
+      children: children,
+    );
   }
 
   bool _hasInlineMathSegments(String value) {
@@ -288,6 +328,7 @@ class GamifiedMathPanel extends StatelessWidget {
         theme.textTheme.headlineSmall?.copyWith(
           color: colorScheme.onSurface,
           fontWeight: FontWeight.w700,
+          height: 1.3,
         );
 
     final normalized = _normalizeTex(tex, allowLineBreaks: true);
@@ -305,7 +346,12 @@ class GamifiedMathPanel extends StatelessWidget {
             .toList();
 
     if (lines.isEmpty) {
-      return Text(tex, style: style, softWrap: true);
+      return Text(
+        tex,
+        style: style,
+        softWrap: true,
+        textWidthBasis: TextWidthBasis.longestLine,
+      );
     }
 
     return Column(
@@ -317,7 +363,12 @@ class GamifiedMathPanel extends StatelessWidget {
             _normalizeTex(lines[i], allowLineBreaks: false),
             mathStyle: MathStyle.display,
             textStyle: style,
-            onErrorFallback: (_) => Text(lines[i], style: style, softWrap: true),
+            onErrorFallback: (_) => Text(
+              lines[i],
+              style: style,
+              softWrap: true,
+              textWidthBasis: TextWidthBasis.longestLine,
+            ),
           ),
           if (i != lines.length - 1) const SizedBox(height: 6),
         ],
@@ -371,9 +422,25 @@ class GamifiedMathPanel extends StatelessWidget {
     return sb.toString();
   }
 
-  String _normalizeInlineMathDelimiters(String value) {
-    // Backend can return escaped inline delimiters like "\$...\$".
-    return value.replaceAll(r'\$', r'$');
+  String _normalizeMathDelimiters(String value) {
+    // Unescape \$ ... \$ that sometimes arrives from JSON/DB.
+    var out = value.replaceAll(r'\$', r'$');
+
+    // Convert common TeX delimiters to $...$ so a single parser path handles them.
+    out = out.replaceAllMapped(
+      RegExp(r'\\\((.*?)\\\)', dotAll: true),
+      (m) => '\$${m.group(1) ?? ''}\$',
+    );
+    out = out.replaceAllMapped(
+      RegExp(r'\\\[(.*?)\\\]', dotAll: true),
+      (m) => '\$${m.group(1) ?? ''}\$',
+    );
+    out = out.replaceAllMapped(
+      RegExp(r'\$\$(.*?)\$\$', dotAll: true),
+      (m) => '\$${m.group(1) ?? ''}\$',
+    );
+
+    return out;
   }
 
   bool _looksLikeMathExpression(String value) {

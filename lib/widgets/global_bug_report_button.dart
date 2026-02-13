@@ -8,7 +8,16 @@ import '../utils/overlay_safety.dart';
 enum _ReportMode { bug, uxUiFeedback }
 
 class GlobalBugReportButton extends StatefulWidget {
-  const GlobalBugReportButton({super.key});
+  /// Extra clearance above the bottom edge. Defaults to avoid overlapping
+  /// custom bottom navs.
+  final double bottomOffset;
+  final double rightOffset;
+
+  const GlobalBugReportButton({
+    super.key,
+    this.bottomOffset = kBottomNavigationBarHeight + 24,
+    this.rightOffset = 16,
+  });
 
   @override
   State<GlobalBugReportButton> createState() => _GlobalBugReportButtonState();
@@ -30,7 +39,10 @@ class _GlobalBugReportButtonState extends State<GlobalBugReportButton> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.only(right: 16, bottom: 16),
+        padding: EdgeInsets.only(
+          right: widget.rightOffset,
+          bottom: 16 + widget.bottomOffset,
+        ),
         child: FloatingActionButton.small(
           heroTag: null,
           tooltip: context.safeTooltip('Prijavi bag ili UX/UI utisak'),

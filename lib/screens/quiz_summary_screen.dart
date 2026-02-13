@@ -459,12 +459,16 @@ class _WrongQuestionsCard extends StatelessWidget {
                         q.questionText,
                         textStyle: theme.textTheme.bodyMedium?.copyWith(
                           color: cs.onSurface.withValues(alpha: 0.85),
+                          height: 1.3,
                         ),
                         onErrorFallback: (_) => Text(
                           q.questionText,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: cs.onSurface.withValues(alpha: 0.85),
+                            height: 1.3,
                           ),
+                          softWrap: true,
+                          textWidthBasis: TextWidthBasis.longestLine,
                         ),
                       ),
                     ),
