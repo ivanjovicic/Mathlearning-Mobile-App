@@ -126,133 +126,137 @@ class _ReportSheetState extends State<_ReportSheet> {
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + insets.bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Prijava',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Ekran: ${widget.initialScreen}',
-            style: const TextStyle(fontSize: 13, color: Colors.grey),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<_ReportMode>(
-            initialValue: _mode,
-            decoration: const InputDecoration(
-              labelText: 'Tip prijave',
-              border: OutlineInputBorder(),
+    return SafeArea(
+      child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + insets.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Prijava',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
-            items: const [
-              DropdownMenuItem(
-                value: _ReportMode.bug,
-                child: Text('Bug'),
-              ),
-              DropdownMenuItem(
-                value: _ReportMode.uxUiFeedback,
-                child: Text('UX/UI feedback'),
-              ),
-            ],
-            onChanged: _submitting
-                ? null
-                : (value) {
-                    if (value == null) return;
-                    setState(() => _mode = value);
-                  },
-          ),
-          const SizedBox(height: 12),
-          if (_mode == _ReportMode.bug) ...[
-            DropdownButtonFormField<String>(
-              initialValue: _severity,
+            const SizedBox(height: 8),
+            Text(
+              'Ekran: ${widget.initialScreen}',
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<_ReportMode>(
+              initialValue: _mode,
               decoration: const InputDecoration(
-                labelText: 'Severity',
+                labelText: 'Tip prijave',
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(value: 'low', child: Text('Low')),
-                DropdownMenuItem(value: 'medium', child: Text('Medium')),
-                DropdownMenuItem(value: 'high', child: Text('High')),
-                DropdownMenuItem(value: 'critical', child: Text('Critical')),
+                DropdownMenuItem(
+                  value: _ReportMode.bug,
+                  child: Text('Bug'),
+                ),
+                DropdownMenuItem(
+                  value: _ReportMode.uxUiFeedback,
+                  child: Text('UX/UI feedback'),
+                ),
               ],
               onChanged: _submitting
                   ? null
                   : (value) {
                       if (value == null) return;
-                      setState(() => _severity = value);
+                      setState(() => _mode = value);
                     },
             ),
             const SizedBox(height: 12),
+            if (_mode == _ReportMode.bug) ...[
+              DropdownButtonFormField<String>(
+                initialValue: _severity,
+                decoration: const InputDecoration(
+                  labelText: 'Severity',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'low', child: Text('Low')),
+                  DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                  DropdownMenuItem(value: 'high', child: Text('High')),
+                  DropdownMenuItem(value: 'critical', child: Text('Critical')),
+                ],
+                onChanged: _submitting
+                    ? null
+                    : (value) {
+                        if (value == null) return;
+                        setState(() => _severity = value);
+                      },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _stepsController,
+                maxLines: 4,
+                minLines: 2,
+                decoration: const InputDecoration(
+                  hintText: 'Koraci za reprodukciju baga',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (_mode == _ReportMode.uxUiFeedback) ...[
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Svidja mi se UX/UI'),
+                value: _liked,
+                onChanged:
+                    _submitting ? null : (v) => setState(() => _liked = v),
+              ),
+              const SizedBox(height: 4),
+              Text('Ocena UX/UI: ${_uxRating.round()} / 5'),
+              Slider(
+                value: _uxRating,
+                min: 1,
+                max: 5,
+                divisions: 4,
+                label: _uxRating.round().toString(),
+                onChanged:
+                    _submitting ? null : (v) => setState(() => _uxRating = v),
+              ),
+              TextField(
+                controller: _suggestionController,
+                maxLines: 3,
+                minLines: 2,
+                decoration: const InputDecoration(
+                  hintText: 'Predlog poboljsanja (opciono)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             TextField(
-              controller: _stepsController,
-              maxLines: 4,
-              minLines: 2,
-              decoration: const InputDecoration(
-                hintText: 'Koraci za reprodukciju baga',
-                border: OutlineInputBorder(),
+              controller: _descriptionController,
+              maxLines: 5,
+              minLines: 3,
+              decoration: InputDecoration(
+                hintText: _mode == _ReportMode.bug
+                    ? 'Opisi sta se desilo.'
+                    : 'Opisi utisak o UX/UI (sta je dobro / lose).',
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
-          ],
-          if (_mode == _ReportMode.uxUiFeedback) ...[
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Svidja mi se UX/UI'),
-              value: _liked,
-              onChanged: _submitting ? null : (v) => setState(() => _liked = v),
-            ),
-            const SizedBox(height: 4),
-            Text('Ocena UX/UI: ${_uxRating.round()} / 5'),
-            Slider(
-              value: _uxRating,
-              min: 1,
-              max: 5,
-              divisions: 4,
-              label: _uxRating.round().toString(),
-              onChanged:
-                  _submitting ? null : (v) => setState(() => _uxRating = v),
-            ),
-            TextField(
-              controller: _suggestionController,
-              maxLines: 3,
-              minLines: 2,
-              decoration: const InputDecoration(
-                hintText: 'Predlog poboljsanja (opciono)',
-                border: OutlineInputBorder(),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Posalji'),
               ),
             ),
-            const SizedBox(height: 12),
           ],
-          TextField(
-            controller: _descriptionController,
-            maxLines: 5,
-            minLines: 3,
-            decoration: InputDecoration(
-              hintText: _mode == _ReportMode.bug
-                  ? 'Opisi sta se desilo.'
-                  : 'Opisi utisak o UX/UI (sta je dobro / lose).',
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _submitting ? null : _submit,
-              child: _submitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Posalji'),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
