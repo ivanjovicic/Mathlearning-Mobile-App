@@ -304,6 +304,8 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildBadgeList(BuildContext context, List badges) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final scale = MediaQuery.textScalerOf(context).scale(12) / 12;
+    final badgeListHeight = (90.0 * scale).clamp(90.0, 140.0).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,7 +321,7 @@ class ProfileScreen extends StatelessWidget {
         const SizedBox(height: 12),
 
         SizedBox(
-          height: 90,
+          height: badgeListHeight,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: badges.map((b) {
@@ -346,6 +348,8 @@ class ProfileScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       b.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: b.unlocked
@@ -379,6 +383,13 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          scrollable: true,
+          insetPadding: EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            24 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
           title: const Text('Izmena profila'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
