@@ -151,9 +151,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
             final questionCardPadding = EdgeInsets.all(isCompact ? 16.0 : 20.0);
             final afterQuestionGap = isCompact ? 18.0 : 28.0;
 
-            final optionSpacing = isCompact ? 10.0 : 12.0;
+            final optionSpacing = isCompact ? 8.0 : 10.0;
             final optionPadding = EdgeInsets.symmetric(
-              vertical: isCompact ? 14.0 : 18.0,
+              vertical: isCompact ? 10.0 : 12.0,
               horizontal: isCompact ? 14.0 : 16.0,
             );
 
@@ -272,7 +272,28 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
             }
 
             SliverPadding buildOptionsSliver({required double topPadding}) {
-              final ratio = isCompact ? 2.5 : 3.0;
+              if (columns == 1) {
+                // In 1-column layouts we want option cards to size to content
+                // instead of being forced to a tall fixed grid height.
+                return SliverPadding(
+                  padding: EdgeInsets.only(top: topPadding, bottom: 12),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index == widget.options.length - 1
+                              ? 0
+                              : optionSpacing,
+                        ),
+                        child: buildOptionButton(index),
+                      ),
+                      childCount: widget.options.length,
+                    ),
+                  ),
+                );
+              }
+
+              final ratio = bp == _QuizBreakpoint.tabletLandscape ? 2.9 : 2.6;
               return SliverPadding(
                 padding: EdgeInsets.only(top: topPadding, bottom: 12),
                 sliver: SliverGrid(
@@ -359,6 +380,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                       colorScheme: colorScheme,
                       t: t,
                     ),
+                    const SizedBox(height: 12),
                   ],
                   if (quizProvider.isCooldown)
                     const Padding(
@@ -381,14 +403,15 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                                   ? null
                                   : _submitAndContinue,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: colorScheme.secondary,
-                                foregroundColor: colorScheme.onSecondary,
+                                backgroundColor: colorScheme.primary,
+                                foregroundColor: colorScheme.onPrimary,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 14,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
+                                elevation: 0,
                               ),
                               child: isSubmitting
                                   ? const SizedBox(
@@ -553,14 +576,16 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: isCorrect
-                ? colorScheme.tertiaryContainer.withValues(alpha: 0.5)
-                : colorScheme.errorContainer.withValues(alpha: 0.5),
+                ? colorScheme.tertiaryContainer
+                : colorScheme.errorContainer,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isCorrect ? colorScheme.tertiary : colorScheme.error,
+              color: isCorrect
+                  ? colorScheme.tertiary.withValues(alpha: 0.75)
+                  : colorScheme.error.withValues(alpha: 0.75),
             ),
           ),
           child: Row(
@@ -568,7 +593,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
             children: [
               Icon(
                 isCorrect ? Icons.check_circle : Icons.cancel,
-                color: isCorrect ? colorScheme.tertiary : colorScheme.error,
+                color: isCorrect
+                    ? colorScheme.onTertiaryContainer
+                    : colorScheme.onErrorContainer,
               ),
               const SizedBox(width: 8),
               Flexible(
@@ -580,7 +607,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                       : t.wrongKeepGoing,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: colorScheme.onSurface,
+                    color: isCorrect
+                        ? colorScheme.onTertiaryContainer
+                        : colorScheme.onErrorContainer,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -591,10 +620,13 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         if (isCorrect && _lastBonusXp > 0) ...[
           const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer.withValues(alpha: 0.55),
+              color: colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.55),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -602,13 +634,13 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 Icon(
                   Icons.auto_awesome,
                   size: 18,
-                  color: colorScheme.onSecondaryContainer,
+                  color: colorScheme.onPrimaryContainer,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   t.noHintBonus(_lastBonusXp),
                   style: theme.textTheme.labelLarge?.copyWith(
-                    color: colorScheme.onSecondaryContainer,
+                    color: colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
