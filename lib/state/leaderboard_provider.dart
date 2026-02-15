@@ -1,127 +1,147 @@
 import 'package:flutter/material.dart';
+
+import '../models/leaderboard_models.dart';
 import '../services/api_service.dart';
 
-class LeaderboardEntry {
-  final int rank;
-  final int userId;
-  final String name;
-  final int level;
-  final int xp;
-  final int weeklyXp;
-  final int streak;
+enum LeaderboardScope { global, school, faculty, friends }
 
-  LeaderboardEntry({
-    required this.rank,
-    required this.userId,
-    required this.name,
-    required this.level,
-    required this.xp,
-    required this.weeklyXp,
-    required this.streak,
-  });
-
-  factory LeaderboardEntry.fromJson(Map<String, dynamic> j) {
-    return LeaderboardEntry(
-      rank: j['rank'],
-      userId: j['userId'],
-      name: j['displayName'],
-      level: j['level'],
-      xp: j['xp'],
-      weeklyXp: j['weeklyXp'],
-      streak: j['streak'],
-    );
+extension LeaderboardScopeX on LeaderboardScope {
+  String get apiValue {
+    switch (this) {
+      case LeaderboardScope.global:
+        return 'global';
+      case LeaderboardScope.school:
+        return 'school';
+      case LeaderboardScope.faculty:
+        return 'faculty';
+      case LeaderboardScope.friends:
+        return 'friends';
+    }
   }
 }
 
 class LeaderboardProvider extends ChangeNotifier {
-  final api = ApiService();
+  LeaderboardProvider({ApiService? api}) : api = api ?? ApiService();
+
+  final ApiService api;
 
   String? token;
+  String? _lastToken;
 
-  List<LeaderboardEntry> global = [];
-  List<LeaderboardEntry> friends = [];
-  LeaderboardEntry? myGlobalRank;
-  LeaderboardEntry? myFriendsRank;
+  final Map<LeaderboardScope, LeaderboardPagingController> _paging = {
+    for (final s in LeaderboardScope.values) s: LeaderboardPagingController(),
+  };
 
-  bool isLoading = false;
+  final Map<LeaderboardScope, LeaderboardMe?> _me = {
+    for (final s in LeaderboardScope.values) s: null,
+  };
+
+  final Map<LeaderboardScope, Object?> _error = {
+    for (final s in LeaderboardScope.values) s: null,
+  };
+
+  LeaderboardPagingController pagingFor(LeaderboardScope scope) => _paging[scope]!;
+
+  List<LeaderboardItem> itemsFor(LeaderboardScope scope) =>
+      List.unmodifiable(_paging[scope]!.items);
+
+  LeaderboardMe? meFor(LeaderboardScope scope) => _me[scope];
+
+  Object? errorFor(LeaderboardScope scope) => _error[scope];
+
+  bool hasLoaded(LeaderboardScope scope) => _paging[scope]!.hasLoadedOnce;
+
+  void resetAll() {
+    for (final s in LeaderboardScope.values) {
+      _paging[s]!.reset();
+      _me[s] = null;
+      _error[s] = null;
+    }
+    notifyListeners();
+  }
+
+  /// Call when auth token changes, to avoid showing stale data from a previous user.
+  void onTokenUpdated(String? newToken) {
+    if (_lastToken == newToken) return;
+    _lastToken = newToken;
+    token = newToken;
+    resetAll();
+  }
 
   Future<void> loadGlobal(String range) async {
-    isLoading = true;
-    notifyListeners();
-
-    try {
-      // Skip API call if using demo token (backend not ready)
-      if (token?.startsWith('demo_') != true) {
-        final data = await api.getGlobalLeaderboard(range, 50, token);
-        if (data != null) {
-          global = data.map((e) => LeaderboardEntry.fromJson(e)).toList();
-
-          // Also fetch my rank
-          await _loadMyRank(range, isGlobal: true);
-
-          isLoading = false;
-          notifyListeners();
-          return;
-        }
-      }
-    } catch (e) {
-      debugPrint('Global leaderboard API failed: $e');
-    }
-
-    // Demo data fallback (when using demo token or API fails)
-    global = [];
-    myGlobalRank = null;
-    isLoading = false;
-    notifyListeners();
+    await reloadScope(LeaderboardScope.global, range);
   }
 
   Future<void> loadFriends(String range) async {
-    isLoading = true;
+    await reloadScope(LeaderboardScope.friends, range);
+  }
+
+  Future<void> loadSchool(String range) async {
+    await reloadScope(LeaderboardScope.school, range);
+  }
+
+  Future<void> loadFaculty(String range) async {
+    await reloadScope(LeaderboardScope.faculty, range);
+  }
+
+  Future<void> reloadScope(LeaderboardScope scope, String range) async {
+    final p = _paging[scope]!;
+    p.reset();
+    _me[scope] = null;
+    _error[scope] = null;
+    notifyListeners();
+    await loadMore(scope, range);
+  }
+
+  String _mapRangeToPeriod(String range) {
+    // Preserve existing UI values, while speaking the backend shape.
+    if (range == 'allTime') return 'all_time';
+    return range; // weekly, etc.
+  }
+
+  Future<void> loadMore(LeaderboardScope scope, String range) async {
+    final p = _paging[scope]!;
+    if (p.isLoading || !p.hasMore) return;
+
+    p.isLoading = true;
+    _error[scope] = null;
     notifyListeners();
 
     try {
       // Skip API call if using demo token (backend not ready)
-      if (token?.startsWith('demo_') != true) {
-        final data = await api.getFriendsLeaderboard(range, 50, token);
-        if (data != null) {
-          friends = data.map((e) => LeaderboardEntry.fromJson(e)).toList();
-
-          // Also fetch my rank
-          await _loadMyRank(range, isGlobal: false);
-
-          isLoading = false;
-          notifyListeners();
-          return;
-        }
+      if (token?.startsWith('demo_') == true) {
+        p.hasLoadedOnce = true;
+        p.isLoading = false;
+        p.hasMore = false;
+        notifyListeners();
+        return;
       }
-    } catch (e) {
-      debugPrint('Friends leaderboard API failed: $e');
-    }
 
-    // Demo data fallback (when using demo token or API fails)
-    friends = [];
-    myFriendsRank = null;
-    isLoading = false;
-    notifyListeners();
-  }
+      final data = await api.fetchLeaderboard(
+        scope: scope.apiValue,
+        period: _mapRangeToPeriod(range),
+        limit: 50,
+        cursor: p.cursor,
+      );
 
-  /// Fetch the current user's rank, even if they're not in the top 50
-  Future<void> _loadMyRank(String range, {required bool isGlobal}) async {
-    try {
-      final data = await api.getUserRank(range, token);
-      if (data != null) {
-        final entry = LeaderboardEntry.fromJson(data);
-        if (isGlobal) {
-          // Only store if user is NOT already in the list
-          final alreadyInList = global.any((e) => e.userId == entry.userId);
-          myGlobalRank = alreadyInList ? null : entry;
-        } else {
-          final alreadyInList = friends.any((e) => e.userId == entry.userId);
-          myFriendsRank = alreadyInList ? null : entry;
-        }
+      if (data == null) {
+        p.hasLoadedOnce = true;
+        p.isLoading = false;
+        p.hasMore = false;
+        notifyListeners();
+        return;
       }
+
+      p.items.addAll(data.items);
+      p.cursor = data.nextCursor;
+      p.hasMore = data.nextCursor != null;
+      p.hasLoadedOnce = true;
+      _me[scope] = data.me ?? _me[scope];
     } catch (e) {
-      debugPrint('Failed to load my rank: $e');
+      _error[scope] = e;
+    } finally {
+      p.isLoading = false;
+      notifyListeners();
     }
   }
 }

@@ -7,6 +7,8 @@ class UserProfile {
   final int xp;
   final int level;
   final String? avatarUrl;
+  final int? schoolId;
+  final int? facultyId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -19,11 +21,20 @@ class UserProfile {
     required this.xp,
     required this.level,
     this.avatarUrl,
+    this.schoolId,
+    this.facultyId,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
+    int? readNullableInt(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
+    }
+
     return UserProfile(
       id: json['id']?.toString() ?? '',
       username: json['username'] ?? '',
@@ -33,6 +44,8 @@ class UserProfile {
       xp: json['xp'] ?? 0,
       level: json['level'] ?? 1,
       avatarUrl: json['avatarUrl'] ?? json['avatar_url'],
+      schoolId: readNullableInt(json['schoolId'] ?? json['school_id']),
+      facultyId: readNullableInt(json['facultyId'] ?? json['faculty_id']),
       createdAt:
           DateTime.tryParse(json['createdAt'] ?? json['created_at'] ?? '') ??
           DateTime.now(),
@@ -52,6 +65,8 @@ class UserProfile {
       'xp': xp,
       'level': level,
       'avatarUrl': avatarUrl,
+      'schoolId': schoolId,
+      'facultyId': facultyId,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -65,6 +80,8 @@ class UserProfile {
     int? coins,
     int? xp,
     int? level,
+    int? schoolId,
+    int? facultyId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -76,6 +93,8 @@ class UserProfile {
       coins: coins ?? this.coins,
       xp: xp ?? this.xp,
       level: level ?? this.level,
+      schoolId: schoolId ?? this.schoolId,
+      facultyId: facultyId ?? this.facultyId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

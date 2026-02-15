@@ -12,6 +12,7 @@ import 'screens/quiz_screen.dart';
 import 'screens/reward_screen.dart';
 import 'screens/heatmap_screen.dart';
 import 'screens/leaderboard_screen.dart';
+import 'screens/school_leaderboard_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/quiz_summary_screen.dart';
 import 'screens/my_feedback_screen.dart';
@@ -24,9 +25,11 @@ import 'state/quiz_provider.dart';
 import 'state/progress_provider.dart';
 import 'state/heatmap_provider.dart';
 import 'state/coin_provider.dart';
+import 'state/school_leaderboard_provider.dart';
 import 'state/settings_provider.dart';
 import 'state/onboarding_provider.dart';
 import 'state/streak_freeze_provider.dart';
+import 'state/user_profile_provider.dart';
 
 import 'theme/theme_controller.dart';
 import 'screens/onboarding/onboarding_screen.dart';
@@ -105,7 +108,41 @@ class MathLearningApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => HeatmapProvider()),
-        ChangeNotifierProvider(create: (_) => LeaderboardProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, LeaderboardProvider>(
+          create: (_) => LeaderboardProvider(),
+          update: (context, auth, previous) {
+            final provider = previous ?? LeaderboardProvider();
+            provider.onTokenUpdated(auth.token);
+            return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, UserProfileProvider>(
+          create: (_) => UserProfileProvider(),
+          update: (context, auth, previous) {
+            final provider = previous ?? UserProfileProvider();
+            final userId = auth.userId;
+            if (!auth.isAuthenticated || userId == null) {
+              provider.lastUserId = null;
+              provider.clear();
+              return provider;
+            }
+
+            if (provider.lastUserId != userId) {
+              provider.lastUserId = userId;
+              provider.clear();
+              provider.load(forceRefresh: true);
+              return provider;
+            }
+
+            if (provider.profile == null && !provider.isLoading) {
+              provider.load();
+            } else {
+              // no-op
+            }
+            return provider;
+          },
+        ),
+        ChangeNotifierProvider(create: (_) => SchoolLeaderboardProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
       ],
@@ -198,6 +235,8 @@ class _AppRoot extends StatelessWidget {
                   "/quiz": (_) => const ScreenWrapper(child: QuizScreen()),
                   "/heatmap": (_) => const ScreenWrapper(child: HeatmapScreen()),
                   "/leaderboard": (_) => const ScreenWrapper(child: LeaderboardScreen()),
+                  "/school-leaderboard": (_) =>
+                      const ScreenWrapper(child: SchoolLeaderboardScreen()),
                   "/reward": (_) => const ScreenWrapper(child: RewardScreen()),
                   "/badges": (_) => const ScreenWrapper(child: BadgesScreen()),
                   "/profile": (_) => const ScreenWrapper(child: ProfileScreen()),

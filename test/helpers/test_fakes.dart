@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:mathlearning/models/hint_models.dart';
+import 'package:mathlearning/models/leaderboard_models.dart';
 import 'package:mathlearning/models/option.dart';
 import 'package:mathlearning/models/question.dart';
 import 'package:mathlearning/state/auth_provider.dart';
@@ -248,31 +249,67 @@ class TestLeaderboardProvider extends LeaderboardProvider {
   TestLeaderboardProvider({
     this.globalItems = const [],
     this.friendsItems = const [],
-    this.myGlobal,
-    this.myFriends,
-  });
+    this.globalMe,
+    this.friendsMe,
+  }) {
+    _setScope(
+      LeaderboardScope.global,
+      globalItems,
+      me: globalMe,
+      hasMore: false,
+    );
+    _setScope(
+      LeaderboardScope.friends,
+      friendsItems,
+      me: friendsMe,
+      hasMore: false,
+    );
+  }
 
-  final List<LeaderboardEntry> globalItems;
-  final List<LeaderboardEntry> friendsItems;
-  final LeaderboardEntry? myGlobal;
-  final LeaderboardEntry? myFriends;
+  final List<LeaderboardItem> globalItems;
+  final List<LeaderboardItem> friendsItems;
+  final LeaderboardMe? globalMe;
+  final LeaderboardMe? friendsMe;
 
   int loadGlobalCalls = 0;
   int loadFriendsCalls = 0;
+  int reloadScopeCalls = 0;
+  LeaderboardScope? lastReloadScope;
+  String? lastReloadRange;
   String? lastGlobalRange;
   String? lastFriendsRange;
+
+  void _setScope(
+    LeaderboardScope scope,
+    List<LeaderboardItem> items, {
+    LeaderboardMe? me,
+    required bool hasMore,
+  }) {
+    final p = pagingFor(scope);
+    p.reset();
+    p.items.addAll(items);
+    p.hasLoadedOnce = true;
+    p.hasMore = hasMore;
+    // We can't access provider's private _me map, but UI reads through meFor(),
+    // which in tests will be served by our override.
+    _meOverrides[scope] = me;
+  }
+
+  final Map<LeaderboardScope, LeaderboardMe?> _meOverrides = {};
+
+  @override
+  LeaderboardMe? meFor(LeaderboardScope scope) => _meOverrides[scope];
 
   @override
   Future<void> loadGlobal(String range) async {
     loadGlobalCalls++;
     lastGlobalRange = range;
-    isLoading = true;
-    notifyListeners();
-
-    await Future<void>.delayed(Duration.zero);
-    global = List<LeaderboardEntry>.from(globalItems);
-    myGlobalRank = myGlobal;
-    isLoading = false;
+    _setScope(
+      LeaderboardScope.global,
+      globalItems,
+      me: globalMe,
+      hasMore: false,
+    );
     notifyListeners();
   }
 
@@ -280,13 +317,31 @@ class TestLeaderboardProvider extends LeaderboardProvider {
   Future<void> loadFriends(String range) async {
     loadFriendsCalls++;
     lastFriendsRange = range;
-    isLoading = true;
+    _setScope(
+      LeaderboardScope.friends,
+      friendsItems,
+      me: friendsMe,
+      hasMore: false,
+    );
     notifyListeners();
+  }
 
-    await Future<void>.delayed(Duration.zero);
-    friends = List<LeaderboardEntry>.from(friendsItems);
-    myFriendsRank = myFriends;
-    isLoading = false;
+  @override
+  Future<void> reloadScope(LeaderboardScope scope, String range) async {
+    reloadScopeCalls++;
+    lastReloadScope = scope;
+    lastReloadRange = range;
+    switch (scope) {
+      case LeaderboardScope.global:
+        _setScope(scope, globalItems, me: globalMe, hasMore: false);
+        break;
+      case LeaderboardScope.friends:
+        _setScope(scope, friendsItems, me: friendsMe, hasMore: false);
+        break;
+      default:
+        _setScope(scope, const [], me: null, hasMore: false);
+        break;
+    }
     notifyListeners();
   }
 }

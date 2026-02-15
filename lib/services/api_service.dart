@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../models/progress_overview.dart';
+import '../models/leaderboard_models.dart';
+import '../models/school_leaderboard_models.dart';
 import 'auth_service.dart';
 
 class ApiRateLimitedException implements Exception {
@@ -373,62 +375,71 @@ class ApiService {
     }
   }
 
-  // Leaderboard API methods
-  Future<List<Map<String, dynamic>>?> getGlobalLeaderboard(
-    String range,
-    int limit,
-    String? token,
-  ) async {
+  Future<LeaderboardResponse?> fetchLeaderboard({
+    required String scope,
+    required String period,
+    required int limit,
+    String? cursor,
+  }) async {
     try {
+      final qp = <String, dynamic>{
+        'scope': scope,
+        'period': period,
+        'limit': limit,
+      };
+      if (cursor != null && cursor.isNotEmpty) {
+        qp['cursor'] = cursor;
+      }
+
+      final response = await _dio.get('/api/leaderboards', queryParameters: qp);
+
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        if (response.data is Map<String, dynamic>) {
+          return LeaderboardResponse.fromJson(
+            response.data as Map<String, dynamic>,
+          );
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('fetchLeaderboard failed: $e');
+      return null;
+    }
+  }
+
+  Future<SchoolLeaderboardResponse?> fetchSchoolVsSchoolLeaderboard({
+    required String period,
+    required int limit,
+    String? cursor,
+  }) async {
+    try {
+      final qp = <String, dynamic>{
+        'period': period,
+        'limit': limit,
+      };
+      if (cursor != null && cursor.isNotEmpty) {
+        qp['cursor'] = cursor;
+      }
+
       final response = await _dio.get(
-        '/api/leaderboard/global?range=$range&limit=$limit',
+        '/api/leaderboards/schools',
+        queryParameters: qp,
       );
 
       if (response.statusCode != null &&
           response.statusCode! >= 200 &&
           response.statusCode! < 300) {
-        return List<Map<String, dynamic>>.from(response.data);
+        if (response.data is Map<String, dynamic>) {
+          return SchoolLeaderboardResponse.fromJson(
+            response.data as Map<String, dynamic>,
+          );
+        }
       }
       return null;
     } catch (e) {
-      return null;
-    }
-  }
-
-  Future<List<Map<String, dynamic>>?> getFriendsLeaderboard(
-    String range,
-    int limit,
-    String? token,
-  ) async {
-    try {
-      final response = await _dio.get(
-        '/api/leaderboard/friends?range=$range&limit=$limit',
-      );
-
-      if (response.statusCode != null &&
-          response.statusCode! >= 200 &&
-          response.statusCode! < 300) {
-        return List<Map<String, dynamic>>.from(response.data);
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Get current user's rank (even if not in top N)
-  Future<Map<String, dynamic>?> getUserRank(String range, String? token) async {
-    try {
-      final response = await _dio.get('/api/leaderboard/me?range=$range');
-
-      if (response.statusCode != null &&
-          response.statusCode! >= 200 &&
-          response.statusCode! < 300) {
-        return response.data is Map<String, dynamic> ? response.data : null;
-      }
-      return null;
-    } catch (e) {
-      debugPrint('getUserRank failed: $e');
+      debugPrint('fetchSchoolVsSchoolLeaderboard failed: $e');
       return null;
     }
   }
