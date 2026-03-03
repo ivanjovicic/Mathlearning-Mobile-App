@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'theme_preferences_service.dart';
 import 'astrax_theme.dart';
 import 'theme_sci_fi.dart';
 import '../widgets/game_theme_transition.dart';
@@ -12,113 +12,69 @@ import 'theme_retro.dart';
 enum AppThemeType { sciFi, fantasy, pastel, minimal, retro, astra }
 
 class ThemeController extends ChangeNotifier {
-  AppThemeType _currentType = AppThemeType.sciFi;
-  bool _reduceMotion = false;
-  bool _highContrast = false;
-  bool _useGamifiedHome = true;
+  final ThemePreferencesService _preferencesService;
+
+  ThemeSettings _state;
+  Map<AppThemeType, ThemeData> _themeCache = {};
   bool isSwitching = false;
   bool _autoTuningInProgress = false;
 
-  AppThemeType get currentType => _currentType;
-  bool get reduceMotion => _reduceMotion;
-  bool get highContrast => _highContrast;
-  bool get useGamifiedHome => _useGamifiedHome;
+  ThemeController(this._preferencesService)
+      : _state = ThemeSettings.initial() {
+    _loadSavedPreferences();
+  }
+
+  AppThemeType get currentType => _state.type;
+  bool get reduceMotion => _state.reduceMotion;
+  bool get highContrast => _state.highContrast;
+  bool get useGamifiedHome => _state.useGamifiedHome;
 
   ThemeData get currentTheme {
-    final baseTheme = _mapTheme(_currentType);
-    return _highContrast ? _applyHighContrast(baseTheme) : baseTheme;
+    final baseTheme = _getCachedTheme(_state.type);
+    return _state.highContrast ? _buildHighContrastTheme(baseTheme) : baseTheme;
   }
 
-  ThemeController() {
-    _loadSavedTheme();
-  }
-
-  void setTheme(AppThemeType type, [BuildContext? context]) {
-    if (_currentType == type) return;
+  void setTheme(AppThemeType type, [BuildContext? context]) async {
+    if (_state.type == type) return;
 
     final oldTheme = currentTheme;
-    isSwitching = !_reduceMotion;
-    _currentType = type;
+    _setSwitching(true);
+    _state = _state.copyWith(type: type);
     notifyListeners();
 
-    // persist choice (fire-and-forget)
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setInt('app_theme', type.index);
-    });
-
-    // trigger visual animator if available in the widget tree
-    if (context != null) {
-      if (!_reduceMotion) {
-        try {
-          final anim = context
-              .findAncestorStateOfType<GameThemeTransitionState>();
-          anim?.play(
-            oldTheme.colorScheme.primary,
-            currentTheme.colorScheme.primary,
-          );
-        } catch (_) {
-          // ignore if animator not present
-        }
-      }
-    }
-
-    // Clear switching flag after transition duration so widgets can react
-    if (!_reduceMotion) {
-      Future.delayed(const Duration(milliseconds: 900), () {
-        isSwitching = false;
-        notifyListeners();
-      });
-    }
+    await _preferencesService.saveTheme(type);
+    _triggerThemeTransition(context, oldTheme, currentTheme);
+    _setSwitching(false);
   }
 
-  void setReduceMotion(bool enabled) {
-    if (_reduceMotion == enabled) return;
-    _reduceMotion = enabled;
-    isSwitching = false;
+  void setReduceMotion(bool enabled) async {
+    if (_state.reduceMotion == enabled) return;
+    _state = _state.copyWith(reduceMotion: enabled);
     notifyListeners();
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setBool('reduce_motion', enabled);
-    });
+    await _preferencesService.saveReduceMotion(enabled);
   }
 
-  void setHighContrast(bool enabled) {
-    if (_highContrast == enabled) return;
-    _highContrast = enabled;
+  void setHighContrast(bool enabled) async {
+    if (_state.highContrast == enabled) return;
+    _state = _state.copyWith(highContrast: enabled);
     notifyListeners();
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setBool('high_contrast', enabled);
-    });
+    await _preferencesService.saveHighContrast(enabled);
   }
 
-  void setUseGamifiedHome(bool enabled) {
-    if (_useGamifiedHome == enabled) return;
-    _useGamifiedHome = enabled;
+  void setUseGamifiedHome(bool enabled) async {
+    if (_state.useGamifiedHome == enabled) return;
+    _state = _state.copyWith(useGamifiedHome: enabled);
     notifyListeners();
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setBool('use_gamified_home', enabled);
-    });
+    await _preferencesService.saveGamifiedHome(enabled);
   }
 
-  Future<void> _loadSavedTheme() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final index = prefs.getInt('app_theme');
-      final hasReduceMotionPref = prefs.containsKey('reduce_motion');
-      _reduceMotion = prefs.getBool('reduce_motion') ?? false;
-      _highContrast = prefs.getBool('high_contrast') ?? false;
-      _useGamifiedHome = prefs.getBool('use_gamified_home') ?? true;
-      if (index != null && index >= 0 && index < AppThemeType.values.length) {
-        _currentType = AppThemeType.values[index];
-      }
-      notifyListeners();
+  Future<void> _loadSavedPreferences() async {
+    final savedState = await _preferencesService.loadAllPreferences();
+    _state = savedState;
+    notifyListeners();
 
-      // First-install auto-tune: enable reduced motion automatically
-      // on weaker devices if the user hasn't picked a preference yet.
-      if (!hasReduceMotionPref && !_reduceMotion) {
-        _autoTuneMotionForDevice();
-      }
-    } catch (_) {
-      // ignore and keep default
+    if (!_state.reduceMotion) {
+      _autoTuneMotionForDevice();
     }
   }
 
@@ -141,19 +97,28 @@ class ThemeController extends ChangeNotifier {
       SchedulerBinding.instance.removeTimingsCallback(callback);
       _autoTuningInProgress = false;
 
+      const frameBudgetMs = 16.67;
+      const jankThresholdMs = 20.0;
+      const jankRatioThreshold = 0.35;
+
       final avgMs =
           samples.reduce((sum, value) => sum + value) / samples.length;
-      final jankyCount = samples.where((ms) => ms > 20.0).length;
+      final jankyCount = samples.where((ms) => ms > jankThresholdMs).length;
       final jankRatio = jankyCount / samples.length;
 
-      // Heuristic: if startup is frequently over frame budget, enable
-      // reduced motion by default for smoother experience.
-      if (avgMs > 22.0 || jankRatio >= 0.35) {
+      if (avgMs > frameBudgetMs || jankRatio >= jankRatioThreshold) {
         setReduceMotion(true);
       }
     };
 
     SchedulerBinding.instance.addTimingsCallback(callback);
+  }
+
+  ThemeData _getCachedTheme(AppThemeType type) {
+    if (!_themeCache.containsKey(type)) {
+      _themeCache[type] = _mapTheme(type);
+    }
+    return _themeCache[type]!;
   }
 
   ThemeData _mapTheme(AppThemeType type) {
@@ -167,54 +132,89 @@ class ThemeController extends ChangeNotifier {
       case AppThemeType.retro:
         return RetroTheme.data;
       case AppThemeType.astra:
-        return AstraXTheme.data;
+        return AstraXTheme.buildDarkTheme();
       default:
         return SciFiTheme.data;
     }
   }
 
-  ThemeData _applyHighContrast(ThemeData base) {
+  ThemeData _buildHighContrastTheme(ThemeData base) {
     final scheme = base.colorScheme;
     final hcScheme = scheme.copyWith(
-      onPrimary: _onFor(scheme.primary),
-      onSecondary: _onFor(scheme.secondary),
-      onTertiary: _onFor(scheme.tertiary),
-      onSurface: _onFor(scheme.surface),
-      onError: _onFor(scheme.error),
-      onPrimaryContainer: _onFor(scheme.primaryContainer),
-      onSecondaryContainer: _onFor(scheme.secondaryContainer),
-      onTertiaryContainer: _onFor(scheme.tertiaryContainer),
-      onErrorContainer: _onFor(scheme.errorContainer),
-      onSurfaceVariant: _onFor(scheme.surfaceContainerHighest),
-      outline: _onFor(scheme.surface).withValues(alpha: 0.65),
-      outlineVariant: _onFor(scheme.surface).withValues(alpha: 0.45),
+      onPrimary: _contrastColorFor(scheme.primary),
+      onSecondary: _contrastColorFor(scheme.secondary),
+      onTertiary: _contrastColorFor(scheme.tertiary),
+      onSurface: _contrastColorFor(scheme.surface),
+      onError: _contrastColorFor(scheme.error),
+      onPrimaryContainer: _contrastColorFor(scheme.primaryContainer),
+      onSecondaryContainer: _contrastColorFor(scheme.secondaryContainer),
+      onTertiaryContainer: _contrastColorFor(scheme.tertiaryContainer),
+      onErrorContainer: _contrastColorFor(scheme.errorContainer),
+      onSurfaceVariant: _contrastColorFor(scheme.surfaceVariant),
+      outline: _contrastColorFor(scheme.surface).withValues(alpha: 0.65),
+      outlineVariant: _contrastColorFor(scheme.surface).withValues(alpha: 0.45),
     );
 
-    final hcTextTheme = base.textTheme
-        .apply(
-          bodyColor: hcScheme.onSurface,
-          displayColor: hcScheme.onSurface,
-        )
-        .copyWith(
-          bodySmall: base.textTheme.bodySmall?.copyWith(
-            color: hcScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-          labelSmall: base.textTheme.labelSmall?.copyWith(
-            color: hcScheme.onSurface,
-            fontWeight: FontWeight.w700,
-          ),
-        );
+    return base.copyWith(colorScheme: hcScheme);
+  }
 
-    return base.copyWith(
-      colorScheme: hcScheme,
-      textTheme: hcTextTheme,
-      dividerColor: hcScheme.outline,
-      disabledColor: hcScheme.onSurface.withValues(alpha: 0.55),
+  Color _contrastColorFor(Color color) {
+    return ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  void _triggerThemeTransition(
+      BuildContext? context, ThemeData oldTheme, ThemeData newTheme) {
+    if (context == null || _state.reduceMotion) return;
+
+    final anim = context.findAncestorStateOfType<GameThemeTransitionState>();
+    anim?.play(
+      oldTheme.colorScheme.primary,
+      newTheme.colorScheme.primary,
     );
   }
 
-  Color _onFor(Color color) {
-    return color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+  void _setSwitching(bool value) {
+    if (isSwitching == value) return;
+    isSwitching = value;
+    notifyListeners();
+  }
+}
+
+class ThemeSettings {
+  final AppThemeType type;
+  final bool reduceMotion;
+  final bool highContrast;
+  final bool useGamifiedHome;
+
+  ThemeSettings({
+    required this.type,
+    required this.reduceMotion,
+    required this.highContrast,
+    required this.useGamifiedHome,
+  });
+
+  factory ThemeSettings.initial() {
+    return ThemeSettings(
+      type: AppThemeType.sciFi,
+      reduceMotion: false,
+      highContrast: false,
+      useGamifiedHome: true,
+    );
+  }
+
+  ThemeSettings copyWith({
+    AppThemeType? type,
+    bool? reduceMotion,
+    bool? highContrast,
+    bool? useGamifiedHome,
+  }) {
+    return ThemeSettings(
+      type: type ?? this.type,
+      reduceMotion: reduceMotion ?? this.reduceMotion,
+      highContrast: highContrast ?? this.highContrast,
+      useGamifiedHome: useGamifiedHome ?? this.useGamifiedHome,
+    );
   }
 }

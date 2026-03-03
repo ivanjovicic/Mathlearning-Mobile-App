@@ -12,9 +12,9 @@ class BadgesScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: colorScheme.background,
       appBar: AppBar(
-        backgroundColor: colorScheme.surface.withValues(alpha: 0),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
           "Bedzevi",
@@ -22,17 +22,19 @@ class BadgesScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: badges.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: .85,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
+      body: SafeArea(
+        child: GridView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: badges.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: .85,
+            crossAxisSpacing: 14,
+            mainAxisSpacing: 14,
+          ),
+          itemBuilder: (context, index) =>
+              _buildBadgeCard(context, badges[index]),
         ),
-        itemBuilder: (context, index) =>
-            _buildBadgeCard(context, badges[index]),
       ),
     );
   }

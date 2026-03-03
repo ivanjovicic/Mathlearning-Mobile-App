@@ -19,7 +19,7 @@ class _AstraHomeScreenState extends State<AstraHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AstraXTheme.bg,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: const AstraAppBar(title: 'MathLearning'),
       body: Padding(
         padding: const EdgeInsets.all(18),

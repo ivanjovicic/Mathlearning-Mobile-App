@@ -29,88 +29,90 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
     final days = List.generate(90, (i) => now.subtract(Duration(days: i)));
 
     return Scaffold(
-      backgroundColor: AstraXTheme.bg,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
         title: const Text('Streak Heatmap'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
       ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: GridView.builder(
-              padding: const EdgeInsets.all(8),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 10,
-                mainAxisSpacing: 6,
-                crossAxisSpacing: 6,
-              ),
-              itemCount: days.length,
-              itemBuilder: (context, index) {
-                final day = days[index];
-                final level = _levelForDay(day, heatmap, progress);
-                final color = _colorForLevel(level);
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 450),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: color.withValues(alpha: 0.7),
-                    boxShadow: level == 0
-                        ? const []
-                        : [
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: GridView.builder(
+                padding: const EdgeInsets.all(8),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 10,
+                  mainAxisSpacing: 6,
+                  crossAxisSpacing: 6,
+                ),
+                itemCount: days.length,
+                itemBuilder: (context, index) {
+                  final day = days[index];
+                  final level = _levelForDay(day, heatmap, progress);
+                  final color = _colorForLevel(level);
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 450),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      color: color.withValues(alpha: 0.7),
+                      boxShadow: level == 0
+                          ? const []
+                          : [
                             BoxShadow(
                               color: color.withValues(alpha: 0.55),
                               blurRadius: 12,
                               spreadRadius: 1.5,
                             ),
                           ],
-                  ),
-                );
-              },
-            ),
-          ),
-          Positioned(
-            top: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AstraXTheme.panelLight,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: AstraXTheme.neonGreen,
-                  width: 1.4,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AstraXTheme.neonGreen.withValues(alpha: 0.3),
-                    blurRadius: 12,
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.local_fire_department_rounded,
-                    color: Color(0xFFFFF0E1),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Streak: ${progress.streak} days',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.2,
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
-          ),
-        ],
+            Positioned(
+              top: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AstraXTheme.panelLight,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AstraXTheme.neonGreen,
+                    width: 1.4,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AstraXTheme.neonGreen.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.local_fire_department_rounded,
+                      color: Color(0xFFFFF0E1),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Streak: ${progress.streak} days',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -514,7 +514,7 @@ class QuizProvider extends ChangeNotifier {
         );
       } on ApiRateLimitedException catch (e) {
         if (context.mounted) {
-          final seconds = e.retryAfter.inSeconds.clamp(1, 60);
+          final seconds = (e.retryAfter?.inSeconds ?? 1).clamp(1, 60).toInt();
           final messenger = ScaffoldMessenger.of(context);
           messenger.hideCurrentSnackBar();
           messenger.showSnackBar(

@@ -1,110 +1,158 @@
 import 'package:flutter/material.dart';
 
 class AstraXTheme {
-  // Core colors
-  static const Color bg = Color(0xFF0C0D10); // nearly black
-  static const Color panel = Color(0xFF14151A); // deep charcoal
-  static const Color panelLight = Color(0xFF1D1E24);
-  static const Color glass = Color(0x22FFFFFF); // subtle glass
+  // Brand colors
   static const Color neonBlue = Color(0xFF59C7FF);
   static const Color neonPurple = Color(0xFFB06BFF);
   static const Color neonGreen = Color(0xFF52FFB3);
-  static const Color danger = Color(0xFFFF5C7A);
+
+  // Const compatibility values used in const contexts by legacy UI
+  static const Color panel = Color(0xFF1D1E24);
   static const Color textPrimary = Color(0xFFF0F2F5);
   static const Color textSecondary = Color(0xFF9CA3AF);
 
-  static const double radius = 20;
+  // Backwards-compatible convenience colors used across screens
+  static Color get bg => const Color(0xFF0C0D10);
+  static Color get panelLight => const Color(0xFF1D1E24);
+  static Color get danger => const Color(0xFFFF6B6B);
 
-  static ThemeData dark() {
-    final base = ThemeData.dark(useMaterial3: true);
+  static ThemeData buildDarkTheme() {
+    final colorScheme = ColorScheme.dark(
+      primary: neonBlue,
+      onPrimary: Color(0xFF001E30),
+      primaryContainer: Color(0xFF1A3A50),
+      onPrimaryContainer: Color(0xFFCBE6FF),
+      secondary: neonPurple,
+      onSecondary: Color(0xFF1B0040),
+      secondaryContainer: Color(0xFF2E1A5C),
+      onSecondaryContainer: Color(0xFFE1D0FF),
+      tertiary: neonGreen,
+      onTertiary: Color(0xFF003822),
+      tertiaryContainer: Color(0xFF0A4D33),
+      onTertiaryContainer: Color(0xFFB3FFD9),
+      error: Color(0xFFFF6B6B),
+      onError: Colors.white,
+      background: Color(0xFF0C0D10),
+      onBackground: Color(0xFFF0F2F5),
+      surface: Color(0xFF14151A),
+      onSurface: Color(0xFFF0F2F5),
+      surfaceVariant: Color(0xFF1D1E24),
+      onSurfaceVariant: Color(0xFF9CA3AF),
+      outline: Color(0xFF3A3B44),
+      outlineVariant: Color(0xFF2A2B33),
+    );
 
-    return base.copyWith(
-      scaffoldBackgroundColor: bg,
-      colorScheme: base.colorScheme.copyWith(
-        brightness: Brightness.dark,
-        primary: neonBlue,
-        secondary: neonPurple,
-        surface: panel,
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: colorScheme.background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: colorScheme.surface,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: true,
         titleTextStyle: TextStyle(
-          color: Colors.white,
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
-      ),
-      cardTheme: const CardThemeData(
-        color: panel,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(radius)),
-        ),
-      ),
-      textTheme: base.textTheme.copyWith(
-        bodyMedium: const TextStyle(color: Colors.white70, fontSize: 16),
-        titleMedium: const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
+          color: colorScheme.onSurface,
+          fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
-        headlineMedium: const TextStyle(
-          color: Colors.white,
-          fontSize: 22,
+        iconTheme: IconThemeData(color: colorScheme.onSurface),
+      ),
+      // CardTheme vs CardThemeData compatibility: accept either and map
+      // cardTheme omitted for SDK compatibility; rely on defaults
+      textTheme: TextTheme(
+        displayLarge: TextStyle(
+          fontSize: 28,
           fontWeight: FontWeight.w700,
+          color: colorScheme.onSurface,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: colorScheme.onSurface,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: colorScheme.onSurface,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          color: colorScheme.onSurface,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        labelLarge: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: colorScheme.onSurface,
+        ),
+        labelMedium: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: colorScheme.onSurfaceVariant,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: panelLight,
-        labelStyle: const TextStyle(color: Colors.white60),
+        fillColor: colorScheme.surfaceVariant,
+        labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius),
-          borderSide: const BorderSide(color: Colors.white12),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: colorScheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius),
-          borderSide: const BorderSide(color: Colors.white24),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: colorScheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius),
-          borderSide: const BorderSide(color: neonBlue, width: 1.8),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: colorScheme.primary, width: 1.8),
         ),
       ),
-      dividerTheme: const DividerThemeData(
-        color: Colors.white12,
-        thickness: 1,
-      ),
       switchTheme: SwitchThemeData(
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return neonPurple.withValues(alpha: 0.5);
-          }
-          return Colors.white12;
-        }),
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return neonPurple;
+            return colorScheme.onSecondaryContainer;
           }
-          return Colors.white30;
+          return colorScheme.onSurfaceVariant;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return colorScheme.secondaryContainer;
+          }
+          return colorScheme.surfaceContainerHighest;
         }),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: neonBlue,
-          foregroundColor: Colors.black,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radius),
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return colorScheme.surfaceContainerHighest;
+            }
+            return colorScheme.primary;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return colorScheme.onSurfaceVariant;
+            }
+            return colorScheme.onPrimary;
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
+          ),
         ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: colorScheme.outlineVariant,
+        thickness: 1,
       ),
     );
   }
-
-  static ThemeData get data => dark();
 }

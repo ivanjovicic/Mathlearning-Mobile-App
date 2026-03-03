@@ -41,7 +41,7 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
     final canStart = !_loading && qp.questions.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: AstraXTheme.bg,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),

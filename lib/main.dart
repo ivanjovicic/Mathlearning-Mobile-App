@@ -32,6 +32,7 @@ import 'state/streak_freeze_provider.dart';
 import 'state/user_profile_provider.dart';
 
 import 'theme/theme_controller.dart';
+import 'theme/theme_preferences_service.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'theme_selector_page.dart';
 import 'widgets/auth_wrapper.dart';
@@ -43,6 +44,8 @@ import 'effects/glass_break_transition.dart';
 
 import 'services/bug_capture_service.dart';
 import 'services/route_tracker.dart';
+import 'app_router.dart';
+import 'app_scaffold.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +78,7 @@ class MathLearningApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeController()),
+        ChangeNotifierProvider(create: (_) => ThemeController(ThemePreferencesService())),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => StreakFreezeProvider()..load()),
         ChangeNotifierProxyProvider<StreakFreezeProvider, ProgressProvider>(
@@ -167,99 +170,35 @@ class _AppRoot extends StatelessWidget {
         ? Duration.zero
         : const Duration(milliseconds: 350);
 
-    final appContent = VerticalPortalTransition(
-      trigger: transitionTrigger,
-      child: AnimatedTheme(
-        duration: transitionDuration,
-        curve: Curves.easeInOut,
-        data: themeController.currentTheme,
-        child: GlassBreakTransition(
-          trigger: transitionTrigger,
-          child: RepaintBoundary(
-            child: AnimatedSwitcher(
-              duration: transitionDuration,
-              switchOutCurve: Curves.easeIn,
-              switchInCurve: Curves.easeOut,
-              transitionBuilder: (child, animation) {
-                if (reduceMotion) return child;
-                return FadeTransition(
-                  opacity: animation,
-                  child: ScaleTransition(
-                    scale: Tween<double>(begin: 0.98, end: 1.0).animate(
-                      CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOut,
-                      ),
-                    ),
-                    child: child,
-                  ),
-                );
-              },
-              child: MaterialApp(
-                key: ValueKey(themeController.currentType),
-                debugShowCheckedModeBanner: false,
-                title: 'Math Learning',
-                theme: themeController.currentTheme,
-                locale: locale,
-                supportedLocales: const [
-                  Locale('en'),
-                  Locale('sr'),
-                  Locale('de'),
-                  Locale('es'),
-                ],
-                localizationsDelegates: const [
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                ],
-                navigatorObservers: [RouteTracker.instance],
-                builder: (context, child) {
-                  final mediaQuery = MediaQuery.of(context);
-                  return MediaQuery(
-                    data: mediaQuery.copyWith(
-                      disableAnimations:
-                          mediaQuery.disableAnimations || reduceMotion,
-                      highContrast: mediaQuery.highContrast || highContrast,
-                    ),
-                    child: RepaintBoundary(
-                      key: BugCaptureService.instance.rootBoundaryKey,
-                      child: child ?? const SizedBox.shrink(),
-                    ),
-                  );
-                },
-                home: const AuthCheckWidget(child: AuthWrapper()),
-                routes: {
-                  "/home": (_) => const ScreenWrapper(child: HomeEntryScreen()),
-                  "/astrax-home": (_) => const ScreenWrapper(child: AstraHomeScreen()),
-                  "/daily-review": (_) => const ScreenWrapper(child: DailyReviewScreen()),
-                  "/quiz": (_) => const ScreenWrapper(child: QuizScreen()),
-                  "/heatmap": (_) => const ScreenWrapper(child: HeatmapScreen()),
-                  "/leaderboard": (_) => const ScreenWrapper(child: LeaderboardScreen()),
-                  "/school-leaderboard": (_) =>
-                      const ScreenWrapper(child: SchoolLeaderboardScreen()),
-                  "/reward": (_) => const ScreenWrapper(child: RewardScreen()),
-                  "/badges": (_) => const ScreenWrapper(child: BadgesScreen()),
-                  "/profile": (_) => const ScreenWrapper(child: ProfileScreen()),
-                  "/settings": (_) => const ScreenWrapper(child: SettingsScreen()),
-                  "/login": (_) => const ScreenWrapper(child: LoginScreen()),
-                  "/themes": (_) => const ScreenWrapper(child: ThemeSelectorPage()),
-                  "/onboarding": (_) => const ScreenWrapper(child: OnboardingScreen()),
-                  "/quiz-summary": (_) => const ScreenWrapper(child: QuizSummaryScreen()),
-                  "/my-feedback": (_) => const ScreenWrapper(child: MyFeedbackScreen()),
-                },
-              ),
-            ),
+    return MaterialApp.router(
+      key: ValueKey(themeController.currentType),
+      debugShowCheckedModeBanner: false,
+      title: 'Math Learning',
+      theme: themeController.currentTheme,
+      locale: locale,
+      supportedLocales: const [
+        Locale('en'),
+        Locale('sr'),
+        Locale('de'),
+        Locale('es'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
+      routerConfig: AppRouter.router,
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            disableAnimations:
+                mediaQuery.disableAnimations || reduceMotion,
+            highContrast: mediaQuery.highContrast || highContrast,
           ),
-        ),
-      ),
-    );
-
-    if (reduceMotion) {
-      return appContent;
-    }
-
-    return GameThemeTransition(
-      child: appContent,
+          child: AppScaffold(child: child ?? const SizedBox.shrink()),
+        );
+      },
     );
   }
 }

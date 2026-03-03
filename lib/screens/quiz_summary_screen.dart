@@ -7,51 +7,77 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import '../l10n/app_i18n.dart';
 import '../widgets/mastery_progress_bar.dart';
 
-/// Summary screen shown after completing a quiz session.
-///
-/// Receives all data via [QuizSessionStats] argument (pushed from QuizProvider).
-/// Uses the app theme — no hardcoded colours.
 class QuizSummaryScreen extends StatefulWidget {
   const QuizSummaryScreen({super.key});
+
+  factory QuizSummaryScreen.withStats(QuizSessionStats stats) {
+    return _QuizSummaryWithStats(stats: stats);
+  }
 
   @override
   State<QuizSummaryScreen> createState() => _QuizSummaryScreenState();
 }
 
+class _QuizSummaryWithStats extends QuizSummaryScreen {
+  final QuizSessionStats stats;
+  const _QuizSummaryWithStats({required this.stats});
+}
+
 class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
+  QuizSessionStats? _stats;
   bool _showConfetti = false;
 
   @override
-  void initState() {
-    super.initState();
-    Future.delayed(400.ms, () {
-      if (!mounted) return;
-      final stats =
-          ModalRoute.of(context)?.settings.arguments as QuizSessionStats?;
-      if (stats != null && stats.accuracyPercent >= 70) {
-        setState(() => _showConfetti = true);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_stats != null) return;
+
+    if (widget is _QuizSummaryWithStats) {
+      _stats = (widget as _QuizSummaryWithStats).stats;
+    } else {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is QuizSessionStats) {
+        _stats = args;
       }
-    });
+    }
+
+    if (_stats != null && _stats!.accuracyPercent >= 70) {
+      Future.delayed(350.ms, () {
+        if (!mounted) return;
+        setState(() => _showConfetti = true);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
     final t = context.t;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
-    final stats =
-        ModalRoute.of(context)?.settings.arguments as QuizSessionStats?;
+    final stats = _stats;
 
     if (stats == null) {
-      // Safety fallback — shouldn't happen
       return Scaffold(
         body: Center(
-          child: TextButton(
-            onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
-            child: Text(t.qsBackHome),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.quiz_rounded, size: 40),
+              const SizedBox(height: 12),
+              Text(
+                'No stats available',
+                style: theme.textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+                icon: const Icon(Icons.home_rounded),
+                label: Text(t.qsBackHome),
+              ),
+            ],
           ),
         ),
       );
@@ -62,232 +88,130 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
       body: Stack(
         children: [
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  const SizedBox(height: 40),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 720;
 
-                  // ── Trophy / result icon ──
-                  _animWrap(
-                    reduceMotion: reduceMotion,
-                    delay: Duration.zero,
-                    child: _ResultIcon(accuracy: stats.accuracyPercent, cs: cs),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ── Title ──
-                  _animWrap(
-                    reduceMotion: reduceMotion,
-                    delay: 120.ms,
-                    child: Text(
-                      t.qsTitle,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: cs.onSurface,
+                final content = SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 640),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 16),
+                          _SummaryHeader(stats: stats, reduceMotion: reduceMotion),
+                          const SizedBox(height: 28),
+                          _SummaryStatRow(stats: stats, reduceMotion: reduceMotion),
+                          const SizedBox(height: 24),
+                          _SummaryMasterySection(stats: stats, reduceMotion: reduceMotion),
+                          const SizedBox(height: 24),
+                          if (stats.wrongQuestions.isNotEmpty)
+                            _SummaryWrongQuestionsSection(stats: stats, reduceMotion: reduceMotion),
+                          const SizedBox(height: 32),
+                          SummaryActions(stats: stats, reduceMotion: reduceMotion),
+                          const SizedBox(height: 32),
+                        ],
                       ),
                     ),
                   ),
+                );
 
-                  const SizedBox(height: 8),
-
-                  _animWrap(
-                    reduceMotion: reduceMotion,
-                    delay: 180.ms,
-                    child: Text(
-                      t.qsSubtitle(stats.correct, stats.total),
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: cs.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // ── Stat cards row ──
-                  _animWrap(
-                    reduceMotion: reduceMotion,
-                    delay: 260.ms,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _StatCard(
-                            icon: Icons.auto_awesome_rounded,
-                            label: 'XP',
-                            value: '+${stats.xpEarned}',
-                            color: cs.secondary,
-                            cs: cs,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _StatCard(
-                            icon: Icons.local_fire_department_rounded,
-                            label: t.qsStreak,
-                            value: '${stats.streak}',
-                            color: Colors.orange,
-                            cs: cs,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _StatCard(
-                            icon: Icons.gps_fixed_rounded,
-                            label: t.qsAccuracy,
-                            value: '${stats.accuracyPercent}%',
-                            color: stats.accuracyPercent >= 70
-                                ? cs.tertiary
-                                : cs.error,
-                            cs: cs,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ── Mastery bar ──
-                  _animWrap(
-                    reduceMotion: reduceMotion,
-                    delay: 340.ms,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              t.qsMastery,
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: cs.onSurface.withValues(alpha: 0.8),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              '${(stats.masteryProgress * 100).round()}%',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: cs.onSurface.withValues(alpha: 0.8),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        MasteryProgressBar(
-                          progress: stats.masteryProgress,
-                          animate: !reduceMotion,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // ── Wrong questions review ──
-                  if (stats.wrongQuestions.isNotEmpty)
-                    _animWrap(
-                      reduceMotion: reduceMotion,
-                      delay: 420.ms,
-                      child: _WrongQuestionsCard(
-                        questions: stats.wrongQuestions,
-                        cs: cs,
-                        theme: theme,
-                        t: t,
-                      ),
-                    ),
-
-                  const SizedBox(height: 32),
-
-                  // ── Action buttons ──
-                  _animWrap(
-                    reduceMotion: reduceMotion,
-                    delay: 500.ms,
-                    child: Column(
-                      children: [
-                        // Play again
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: FilledButton.icon(
-                            onPressed: () => Navigator.pushReplacementNamed(
-                              context,
-                              '/quiz',
-                            ),
-                            icon: const Icon(Icons.replay_rounded),
-                            label: Text(
-                              t.qsPlayAgain,
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: cs.primary,
-                              foregroundColor: cs.onPrimary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        // Back to home
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: OutlinedButton.icon(
-                            onPressed: () => Navigator.pushReplacementNamed(
-                              context,
-                              '/home',
-                            ),
-                            icon: const Icon(Icons.home_rounded),
-                            label: Text(
-                              t.qsBackHome,
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: cs.onSurface,
-                              side: BorderSide(
-                                color: cs.outline.withValues(alpha: 0.4),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-                ],
-              ),
+                return content;
+              },
             ),
           ),
-
-          // ── Confetti overlay ──
-          if (_showConfetti) const _ConfettiOverlay(),
+          if (_showConfetti)
+            const _ConfettiOverlay().animate().fadeIn(duration: 250.ms),
         ],
       ),
     );
   }
+}
 
-  Widget _animWrap({
-    required bool reduceMotion,
-    required Duration delay,
-    required Widget child,
-  }) {
-    if (reduceMotion) return child;
-    return child
-        .animate()
-        .fadeIn(duration: 400.ms, delay: delay)
-        .moveY(begin: 20, end: 0, duration: 400.ms, delay: delay);
+class _SummaryHeader extends StatelessWidget {
+  final QuizSessionStats stats;
+  final bool reduceMotion;
+
+  const _SummaryHeader({
+    required this.stats,
+    required this.reduceMotion,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final t = context.t;
+
+    final heroChild = _ResultIcon(
+      accuracy: stats.accuracyPercent,
+      cs: cs,
+    );
+
+    Widget icon = Hero(
+      tag: 'quiz-summary-result-icon',
+      child: heroChild,
+    );
+
+    if (!reduceMotion) {
+      icon = icon
+          .animate()
+          .scale(
+            begin: const Offset(0.8, 0.8),
+            end: const Offset(1, 1),
+            duration: 450.ms,
+            curve: Curves.easeOutBack,
+          )
+          .fadeIn(duration: 350.ms);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const SizedBox(height: 12),
+        icon,
+        const SizedBox(height: 20),
+        Text(
+          t.qsTitle,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            color: cs.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          t.qsSubtitle(stats.correct, stats.total),
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: cs.onSurface.withOpacity(0.72),
+          ),
+        ),
+        const SizedBox(height: 16),
+        AnimatedSwitcher(
+          duration: reduceMotion ? Duration.zero : 320.ms,
+          transitionBuilder: (child, anim) => FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween(begin: const Offset(0, 0.15), end: Offset.zero).animate(anim),
+              child: child,
+            ),
+          ),
+          child: Text(
+            '${stats.accuracyPercent}%',
+            key: ValueKey(stats.accuracyPercent),
+            style: theme.textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1.2,
+              color: stats.accuracyPercent >= 70 ? cs.primary : cs.error,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -591,4 +515,130 @@ class QuizSessionStats {
 
   int get accuracyPercent =>
       total > 0 ? (correct / total * 100).round() : 0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Small private helpers referenced from the summary layout
+// ═══════════════════════════════════════════════════════════════════════
+
+class _SummaryStatRow extends StatelessWidget {
+  final QuizSessionStats stats;
+  final bool reduceMotion;
+
+  const _SummaryStatRow({required this.stats, required this.reduceMotion});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: _StatCard(
+            icon: Icons.check_circle_rounded,
+            label: 'Correct',
+            value: '${stats.correct}',
+            color: cs.primary,
+            cs: cs,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.timer,
+            label: 'Total',
+            value: '${stats.total}',
+            color: cs.secondary,
+            cs: cs,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.star_rounded,
+            label: 'XP',
+            value: '${stats.xpEarned}',
+            color: Colors.amber,
+            cs: cs,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryMasterySection extends StatelessWidget {
+  final QuizSessionStats stats;
+  final bool reduceMotion;
+
+  const _SummaryMasterySection({required this.stats, required this.reduceMotion});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(context.t.qsMastery, style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 12),
+        MasteryProgressBar(progress: stats.masteryProgress),
+      ],
+    );
+  }
+}
+
+class _SummaryWrongQuestionsSection extends StatelessWidget {
+  final QuizSessionStats stats;
+  final bool reduceMotion;
+
+  const _SummaryWrongQuestionsSection({required this.stats, required this.reduceMotion});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    if (stats.wrongQuestions.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(t.qsReviewTitle, style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 12),
+        _WrongQuestionsCard(
+          questions: stats.wrongQuestions,
+          cs: Theme.of(context).colorScheme,
+          theme: Theme.of(context),
+          t: t,
+        ),
+      ],
+    );
+  }
+}
+
+class SummaryActions extends StatelessWidget {
+  final QuizSessionStats stats;
+  final bool reduceMotion;
+
+  const SummaryActions({required this.stats, required this.reduceMotion});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton(
+            onPressed: () => Navigator.pushReplacementNamed(context, '/quiz'),
+            child: const Text('Retry'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+            child: Text(t.qsBackHome),
+          ),
+        ),
+      ],
+    );
+  }
 }

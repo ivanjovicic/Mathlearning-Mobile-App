@@ -225,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen>
     final dailyDone = progress.totalAttempts % _dailyGoalTarget;
 
     return Scaffold(
-      backgroundColor: AstraXTheme.bg,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(18),
