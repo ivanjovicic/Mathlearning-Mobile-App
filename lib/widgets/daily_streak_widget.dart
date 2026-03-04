@@ -60,10 +60,10 @@ class _DailyStreakWidgetState extends State<DailyStreakWidget>
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.orange.shade200.withOpacity(0.2),
+                  color: Colors.orange.shade200.withValues(alpha: 0.2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.orange.shade300.withOpacity(0.3),
+                      color: Colors.orange.shade300.withValues(alpha: 0.3),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
@@ -90,7 +90,7 @@ class _DailyStreakWidgetState extends State<DailyStreakWidget>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.orange.shade400, width: 1.5),
               ),

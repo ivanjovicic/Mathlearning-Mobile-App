@@ -1,22 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-
-import 'screens/badge_screen.dart';
-import 'screens/daily_review_screen.dart';
-import 'screens/profile_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/quiz_screen.dart';
-import 'screens/reward_screen.dart';
-import 'screens/heatmap_screen.dart';
-import 'screens/leaderboard_screen.dart';
-import 'screens/school_leaderboard_screen.dart';
-import 'screens/settings_screen.dart';
-import 'screens/quiz_summary_screen.dart';
-import 'screens/my_feedback_screen.dart';
-import 'screens/astrax_home_screen.dart';
 
 import 'state/badge_provider.dart';
 import 'state/leaderboard_provider.dart';
@@ -33,19 +22,11 @@ import 'state/user_profile_provider.dart';
 
 import 'theme/theme_controller.dart';
 import 'theme/theme_preferences_service.dart';
-import 'screens/onboarding/onboarding_screen.dart';
-import 'theme_selector_page.dart';
-import 'widgets/auth_wrapper.dart';
-import 'widgets/screen_wrapper.dart';
-
-import 'widgets/game_theme_transition.dart';
-import 'effects/vertical_portal_transition.dart';
-import 'effects/glass_break_transition.dart';
-
-import 'services/bug_capture_service.dart';
-import 'services/route_tracker.dart';
+import 'services/auth_service.dart';
+import 'services/bug_report_service.dart';
+import 'services/notification_service.dart';
+import 'services/offline_manager.dart';
 import 'app_router.dart';
-import 'app_scaffold.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,7 +41,8 @@ void main() {
   if (kIsWeb) {
     FlutterError.onError = (FlutterErrorDetails details) {
       final msg = details.exceptionAsString();
-      if (msg.contains('AssetManifest') || msg.contains('Unable to load asset')) {
+      if (msg.contains('AssetManifest') ||
+          msg.contains('Unable to load asset')) {
         debugPrint('[WEB] Suppressed asset error: $msg');
         return;
       }
@@ -78,7 +60,9 @@ class MathLearningApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeController(ThemePreferencesService())),
+        ChangeNotifierProvider(
+          create: (_) => ThemeController(ThemePreferencesService()),
+        ),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => StreakFreezeProvider()..load()),
         ChangeNotifierProxyProvider<StreakFreezeProvider, ProgressProvider>(
@@ -154,8 +138,42 @@ class MathLearningApp extends StatelessWidget {
   }
 }
 
-class _AppRoot extends StatelessWidget {
+class _AppRoot extends StatefulWidget {
   const _AppRoot();
+
+  @override
+  State<_AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<_AppRoot> {
+  late final GoRouter _router;
+  bool _routerInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(AuthService.instance.initialize());
+      unawaited(OfflineManager.instance.initialize());
+      unawaited(context.read<AuthProvider>().autoLogin());
+      unawaited(BugReportService.instance.syncPendingReports());
+      unawaited(NotificationService.instance.initialize());
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_routerInitialized) return;
+    _router = AppRouter.createRouter(context.read<AuthProvider>());
+    _routerInitialized = true;
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -165,10 +183,6 @@ class _AppRoot extends StatelessWidget {
     );
     final reduceMotion = themeController.reduceMotion;
     final highContrast = themeController.highContrast;
-    final transitionTrigger = themeController.isSwitching && !reduceMotion;
-    final transitionDuration = reduceMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 350);
 
     return MaterialApp.router(
       key: ValueKey(themeController.currentType),
@@ -187,16 +201,15 @@ class _AppRoot extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
-      routerConfig: AppRouter.router,
+      routerConfig: _router,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         return MediaQuery(
           data: mediaQuery.copyWith(
-            disableAnimations:
-                mediaQuery.disableAnimations || reduceMotion,
+            disableAnimations: mediaQuery.disableAnimations || reduceMotion,
             highContrast: mediaQuery.highContrast || highContrast,
           ),
-          child: AppScaffold(child: child ?? const SizedBox.shrink()),
+          child: child ?? const SizedBox.shrink(),
         );
       },
     );

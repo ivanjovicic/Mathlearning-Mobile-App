@@ -12,10 +12,9 @@ class QuestChecklist extends StatelessWidget {
         leading: const Icon(Icons.checklist),
         title: const Text('Zadaci'),
         subtitle: const Text('Pregled zadataka za postavljanje naloga'),
-+        onTap: () {},
+        onTap: () {},
       ),
     );
   }
 }
 
-Widget QuestChecklist({dynamic settings}) => QuestChecklist(settings: settings);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
@@ -53,10 +54,11 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
 
       if (result.success) {
         if (mounted) {
-          context.read<AuthProvider>().login(
+          await context.read<AuthProvider>().login(
             _usernameController.text.trim(),
             _passwordController.text,
           );
+          if (!mounted) return;
           final colorScheme = Theme.of(context).colorScheme;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -74,7 +76,7 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
               ),
             ),
           );
-          Navigator.of(context).pushReplacementNamed("/home");
+          context.go('/home');
         }
       } else {
         setState(() {
@@ -204,7 +206,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                   colorScheme: colorScheme,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
                     onPressed: () {
                       setState(() {
@@ -268,7 +272,9 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
                         Expanded(
                           child: Text(
                             _errorMessage,
-                            style: TextStyle(color: colorScheme.onErrorContainer),
+                            style: TextStyle(
+                              color: colorScheme.onErrorContainer,
+                            ),
                           ),
                         ),
                       ],
@@ -385,9 +391,7 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
         labelText: labelText,
         prefixIcon: Icon(prefixIcon),
         suffixIcon: suffixIcon,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
       ),

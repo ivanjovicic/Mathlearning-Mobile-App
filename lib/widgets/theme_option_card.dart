@@ -23,7 +23,7 @@ class ThemeOptionCard extends StatelessWidget {
         border: Border.all(
           color: selected
               ? colorScheme.secondary
-              : colorScheme.surfaceVariant,
+              : colorScheme.surfaceContainerHighest,
           width: selected ? 2.5 : 1.0,
         ),
         boxShadow: selected

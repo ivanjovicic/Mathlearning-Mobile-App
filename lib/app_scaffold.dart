@@ -1,23 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class AppScaffold extends StatelessWidget {
+class AppScaffold extends StatefulWidget {
   final Widget child;
 
   const AppScaffold({required this.child, Key? key}) : super(key: key);
 
   @override
+  State<AppScaffold> createState() => _AppScaffoldState();
+}
+
+class _AppScaffoldState extends State<AppScaffold> {
+  RouteInformationProvider? _routeInfo;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = GoRouter.of(context).routeInformationProvider;
+    if (identical(_routeInfo, provider)) return;
+    _routeInfo?.removeListener(_handleRouteChange);
+    _routeInfo = provider;
+    _routeInfo?.addListener(_handleRouteChange);
+  }
+
+  @override
+  void dispose() {
+    _routeInfo?.removeListener(_handleRouteChange);
+    super.dispose();
+  }
+
+  void _handleRouteChange() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: child,
+      body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _getSelectedIndex(context),
-        onTap: (index) => _onItemTapped(context, index),
+        currentIndex: _getSelectedIndex(),
+        onTap: _onItemTapped,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
             icon: Icon(Icons.leaderboard),
             label: 'Leaderboard',
@@ -31,8 +57,8 @@ class AppScaffold extends StatelessWidget {
     );
   }
 
-  int _getSelectedIndex(BuildContext context) {
-    final String location = GoRouter.of(context).location;
+  int _getSelectedIndex() {
+    final location = _routeInfo?.value.uri.toString() ?? '';
     if (location.startsWith('/home')) {
       return 0;
     } else if (location.startsWith('/leaderboard')) {
@@ -43,7 +69,7 @@ class AppScaffold extends StatelessWidget {
     return 0;
   }
 
-  void _onItemTapped(BuildContext context, int index) {
+  void _onItemTapped(int index) {
     switch (index) {
       case 0:
         context.go('/home');

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../theme/astrax_theme.dart';
 
@@ -39,7 +40,11 @@ class LeaderboardScopeSelector extends StatelessWidget {
     );
   }
 
-  Widget _buildItem(BuildContext context, String scope, {required bool enabled}) {
+  Widget _buildItem(
+    BuildContext context,
+    String scope, {
+    required bool enabled,
+  }) {
     final isSelected = selectedScope == scope;
 
     final activeGradient = LinearGradient(
@@ -54,7 +59,9 @@ class LeaderboardScopeSelector extends StatelessWidget {
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: enabled ? () => onChanged(scope) : () => _showDisabledMessage(context, scope),
+        onTap: enabled
+            ? () => onChanged(scope)
+            : () => _showDisabledMessage(context, scope),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
@@ -66,8 +73,8 @@ class LeaderboardScopeSelector extends StatelessWidget {
             border: Border.all(
               color: enabled
                   ? (isSelected
-                      ? AstraXTheme.neonBlue.withValues(alpha: 0.8)
-                      : Colors.white10)
+                        ? AstraXTheme.neonBlue.withValues(alpha: 0.8)
+                        : Colors.white10)
                   : Colors.white10,
             ),
           ),
@@ -90,8 +97,8 @@ class LeaderboardScopeSelector extends StatelessWidget {
                       letterSpacing: 0.2,
                       color: enabled
                           ? (isSelected
-                              ? AstraXTheme.textPrimary
-                              : AstraXTheme.textSecondary)
+                                ? AstraXTheme.textPrimary
+                                : AstraXTheme.textSecondary)
                           : Colors.white24,
                     ),
                   ),
@@ -147,7 +154,7 @@ class LeaderboardScopeSelector extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(sheetContext);
-                    Navigator.pushNamed(context, "/profile");
+                    context.go('/profile');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
@@ -176,4 +183,3 @@ class LeaderboardScopeSelector extends StatelessWidget {
     );
   }
 }
-

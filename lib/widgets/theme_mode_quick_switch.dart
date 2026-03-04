@@ -23,5 +23,4 @@ class ThemeModeQuickSwitch extends StatelessWidget {
   }
 }
 
-Widget ThemeModeQuickSwitchFactory({dynamic themeController, VoidCallback? onThemePicked}) => ThemeModeQuickSwitch(themeController: themeController, onThemePicked: onThemePicked);
-Widget ThemeModeQuickSwitch({dynamic themeController, VoidCallback? onThemePicked}) => ThemeModeQuickSwitchFactory(themeController: themeController, onThemePicked: onThemePicked);
+ 

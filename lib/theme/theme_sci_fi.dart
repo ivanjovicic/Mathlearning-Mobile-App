@@ -36,13 +36,11 @@ class SciFiTheme {
       primary: SciFiPalette.neonPurple,
       secondary: SciFiPalette.neonAmber,
       tertiary: SciFiPalette.neonCyan,
-      background: SciFiPalette.deepSpace,
       surface: SciFiPalette.panelSurface,
       error: SciFiPalette.dangerRed,
       onPrimary: Colors.white,
       onSecondary: Colors.black,
       onTertiary: Colors.black,
-      onBackground: Colors.white,
       onSurface: Colors.white,
       onError: Colors.black,
     );
@@ -53,13 +51,11 @@ class SciFiTheme {
       primary: SciFiPalette.softPurple,
       secondary: SciFiPalette.softAmber,
       tertiary: SciFiPalette.softCyan,
-      background: SciFiPalette.cleanInterface,
       surface: SciFiPalette.lightPanel,
       error: SciFiPalette.dangerRed,
       onPrimary: Colors.black,
       onSecondary: Colors.black,
       onTertiary: Colors.black,
-      onBackground: Colors.black,
       onSurface: Colors.black,
       onError: Colors.white,
     );
@@ -69,7 +65,7 @@ class SciFiTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.background,
+      scaffoldBackgroundColor: colorScheme.surface,
       textTheme: _buildTextTheme(colorScheme),
       appBarTheme: _buildAppBarTheme(colorScheme),
       cardTheme: _buildCardTheme(colorScheme),
@@ -91,7 +87,7 @@ class SciFiTheme {
         fontSize: 32,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.5,
-        color: colorScheme.onBackground,
+        color: colorScheme.onSurface,
       ),
       headlineMedium: GoogleFonts.orbitron(
         fontSize: 24,
@@ -124,8 +120,8 @@ class SciFiTheme {
     );
   }
 
-  static CardTheme _buildCardTheme(ColorScheme colorScheme) {
-    return CardTheme(
+  static CardThemeData _buildCardTheme(ColorScheme colorScheme) {
+    return CardThemeData(
       color: colorScheme.surface,
       elevation: 3,
       shape: RoundedRectangleBorder(
@@ -137,9 +133,9 @@ class SciFiTheme {
   static ElevatedButtonThemeData _buildElevatedButtonTheme(ColorScheme colorScheme) {
     return ElevatedButtonThemeData(
       style: ButtonStyle(
-        backgroundColor: MaterialStateProperty.all(colorScheme.primary),
-        foregroundColor: MaterialStateProperty.all(colorScheme.onPrimary),
-        shape: MaterialStateProperty.all(
+        backgroundColor: WidgetStateProperty.all(colorScheme.primary),
+        foregroundColor: WidgetStateProperty.all(colorScheme.onPrimary),
+        shape: WidgetStateProperty.all(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -151,11 +147,11 @@ class SciFiTheme {
   static OutlinedButtonThemeData _buildOutlinedButtonTheme(ColorScheme colorScheme) {
     return OutlinedButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: MaterialStateProperty.all(colorScheme.primary),
-        side: MaterialStateProperty.all(
+        foregroundColor: WidgetStateProperty.all(colorScheme.primary),
+        side: WidgetStateProperty.all(
           BorderSide(color: colorScheme.primary, width: 2),
         ),
-        shape: MaterialStateProperty.all(
+        shape: WidgetStateProperty.all(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -167,7 +163,7 @@ class SciFiTheme {
   static TextButtonThemeData _buildTextButtonTheme(ColorScheme colorScheme) {
     return TextButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: MaterialStateProperty.all(colorScheme.primary),
+        foregroundColor: WidgetStateProperty.all(colorScheme.primary),
       ),
     );
   }
@@ -185,13 +181,13 @@ class SciFiTheme {
 
   static ChipThemeData _buildChipTheme(ColorScheme colorScheme) {
     return ChipThemeData(
-      backgroundColor: colorScheme.surfaceVariant,
+      backgroundColor: colorScheme.surfaceContainerHighest,
       labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
     );
   }
 
-  static DialogTheme _buildDialogTheme(ColorScheme colorScheme) {
-    return DialogTheme(
+  static DialogThemeData _buildDialogTheme(ColorScheme colorScheme) {
+    return DialogThemeData(
       backgroundColor: colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -218,7 +214,7 @@ class SciFiTheme {
   static TooltipThemeData _buildTooltipTheme(ColorScheme colorScheme) {
     return TooltipThemeData(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       textStyle: TextStyle(color: colorScheme.onSurface),

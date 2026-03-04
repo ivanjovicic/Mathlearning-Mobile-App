@@ -19,7 +19,5 @@ class MySchoolCard extends StatelessWidget {
   }
 }
 
-Widget MySchoolCardWidget({dynamic school, dynamic mySchool}) =>
-  MySchoolCard(school: school ?? mySchool);
-// Provide legacy constructor names expected by callers
-Widget MySchoolCard({dynamic school, dynamic mySchool}) => MySchoolCardWidget(school: school, mySchool: mySchool);
+Widget MySchoolCardWidget({dynamic school, dynamic mySchool}) => MySchoolCard(school: school ?? mySchool);
+// Note: keep only `MySchoolCardWidget` helper to avoid conflict with class name `MySchoolCard`.

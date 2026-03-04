@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../models/topic_item.dart';
 
@@ -44,9 +45,7 @@ class PickTopicScreen extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: t.locked
-            ? null
-            : () => Navigator.pushNamed(context, '/quiz', arguments: t.id),
+        onTap: t.locked ? null : () => context.push('/quiz', extra: t.id),
         child: Opacity(
           opacity: t.locked ? 0.45 : 1,
           child: Container(
@@ -84,11 +83,7 @@ class PickTopicScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                           if (t.locked)
-                            Icon(
-                              Icons.lock,
-                              color: onCardColor,
-                              size: 22,
-                            ),
+                            Icon(Icons.lock, color: onCardColor, size: 22),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -98,7 +93,9 @@ class PickTopicScreen extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: progress,
                             minHeight: 8,
-                            backgroundColor: onCardColor.withValues(alpha: 0.24),
+                            backgroundColor: onCardColor.withValues(
+                              alpha: 0.24,
+                            ),
                             color: colorScheme.secondary,
                           ),
                         ),
@@ -128,11 +125,7 @@ class PickTopicScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 if (!t.locked)
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: onCardColor,
-                    size: 20,
-                  ),
+                  Icon(Icons.arrow_forward_ios, color: onCardColor, size: 20),
               ],
             ),
           ),

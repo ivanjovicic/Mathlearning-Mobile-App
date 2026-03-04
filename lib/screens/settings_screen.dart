@@ -2,6 +2,7 @@
 // Extracted reusable components and optimized state management
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
@@ -32,7 +33,7 @@ class SettingsScreen extends StatelessWidget {
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+              context.go('/home');
             },
             icon: const Icon(Icons.home_outlined),
             tooltip: t.navHome,
@@ -40,80 +41,107 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
       backgroundColor: colorScheme.surface,
-      body: Consumer4<
-          SettingsProvider, ThemeController, ProgressProvider, AuthProvider>(
-        builder: (context, settings, themeController, progress, auth, child) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              SetupHeroCard(
-                completedGoals: settings.completedGoals,
-                completionProgress: settings.completionProgress,
-                setupXp: settings.setupXp,
-                level: progress.level,
-              ),
-              const SizedBox(height: 12),
-              QuestChecklist(settings: settings),
-              const SizedBox(height: 20),
-              SectionHeader(
-                title: t.sectionProfile,
-                icon: Icons.person_outline,
-              ),
-              _buildProfileCard(context, settings, auth, theme, colorScheme),
-              const SizedBox(height: 8),
-              LanguageDropdown(settings: settings),
-              const SizedBox(height: 20),
-              SectionHeader(
-                title: t.sectionQuizExperience,
-                icon: Icons.extension_outlined,
-              ),
-              ..._buildQuizExperienceTiles(settings, t),
-              const SizedBox(height: 20),
-              SectionHeader(
-                title: t.sectionNotifications,
-                icon: Icons.notifications_outlined,
-              ),
-              ..._buildNotificationTiles(context, settings, t, colorScheme),
-              const SizedBox(height: 20),
-              SectionHeader(
-                title: t.sectionThemeAndApp,
-                icon: Icons.palette_outlined,
-              ),
-              ThemeModeQuickSwitch(
-                themeController: themeController,
-                onThemePicked: settings.markThemeConfigured,
-              ),
-              const SizedBox(height: 8),
-              ThemeDropdown(
-                themeController: themeController,
-                onThemePicked: settings.markThemeConfigured,
-              ),
-              const SizedBox(height: 8),
-              _buildAdvancedThemeCard(context, settings, colorScheme, t),
-              const SizedBox(height: 20),
-              SectionHeader(
-                title: t.sectionAudioHaptics,
-                icon: Icons.volume_up_outlined,
-              ),
-              ..._buildAudioHapticsTiles(settings, t),
-              const SizedBox(height: 8),
-              if (!settings.dailyReminderEnabled)
-                Text(
-                  t.dailyTip,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
+      body:
+          Consumer4<
+            SettingsProvider,
+            ThemeController,
+            ProgressProvider,
+            AuthProvider
+          >(
+            builder:
+                (context, settings, themeController, progress, auth, child) {
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      SetupHeroCard(
+                        completedGoals: settings.completedGoals,
+                        completionProgress: settings.completionProgress,
+                        setupXp: settings.setupXp,
+                        level: progress.level,
+                      ),
+                      const SizedBox(height: 12),
+                      QuestChecklist(settings: settings),
+                      const SizedBox(height: 20),
+                      SectionHeader(
+                        title: t.sectionProfile,
+                        icon: Icons.person_outline,
+                      ),
+                      _buildProfileCard(
+                        context,
+                        settings,
+                        auth,
+                        theme,
+                        colorScheme,
+                      ),
+                      const SizedBox(height: 8),
+                      LanguageDropdown(settings: settings),
+                      const SizedBox(height: 20),
+                      SectionHeader(
+                        title: t.sectionQuizExperience,
+                        icon: Icons.extension_outlined,
+                      ),
+                      ..._buildQuizExperienceTiles(settings, t),
+                      const SizedBox(height: 20),
+                      SectionHeader(
+                        title: t.sectionNotifications,
+                        icon: Icons.notifications_outlined,
+                      ),
+                      ..._buildNotificationTiles(
+                        context,
+                        settings,
+                        t,
+                        colorScheme,
+                      ),
+                      const SizedBox(height: 20),
+                      SectionHeader(
+                        title: t.sectionThemeAndApp,
+                        icon: Icons.palette_outlined,
+                      ),
+                      ThemeModeQuickSwitch(
+                        themeController: themeController,
+                        onThemePicked: settings.markThemeConfigured,
+                      ),
+                      const SizedBox(height: 8),
+                      ThemeDropdown(
+                        themeController: themeController,
+                        onThemePicked: settings.markThemeConfigured,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildAdvancedThemeCard(
+                        context,
+                        settings,
+                        colorScheme,
+                        t,
+                      ),
+                      const SizedBox(height: 20),
+                      SectionHeader(
+                        title: t.sectionAudioHaptics,
+                        icon: Icons.volume_up_outlined,
+                      ),
+                      ..._buildAudioHapticsTiles(settings, t),
+                      const SizedBox(height: 8),
+                      if (!settings.dailyReminderEnabled)
+                        Text(
+                          t.dailyTip,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
+                  );
+                },
+          ),
     );
   }
 
-  Widget _buildProfileCard(BuildContext context, SettingsProvider settings,
-      AuthProvider auth, ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildProfileCard(
+    BuildContext context,
+    SettingsProvider settings,
+    AuthProvider auth,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
@@ -133,14 +161,11 @@ class SettingsScreen extends StatelessWidget {
             color: colorScheme.onSurface,
           ),
         ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios_rounded,
-          size: 16,
-        ),
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
         onTap: () async {
           await settings.markProfileConfigured();
           if (context.mounted) {
-            Navigator.pushNamed(context, '/profile');
+            context.go('/profile');
           }
         },
       ),
@@ -183,8 +208,12 @@ class SettingsScreen extends StatelessWidget {
     ];
   }
 
-  List<Widget> _buildNotificationTiles(BuildContext context,
-      SettingsProvider settings, AppI18n t, ColorScheme colorScheme) {
+  List<Widget> _buildNotificationTiles(
+    BuildContext context,
+    SettingsProvider settings,
+    AppI18n t,
+    ColorScheme colorScheme,
+  ) {
     return [
       SettingsSwitchTile(
         title: t.dailyReminderTitle,
@@ -196,9 +225,7 @@ class SettingsScreen extends StatelessWidget {
           if (!context.mounted) return;
           if (settings.lastReminderPermissionDenied) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(t.allowNotificationsMessage),
-              ),
+              SnackBar(content: Text(t.allowNotificationsMessage)),
             );
             settings.clearReminderPermissionStatus();
           }
@@ -207,14 +234,9 @@ class SettingsScreen extends StatelessWidget {
       if (settings.dailyReminderEnabled)
         Card(
           child: ListTile(
-            leading: Icon(
-              Icons.schedule,
-              color: colorScheme.secondary,
-            ),
+            leading: Icon(Icons.schedule, color: colorScheme.secondary),
             title: Text(t.reminderTime),
-            subtitle: Text(
-              settings.dailyReminderTime.format(context),
-            ),
+            subtitle: Text(settings.dailyReminderTime.format(context)),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () async {
               final picked = await showTimePicker(
@@ -226,11 +248,7 @@ class SettingsScreen extends StatelessWidget {
                 if (!context.mounted) return;
                 if (settings.lastReminderPermissionDenied) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        t.reminderSavedButNoPermission,
-                      ),
-                    ),
+                    SnackBar(content: Text(t.reminderSavedButNoPermission)),
                   );
                   settings.clearReminderPermissionStatus();
                 }
@@ -260,24 +278,22 @@ class SettingsScreen extends StatelessWidget {
     ];
   }
 
-  Widget _buildAdvancedThemeCard(BuildContext context,
-      SettingsProvider settings, ColorScheme colorScheme, AppI18n t) {
+  Widget _buildAdvancedThemeCard(
+    BuildContext context,
+    SettingsProvider settings,
+    ColorScheme colorScheme,
+    AppI18n t,
+  ) {
     return Card(
       child: ListTile(
-        leading: Icon(
-          Icons.auto_awesome_outlined,
-          color: colorScheme.primary,
-        ),
+        leading: Icon(Icons.auto_awesome_outlined, color: colorScheme.primary),
         title: Text(t.advancedThemeTitle),
         subtitle: Text(t.advancedThemeSubtitle),
-        trailing: const Icon(
-          Icons.arrow_forward_ios_rounded,
-          size: 16,
-        ),
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
         onTap: () async {
           await settings.markThemeConfigured();
           if (context.mounted) {
-            Navigator.pushNamed(context, '/themes');
+            context.go('/themes');
           }
         },
       ),

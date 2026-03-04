@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../models/topic_item.dart';
 
@@ -38,9 +39,7 @@ class HomeTopicsSection extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: t.locked
-            ? null
-            : () => Navigator.pushNamed(context, '/quiz', arguments: t.id),
+        onTap: t.locked ? null : () => context.push('/quiz', extra: t.id),
         child: Opacity(
           opacity: t.locked ? 0.45 : 1,
           child: Container(
@@ -88,7 +87,9 @@ class HomeTopicsSection extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: t.accuracy / 100,
                             minHeight: 6,
-                            backgroundColor: onCardColor.withValues(alpha: 0.24),
+                            backgroundColor: onCardColor.withValues(
+                              alpha: 0.24,
+                            ),
                             color: colorScheme.secondary,
                           ),
                         ),
@@ -114,11 +115,7 @@ class HomeTopicsSection extends StatelessWidget {
                   ),
                 ),
                 if (!t.locked)
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: onCardColor,
-                    size: 20,
-                  ),
+                  Icon(Icons.arrow_forward_ios, color: onCardColor, size: 20),
               ],
             ),
           ),

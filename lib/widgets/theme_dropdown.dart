@@ -21,5 +21,4 @@ class ThemeDropdown extends StatelessWidget {
   }
 }
 
-Widget ThemeDropdownFactory({dynamic themeController, VoidCallback? onThemePicked}) => ThemeDropdown(themeController: themeController, onThemePicked: onThemePicked);
-Widget ThemeDropdown({dynamic themeController, VoidCallback? onThemePicked}) => ThemeDropdownFactory(themeController: themeController, onThemePicked: onThemePicked);
+ 

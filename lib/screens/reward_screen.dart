@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../state/coin_provider.dart';
 import '../state/progress_provider.dart';
 import '../widgets/level_up_animation.dart';
+import '../widgets/ui/app_section.dart';
 
 class RewardScreen extends StatefulWidget {
   const RewardScreen({super.key});
@@ -60,9 +62,7 @@ class _RewardScreenState extends State<RewardScreen> {
         child: LevelUpAnimation(
           level: level,
           onFinished: () {
-            Navigator.of(context).popUntil(
-              (route) => route.settings.name == "/home",
-            );
+            context.go('/home');
           },
         ),
       ),
@@ -106,7 +106,7 @@ class RewardCard extends StatelessWidget {
       margin: const EdgeInsets.all(24),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.35),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: colorScheme.secondary, width: 2),
       ),
@@ -121,39 +121,45 @@ class RewardCard extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 20),
-          RewardDetail(
-            icon: Icons.monetization_on,
-            text: "+$coinReward zlatnika",
-            backgroundColor: colorScheme.secondaryContainer,
-            textColor: colorScheme.onSecondaryContainer,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            "+$xp XP",
-            style: TextStyle(
-              fontSize: 24,
-              color: colorScheme.primary,
-              fontWeight: FontWeight.bold,
+          AppSection(
+            title: "Nagrade",
+            padding: const EdgeInsets.only(top: 20, bottom: 12),
+            child: Column(
+              children: [
+                RewardDetail(
+                  icon: Icons.monetization_on,
+                  text: "+$coinReward zlatnika",
+                  backgroundColor: colorScheme.secondaryContainer,
+                  textColor: colorScheme.onSecondaryContainer,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "+$xp XP",
+                  style: TextStyle(
+                    fontSize: 24,
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Novi nivo: $level",
+                  style: TextStyle(fontSize: 22, color: colorScheme.onSurface),
+                ),
+                const SizedBox(height: 12),
+                RewardDetail(
+                  icon: Icons.badge,
+                  text: "Bedz: $badge",
+                  backgroundColor: colorScheme.primaryContainer.withValues(
+                    alpha: 0.8,
+                  ),
+                  textColor: colorScheme.onPrimaryContainer,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
-          Text(
-            "Novi nivo: $level",
-            style: TextStyle(fontSize: 22, color: colorScheme.onSurface),
-          ),
-          const SizedBox(height: 20),
-          RewardDetail(
-            icon: Icons.badge,
-            text: "Bedz: $badge",
-            backgroundColor: colorScheme.primaryContainer.withOpacity(0.8),
-            textColor: colorScheme.onPrimaryContainer,
-          ),
           const SizedBox(height: 30),
-          ElevatedButton(
-            onPressed: onLevelUp,
-            child: const Text("Nastavi"),
-          ),
+          ElevatedButton(onPressed: onLevelUp, child: const Text("Nastavi")),
         ],
       ),
     );

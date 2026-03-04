@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/offline_manager.dart';
@@ -253,14 +254,17 @@ class QuizProvider extends ChangeNotifier {
       return _dailySrsFetchInFlight!;
     }
 
-    final task = _srs.fetchDailySrsQuestions().then((questions) {
-      final copy = List<Map<String, dynamic>>.from(questions);
-      _cachedDailySrsQuestions = copy;
-      _cachedDailySrsAt = DateTime.now();
-      return copy;
-    }).whenComplete(() {
-      _dailySrsFetchInFlight = null;
-    });
+    final task = _srs
+        .fetchDailySrsQuestions()
+        .then((questions) {
+          final copy = List<Map<String, dynamic>>.from(questions);
+          _cachedDailySrsQuestions = copy;
+          _cachedDailySrsAt = DateTime.now();
+          return copy;
+        })
+        .whenComplete(() {
+          _dailySrsFetchInFlight = null;
+        });
 
     _dailySrsFetchInFlight = task;
     return task;
@@ -696,7 +700,7 @@ class QuizProvider extends ChangeNotifier {
                   await _showAccuracyAchievement(context, progress.accuracy);
                 }
                 if (!context.mounted) return;
-                Navigator.pushNamed(context, '/quiz-summary', arguments: stats);
+                context.push('/quiz-summary', extra: stats);
               }();
             },
           ),
@@ -707,7 +711,7 @@ class QuizProvider extends ChangeNotifier {
         await _showAccuracyAchievement(context, progress.accuracy);
       }
       if (!context.mounted) return;
-      Navigator.pushNamed(context, '/quiz-summary', arguments: stats);
+      context.push('/quiz-summary', extra: stats);
     }
 
     // Reset quiz state
@@ -1073,7 +1077,7 @@ class QuizProvider extends ChangeNotifier {
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              Navigator.pushNamed(parentContext, '/settings');
+              parentContext.go('/settings');
             },
             child: const Text('Podesavanja'),
           ),

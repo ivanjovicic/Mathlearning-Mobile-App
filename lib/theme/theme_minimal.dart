@@ -8,7 +8,7 @@ class MinimalTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.background,
+      scaffoldBackgroundColor: colorScheme.surface,
       textTheme: _buildTextTheme(colorScheme),
       appBarTheme: _buildAppBarTheme(colorScheme),
       cardTheme: _buildCardTheme(colorScheme),
@@ -42,11 +42,9 @@ class MinimalTheme {
       onTertiaryContainer: Color(0xFF512DA8),
       error: Color(0xFFB00020),
       onError: Color(0xFFFFFFFF),
-      background: Color(0xFFFFF7F1),
-      onBackground: Color(0xFF4E342E),
       surface: Color(0xFFFFF3E0),
       onSurface: Color(0xFF4E342E),
-      surfaceVariant: Color(0xFFECEFF1),
+      surfaceContainerHighest: Color(0xFFECEFF1),
       onSurfaceVariant: Color(0xFF37474F),
       outline: Color(0xFFB0BEC5),
       outlineVariant: Color(0xFFCFD8DC),
@@ -55,7 +53,6 @@ class MinimalTheme {
       surfaceContainerLow: Color(0xFFFFF9E6),
       surfaceContainer: Color(0xFFFFF5DC),
       surfaceContainerHigh: Color(0xFFFFF1D3),
-      surfaceContainerHighest: Color(0xFFFFEEC9),
     );
   }
 
@@ -153,24 +150,24 @@ class MinimalTheme {
   static ElevatedButtonThemeData _buildElevatedButtonTheme(ColorScheme colorScheme) {
     return ElevatedButtonThemeData(
       style: ButtonStyle(
-        backgroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.disabled)) {
-            return colorScheme.surfaceVariant;
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colorScheme.surfaceContainerHighest;
           }
           return colorScheme.primary;
         }),
-        foregroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.disabled)) {
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
             return colorScheme.onSurfaceVariant;
           }
           return colorScheme.onPrimary;
         }),
-        shape: MaterialStateProperty.all(
+        shape: WidgetStateProperty.all(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
         ),
-        padding: MaterialStateProperty.all(
+        padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
         ),
       ),
@@ -180,16 +177,16 @@ class MinimalTheme {
   static OutlinedButtonThemeData _buildOutlinedButtonTheme(ColorScheme colorScheme) {
     return OutlinedButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: MaterialStateProperty.all(colorScheme.primary),
-        side: MaterialStateProperty.all(
+        foregroundColor: WidgetStateProperty.all(colorScheme.primary),
+        side: WidgetStateProperty.all(
           BorderSide(color: colorScheme.primary.withValues(alpha: 0.5)),
         ),
-        shape: MaterialStateProperty.all(
+        shape: WidgetStateProperty.all(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
         ),
-        padding: MaterialStateProperty.all(
+        padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
         ),
       ),
@@ -199,8 +196,8 @@ class MinimalTheme {
   static TextButtonThemeData _buildTextButtonTheme(ColorScheme colorScheme) {
     return TextButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: MaterialStateProperty.all(colorScheme.primary),
-        padding: MaterialStateProperty.all(
+        foregroundColor: WidgetStateProperty.all(colorScheme.primary),
+        padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
         ),
       ),
@@ -229,7 +226,7 @@ class MinimalTheme {
 
   static ChipThemeData _buildChipTheme(ColorScheme colorScheme) {
     return ChipThemeData(
-      backgroundColor: colorScheme.surfaceVariant,
+      backgroundColor: colorScheme.surfaceContainerHighest,
       selectedColor: colorScheme.primaryContainer,
       labelStyle: TextStyle(color: colorScheme.onPrimaryContainer),
       side: BorderSide(color: colorScheme.outlineVariant),
@@ -286,17 +283,17 @@ class MinimalTheme {
 
   static SwitchThemeData _buildSwitchTheme(ColorScheme colorScheme) {
     return SwitchThemeData(
-      thumbColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return colorScheme.primary;
         }
         return colorScheme.onSurfaceVariant;
       }),
-      trackColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return colorScheme.primaryContainer;
         }
-        return colorScheme.surfaceVariant;
+        return colorScheme.surfaceContainerHighest;
       }),
     );
   }
@@ -304,7 +301,7 @@ class MinimalTheme {
   static ProgressIndicatorThemeData _buildProgressIndicatorTheme(ColorScheme colorScheme) {
     return ProgressIndicatorThemeData(
       color: colorScheme.primary,
-      linearTrackColor: colorScheme.surfaceVariant,
+      linearTrackColor: colorScheme.surfaceContainerHighest,
     );
   }
   

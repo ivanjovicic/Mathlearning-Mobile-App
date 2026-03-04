@@ -78,7 +78,7 @@ class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: colorScheme.surfaceVariant,
+        backgroundColor: colorScheme.surfaceContainerHighest,
         selectedColor: colorScheme.secondaryContainer,
         disabledColor: colorScheme.onSurface.withValues(alpha: 0.12),
         labelStyle: textTheme.labelLarge?.copyWith(

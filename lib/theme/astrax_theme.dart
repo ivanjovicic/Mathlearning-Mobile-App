@@ -10,6 +10,9 @@ class AstraXTheme {
   static const Color panel = Color(0xFF1D1E24);
   static const Color textPrimary = Color(0xFFF0F2F5);
   static const Color textSecondary = Color(0xFF9CA3AF);
+  // Additional legacy compatibility values expected by widgets
+  static const Color glass = Color(0xFF121620);
+  static const double radius = 22.0;
 
   // Backwards-compatible convenience colors used across screens
   static Color get bg => const Color(0xFF0C0D10);
@@ -19,33 +22,31 @@ class AstraXTheme {
   static ThemeData buildDarkTheme() {
     final colorScheme = ColorScheme.dark(
       primary: neonBlue,
-      onPrimary: Color(0xFF001E30),
-      primaryContainer: Color(0xFF1A3A50),
-      onPrimaryContainer: Color(0xFFCBE6FF),
+      onPrimary: const Color(0xFF001E30),
+      primaryContainer: const Color(0xFF1A3A50),
+      onPrimaryContainer: const Color(0xFFCBE6FF),
       secondary: neonPurple,
-      onSecondary: Color(0xFF1B0040),
-      secondaryContainer: Color(0xFF2E1A5C),
-      onSecondaryContainer: Color(0xFFE1D0FF),
+      onSecondary: const Color(0xFF1B0040),
+      secondaryContainer: const Color(0xFF2E1A5C),
+      onSecondaryContainer: const Color(0xFFE1D0FF),
       tertiary: neonGreen,
-      onTertiary: Color(0xFF003822),
-      tertiaryContainer: Color(0xFF0A4D33),
-      onTertiaryContainer: Color(0xFFB3FFD9),
-      error: Color(0xFFFF6B6B),
+      onTertiary: const Color(0xFF003822),
+      tertiaryContainer: const Color(0xFF0A4D33),
+      onTertiaryContainer: const Color(0xFFB3FFD9),
+      error: const Color(0xFFFF6B6B),
       onError: Colors.white,
-      background: Color(0xFF0C0D10),
-      onBackground: Color(0xFFF0F2F5),
-      surface: Color(0xFF14151A),
-      onSurface: Color(0xFFF0F2F5),
-      surfaceVariant: Color(0xFF1D1E24),
-      onSurfaceVariant: Color(0xFF9CA3AF),
-      outline: Color(0xFF3A3B44),
-      outlineVariant: Color(0xFF2A2B33),
+      surface: const Color(0xFF14151A),
+      onSurface: const Color(0xFFF0F2F5),
+      surfaceContainerHighest: const Color(0xFF1D1E24),
+      onSurfaceVariant: const Color(0xFF9CA3AF),
+      outline: const Color(0xFF3A3B44),
+      outlineVariant: const Color(0xFF2A2B33),
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.background,
+      scaffoldBackgroundColor: colorScheme.surface,
       appBarTheme: AppBarTheme(
         backgroundColor: colorScheme.surface,
         elevation: 0,
@@ -96,7 +97,7 @@ class AstraXTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceVariant,
+        fillColor: colorScheme.surfaceContainerHighest,
         labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),

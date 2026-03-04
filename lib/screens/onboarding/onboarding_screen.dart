@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_i18n.dart';
@@ -48,7 +49,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await ob.completeOnboarding();
 
     if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/home');
+    context.go('/home');
   }
 
   @override
@@ -133,10 +134,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           transitionBuilder: (child, animation) {
             return FadeTransition(opacity: animation, child: child);
           },
-          child: KeyedSubtree(
-            key: ValueKey(_step),
-            child: pages[_step],
-          ),
+          child: KeyedSubtree(key: ValueKey(_step), child: pages[_step]),
         ),
 
         // ── Confetti overlay ──
@@ -286,10 +284,7 @@ class _DailyReviewToggle extends StatelessWidget {
         activeColor: cs.primary,
         title: Text(
           label,
-          style: TextStyle(
-            color: cs.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
           '18:00',
@@ -330,28 +325,31 @@ class _ConfettiOverlay extends StatelessWidget {
             return Positioned(
               left: startX,
               top: -20,
-              child: Container(
-                width: 8 + rng.nextDouble() * 6,
-                height: 8 + rng.nextDouble() * 6,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              )
-                  .animate()
-                  .moveY(
-                    begin: 0,
-                    end: endY,
-                    duration: Duration(milliseconds: 800 + rng.nextInt(600)),
-                    curve: Curves.easeIn,
-                  )
-                  .fadeIn(duration: 100.ms)
-                  .rotate(
-                    begin: 0,
-                    end: rng.nextDouble() * 2,
-                    duration: 1200.ms,
-                  )
-                  .fadeOut(delay: 800.ms, duration: 400.ms),
+              child:
+                  Container(
+                        width: 8 + rng.nextDouble() * 6,
+                        height: 8 + rng.nextDouble() * 6,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      )
+                      .animate()
+                      .moveY(
+                        begin: 0,
+                        end: endY,
+                        duration: Duration(
+                          milliseconds: 800 + rng.nextInt(600),
+                        ),
+                        curve: Curves.easeIn,
+                      )
+                      .fadeIn(duration: 100.ms)
+                      .rotate(
+                        begin: 0,
+                        end: rng.nextDouble() * 2,
+                        duration: 1200.ms,
+                      )
+                      .fadeOut(delay: 800.ms, duration: 400.ms),
             );
           }),
         ),

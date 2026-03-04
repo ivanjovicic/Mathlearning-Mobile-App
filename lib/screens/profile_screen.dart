@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../state/progress_provider.dart';
-import '../state/badge_provider.dart';
+
+import '../services/user_service.dart';
 import '../state/auth_provider.dart';
+import '../state/badge_provider.dart';
+import '../state/progress_provider.dart';
 import '../theme/theme_controller.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/animated_xp_bar.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
-// user_service and user_profile imports removed (unused)
+import '../widgets/ui/app_section.dart';
 import 'user_search_screen.dart';
-import '../services/user_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -18,35 +20,16 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
-    final progress = Provider.of<ProgressProvider>(context);
-    final badges = Provider.of<BadgeProvider>(context).badges;
-    final auth = Provider.of<AuthProvider>(context);
-    final themeController = Provider.of<ThemeController>(context);
-
-    void openUserSearch() {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => const UserSearchScreen(),
-        ),
-      );
-    }
-
-    void logout() {
-      auth.logout().then((_) {
-        if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/login',
-          (route) => false,
-        );
-      });
-    }
+    final progress = context.watch<ProgressProvider>();
+    final badges = context.watch<BadgeProvider>().badges;
+    final auth = context.watch<AuthProvider>();
+    final themeController = context.watch<ThemeController>();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          "Profil",
+          'Profil',
           style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -58,64 +41,34 @@ class ProfileScreen extends StatelessWidget {
           PopupMenuButton<_ProfileMenuAction>(
             icon: Icon(Icons.more_vert, color: colorScheme.onSurface),
             tooltip: context.safeTooltip('Meni'),
-            onSelected: (value) {
-              switch (value) {
-                case _ProfileMenuAction.settings:
-                  Navigator.pushNamed(context, '/settings');
-                  break;
-                case _ProfileMenuAction.themes:
-                  Navigator.pushNamed(context, '/themes');
-                  break;
-                case _ProfileMenuAction.userSearch:
-                  openUserSearch();
-                  break;
-                case _ProfileMenuAction.editProfile:
-                  _showEditProfileDialog(context);
-                  break;
-                case _ProfileMenuAction.logout:
-                  logout();
-                  break;
-              }
-            },
+            onSelected: (value) => _onMenuAction(context, value, auth),
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: _ProfileMenuAction.settings,
-                child: Row(
-                  children: [
-                    Icon(Icons.settings_outlined),
-                    SizedBox(width: 10),
-                    Text('Podesavanja'),
-                  ],
+                child: _MenuItem(
+                  icon: Icons.settings_outlined,
+                  text: 'Podesavanja',
                 ),
               ),
               const PopupMenuItem(
                 value: _ProfileMenuAction.themes,
-                child: Row(
-                  children: [
-                    Icon(Icons.palette_outlined),
-                    SizedBox(width: 10),
-                    Text('Tema i kretanje'),
-                  ],
+                child: _MenuItem(
+                  icon: Icons.palette_outlined,
+                  text: 'Tema i kretanje',
                 ),
               ),
               const PopupMenuItem(
                 value: _ProfileMenuAction.userSearch,
-                child: Row(
-                  children: [
-                    Icon(Icons.search),
-                    SizedBox(width: 10),
-                    Text('Pretraga korisnika'),
-                  ],
+                child: _MenuItem(
+                  icon: Icons.search,
+                  text: 'Pretraga korisnika',
                 ),
               ),
               const PopupMenuItem(
                 value: _ProfileMenuAction.editProfile,
-                child: Row(
-                  children: [
-                    Icon(Icons.edit_outlined),
-                    SizedBox(width: 10),
-                    Text('Izmeni profil'),
-                  ],
+                child: _MenuItem(
+                  icon: Icons.edit_outlined,
+                  text: 'Izmeni profil',
                 ),
               ),
               PopupMenuItem(
@@ -123,165 +76,128 @@ class ProfileScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     Icon(Icons.logout, color: colorScheme.error),
-                    SizedBox(width: 10),
-                    Text(
-                      'Odjava',
-                      style: TextStyle(color: colorScheme.error),
-                    ),
+                    const SizedBox(width: 10),
+                    Text('Odjava', style: TextStyle(color: colorScheme.error)),
                   ],
                 ),
               ),
             ],
           ),
         ],
-
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
+        padding: EdgeInsets.fromLTRB(
+          18,
+          18,
+          18,
+          18 +
+              MediaQuery.of(context).padding.bottom +
+              kBottomNavigationBarHeight,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Avatar
-            Center(
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: theme.cardColor.withAlpha((0.1 * 255).round()),
-                  border: Border.all(color: colorScheme.secondary, width: 3),
-                ),
-                alignment: Alignment.center,
-                child: const Text("🧠", style: TextStyle(fontSize: 70)),
-              ),
-            ),
-
+            _ProfileHeader(username: auth.username, progress: progress),
             const SizedBox(height: 16),
-
-            // Username
-            Text(
-              "@${auth.username ?? 'Korisnik'}",
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontSize: 18,
-                color: colorScheme.onSurface.withAlpha((0.8 * 255).round()),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Demo mode banner
-            if (auth.isDemoMode) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: colorScheme.primary),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: colorScheme.onPrimaryContainer,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Demo režim - test podaci",
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // Level
-            Text(
-              "Nivo ${progress.level}",
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // XP bar
-            AnimatedXpBar(
-              currentXp: progress.xp,
-              maxXp: progress.xpToNextLevel,
-            ),
-
-            const SizedBox(height: 18),
             const ThemeAccessibilityMiniPreview(
-              title: "Profil: pregled pristupacnosti",
+              title: 'Profil: pregled pristupacnosti',
               compact: true,
             ),
-
-            const SizedBox(height: 14),
-            Card(
-              child: SwitchListTile(
-                value: themeController.useGamifiedHome,
-                onChanged: themeController.setUseGamifiedHome,
-                secondary: Icon(
-                  Icons.videogame_asset_outlined,
-                  color: colorScheme.primary,
-                ),
-                title: const Text("Gamifikovana pocetna"),
-                subtitle: Text(
-                  themeController.useGamifiedHome
-                      ? "Arena pocetna je ukljucena"
-                      : "Klasicna pocetna je ukljucena",
-                ),
+            const SizedBox(height: 16),
+            AppSection(
+              title: 'Brze opcije',
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                children: [
+                  Card(
+                    child: SwitchListTile(
+                      value: themeController.useGamifiedHome,
+                      onChanged: themeController.setUseGamifiedHome,
+                      secondary: Icon(
+                        Icons.videogame_asset_outlined,
+                        color: colorScheme.primary,
+                      ),
+                      title: const Text('Gamifikovana pocetna'),
+                      subtitle: Text(
+                        themeController.useGamifiedHome
+                            ? 'Arena pocetna je ukljucena'
+                            : 'Klasicna pocetna je ukljucena',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.rate_review_outlined,
+                        color: colorScheme.primary,
+                      ),
+                      title: const Text('My Feedback'),
+                      subtitle: const Text('Pregled poslatog UX/UI feedback-a'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.go('/my-feedback'),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            Card(
-              child: ListTile(
-                leading: Icon(
-                  Icons.rate_review_outlined,
-                  color: colorScheme.primary,
-                ),
-                title: const Text("My Feedback"),
-                subtitle: const Text("Pregled poslatog UX/UI feedback-a"),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.pushNamed(context, "/my-feedback"),
+            AppSection(
+              title: 'Statistika igraca',
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                children: [
+                  _buildRankCard(context, progress),
+                  const SizedBox(height: 12),
+                  _buildStreakCard(context, progress),
+                ],
               ),
             ),
-
-            const SizedBox(height: 18),
-
-            // Rank
-            _buildRankCard(context, progress),
-
-            const SizedBox(height: 28),
-
-            // Streak
-            _buildStreakCard(context, progress),
-
-            const SizedBox(height: 28),
-
-            // Badges
-            _buildBadgeList(context, badges),
+            AppSection(
+              title: 'Bedzevi',
+              padding: EdgeInsets.zero,
+              child: _buildBadgeList(context, badges),
+            ),
           ],
         ),
       ),
     );
   }
 
+  Future<void> _onMenuAction(
+    BuildContext context,
+    _ProfileMenuAction value,
+    AuthProvider auth,
+  ) async {
+    switch (value) {
+      case _ProfileMenuAction.settings:
+        context.go('/settings');
+        return;
+      case _ProfileMenuAction.themes:
+        context.go('/themes');
+        return;
+      case _ProfileMenuAction.userSearch:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => const UserSearchScreen()),
+        );
+        return;
+      case _ProfileMenuAction.editProfile:
+        _showEditProfileDialog(context);
+        return;
+      case _ProfileMenuAction.logout:
+        await auth.logout();
+        if (!context.mounted) return;
+        context.go('/login');
+        return;
+    }
+  }
+
   Widget _buildRankCard(BuildContext context, ProgressProvider progress) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    int rank = _calculateRank(progress.level, progress.xp);
+    final rank = _calculateRank(progress.level, progress.xp);
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -290,20 +206,20 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Text("🏆", style: TextStyle(fontSize: 36)),
+          const Icon(Icons.emoji_events, size: 36),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Rang",
+                'Rang',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: colorScheme.onSurface.withAlpha((0.7 * 255).round()),
                   fontSize: 16,
                 ),
               ),
               Text(
-                "$rank",
+                '$rank',
                 style: TextStyle(
                   color: colorScheme.onSurface,
                   fontSize: 22,
@@ -322,6 +238,7 @@ class ProfileScreen extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -330,20 +247,20 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Text("🔥", style: TextStyle(fontSize: 36)),
+          const Icon(Icons.local_fire_department, size: 36),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Niz",
+                'Niz',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: colorScheme.onSurface.withAlpha((0.7 * 255).round()),
                   fontSize: 16,
                 ),
               ),
               Text(
-                "${progress.streak} dana",
+                '${progress.streak} dana',
                 style: TextStyle(
                   color: colorScheme.onSurface,
                   fontSize: 22,
@@ -360,69 +277,69 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildBadgeList(BuildContext context, List badges) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final scale = MediaQuery.textScalerOf(context).scale(12) / 12;
-    final badgeListHeight = (90.0 * scale).clamp(90.0, 140.0).toDouble();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "🎖 Bedževi",
-          style: theme.textTheme.headlineMedium?.copyWith(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
+    if (badges.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor.withAlpha((0.08 * 255).round()),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colorScheme.outlineVariant),
         ),
-        const SizedBox(height: 12),
+        child: Text(
+          'Jos uvek nema bedzeva. Odigraj jos kvizova!',
+          style: theme.textTheme.bodyMedium,
+        ),
+      );
+    }
 
-        SizedBox(
-          height: badgeListHeight,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: badges.map((b) {
-              return Container(
-                width: 80,
-                margin: const EdgeInsets.only(right: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: b.unlocked
-                      ? theme.cardColor.withAlpha((0.2 * 255).round())
-                      : theme.cardColor.withAlpha((0.08 * 255).round()),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
+    final scale = MediaQuery.textScalerOf(context).scale(12) / 12;
+    final badgeListHeight = (130.0 * scale).clamp(130.0, 180.0).toDouble();
+
+    return SizedBox(
+      height: badgeListHeight,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: badges.map((b) {
+          return Container(
+            width: 80,
+            margin: const EdgeInsets.only(right: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: b.unlocked
+                  ? theme.cardColor.withAlpha((0.2 * 255).round())
+                  : theme.cardColor.withAlpha((0.08 * 255).round()),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: b.unlocked
+                    ? colorScheme.secondary
+                    : theme.cardColor.withAlpha((0.2 * 255).round()),
+                width: 2,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(b.icon, style: const TextStyle(fontSize: 24)),
+                const SizedBox(height: 2),
+                Text(
+                  b.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
                     color: b.unlocked
-                        ? colorScheme.secondary
-                        : theme.cardColor.withAlpha((0.2 * 255).round()),
-                    width: 2,
+                        ? colorScheme.onSurface
+                        : colorScheme.onSurface.withAlpha((0.4 * 255).round()),
+                    fontSize: 11,
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(b.icon, style: const TextStyle(fontSize: 32)),
-                    const SizedBox(height: 4),
-                    Text(
-                      b.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: b.unlocked
-                            ? colorScheme.onSurface
-                            : colorScheme.onSurface.withAlpha(
-                                (0.4 * 255).round(),
-                              ),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -489,7 +406,7 @@ class ProfileScreen extends StatelessWidget {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Profil je uspesno azuriran!'),
+                          content: const Text('Profil je uspesno azuriran!'),
                           backgroundColor: Theme.of(
                             context,
                           ).colorScheme.tertiary,
@@ -520,10 +437,67 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-enum _ProfileMenuAction {
-  settings,
-  themes,
-  userSearch,
-  editProfile,
-  logout,
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({required this.username, required this.progress});
+
+  final String? username;
+  final ProgressProvider progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      children: [
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: theme.cardColor.withAlpha((0.1 * 255).round()),
+            border: Border.all(color: colorScheme.secondary, width: 3),
+          ),
+          alignment: Alignment.center,
+          child: const Text(
+            'M',
+            style: TextStyle(fontSize: 52, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          '@${username ?? 'Korisnik'}',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontSize: 18,
+            color: colorScheme.onSurface.withAlpha((0.8 * 255).round()),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Nivo ${progress.level}',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        AnimatedXpBar(currentXp: progress.xp, maxXp: progress.xpToNextLevel),
+      ],
+    );
+  }
 }
+
+class _MenuItem extends StatelessWidget {
+  const _MenuItem({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [Icon(icon), const SizedBox(width: 10), Text(text)]);
+  }
+}
+
+enum _ProfileMenuAction { settings, themes, userSearch, editProfile, logout }

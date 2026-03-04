@@ -102,7 +102,7 @@ class _StreakProgressBarState extends State<StreakProgressBar> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.orange.withOpacity(0.5),
+                                color: Colors.orange.withValues(alpha: 0.5),
                                 blurRadius: 12,
                                 spreadRadius: 2,
                               )
@@ -115,7 +115,7 @@ class _StreakProgressBarState extends State<StreakProgressBar> {
                       child: Text(
                         "${widget.streak} / ${widget.maxStreak}",
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.85),
+                          color: Colors.white.withValues(alpha: 0.85),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -176,7 +176,7 @@ class _BurstOverlay extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.orange.withOpacity(0.6),
+                color: Colors.orange.withValues(alpha: 0.6),
                 blurRadius: 8,
               ),
             ],

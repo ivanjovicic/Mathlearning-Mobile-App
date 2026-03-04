@@ -62,10 +62,10 @@ class PastelTheme {
       onSecondary: PastelPalette.onSecondaryLight,
       secondaryContainer: PastelPalette.secondaryContainerLight,
       onSecondaryContainer: PastelPalette.onSecondaryContainerLight,
-      background: PastelPalette.backgroundLight,
-      onBackground: PastelPalette.onBackgroundLight,
-      surface: PastelPalette.surfaceLight,
-      onSurface: PastelPalette.onSurfaceLight,
+      surface: PastelPalette.backgroundLight,
+      onSurface: PastelPalette.onBackgroundLight,
+      surfaceContainerHighest: PastelPalette.surfaceLight,
+      onSurfaceVariant: PastelPalette.onSurfaceLight,
     );
   }
 
@@ -79,10 +79,10 @@ class PastelTheme {
       onSecondary: PastelPalette.onSecondaryDark,
       secondaryContainer: PastelPalette.secondaryContainerDark,
       onSecondaryContainer: PastelPalette.onSecondaryContainerDark,
-      background: PastelPalette.backgroundDark,
-      onBackground: PastelPalette.onBackgroundDark,
-      surface: PastelPalette.surfaceDark,
-      onSurface: PastelPalette.onSurfaceDark,
+      surface: PastelPalette.backgroundDark,
+      onSurface: PastelPalette.onBackgroundDark,
+      surfaceContainerHighest: PastelPalette.surfaceDark,
+      onSurfaceVariant: PastelPalette.onSurfaceDark,
     );
   }
 
@@ -90,7 +90,7 @@ class PastelTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.background,
+      scaffoldBackgroundColor: colorScheme.surface,
       textTheme: _buildTextTheme(colorScheme),
       appBarTheme: _buildAppBarTheme(colorScheme),
       cardTheme: _buildCardTheme(colorScheme),
@@ -155,14 +155,14 @@ class PastelTheme {
   static ElevatedButtonThemeData _buildElevatedButtonTheme(ColorScheme colorScheme) {
     return ElevatedButtonThemeData(
       style: ButtonStyle(
-        backgroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.disabled)) {
-            return colorScheme.surfaceVariant;
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colorScheme.surfaceContainerHighest;
           }
           return colorScheme.primary;
         }),
-        foregroundColor: MaterialStateProperty.all(colorScheme.onPrimary),
-        shape: MaterialStateProperty.all(
+        foregroundColor: WidgetStateProperty.all(colorScheme.onPrimary),
+        shape: WidgetStateProperty.all(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -174,11 +174,11 @@ class PastelTheme {
   static OutlinedButtonThemeData _buildOutlinedButtonTheme(ColorScheme colorScheme) {
     return OutlinedButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: MaterialStateProperty.all(colorScheme.primary),
-        side: MaterialStateProperty.all(
+        foregroundColor: WidgetStateProperty.all(colorScheme.primary),
+        side: WidgetStateProperty.all(
           BorderSide(color: colorScheme.primary),
         ),
-        shape: MaterialStateProperty.all(
+        shape: WidgetStateProperty.all(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -190,7 +190,7 @@ class PastelTheme {
   static TextButtonThemeData _buildTextButtonTheme(ColorScheme colorScheme) {
     return TextButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: MaterialStateProperty.all(colorScheme.primary),
+        foregroundColor: WidgetStateProperty.all(colorScheme.primary),
       ),
     );
   }
@@ -208,7 +208,7 @@ class PastelTheme {
 
   static ChipThemeData _buildChipTheme(ColorScheme colorScheme) {
     return ChipThemeData(
-      backgroundColor: colorScheme.surfaceVariant,
+      backgroundColor: colorScheme.surfaceContainerHighest,
       labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
     );
   }
@@ -251,7 +251,7 @@ class PastelTheme {
   static TooltipThemeData _buildTooltipTheme(ColorScheme colorScheme) {
     return TooltipThemeData(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       textStyle: TextStyle(color: colorScheme.onSurface),

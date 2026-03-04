@@ -31,7 +31,7 @@ class UserSearchBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         filled: true,
-        fillColor: colorScheme.surfaceVariant,
+        fillColor: colorScheme.surfaceContainerHighest,
       ),
       onChanged: onChanged,
     );

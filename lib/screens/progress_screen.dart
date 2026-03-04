@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/progress_overview.dart';
 import '../services/api_service.dart';
+import '../widgets/ui/app_section.dart';
+import '../widgets/ui/state_scaffold.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -13,17 +15,18 @@ class ProgressScreen extends StatefulWidget {
 class _ProgressScreenState extends State<ProgressScreen> {
   ProgressOverview? _progress;
   bool _isLoading = true;
-  bool _isError = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _loadProgress();
   }
+
   Future<void> _loadProgress() async {
     setState(() {
       _isLoading = true;
-      _isError = false;
+      _error = null;
     });
 
     try {
@@ -33,63 +36,50 @@ class _ProgressScreenState extends State<ProgressScreen> {
         _progress = progress;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _isError = true;
+        _error = e.toString();
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Progress')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_isError) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Progress')),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48),
-              const SizedBox(height: 12),
-              Text('Unable to load progress', style: theme.textTheme.bodyLarge),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: _loadProgress, child: const Text('Retry')),
-            ],
-          ),
-        ),
-      );
-    }
-
     final progress = _progress;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Progress')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: progress == null
-            ? const Center(child: Text('No progress yet'))
-            : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _OverviewHero(progress: progress),
-                    const SizedBox(height: 16),
-                    _StatsGrid(progress: progress),
-                    const SizedBox(height: 16),
-                    _CompletionSection(progress: progress),
-                  ],
+      body: StateScaffold(
+        isLoading: _isLoading,
+        error: _error,
+        onRetry: _loadProgress,
+        isEmpty: !_isLoading && _error == null && progress == null,
+        emptyTitle: 'No quizzes completed yet',
+        emptySubtitle: 'Start your first practice!',
+        emptyIcon: Icons.insights_outlined,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _OverviewHero(progress: progress!),
+                const SizedBox(height: 16),
+                AppSection(
+                  title: 'Ključne metrike',
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _StatsGrid(progress: progress),
                 ),
-              ),
+                AppSection(
+                  title: 'Završetak',
+                  padding: EdgeInsets.zero,
+                  child: _CompletionSection(progress: progress),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -226,7 +216,7 @@ class AppStatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         color: cs.surfaceContainerHighest,
         boxShadow: [
-            BoxShadow(
+          BoxShadow(
             color: cs.shadow.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 10),
@@ -240,16 +230,16 @@ class AppStatCard extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurface.withValues(alpha: 0.7),
-                ),
+              color: cs.onSurface.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
@@ -269,10 +259,7 @@ class _CompletionSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Završeni zadaci',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text('Završeni zadaci', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
         Container(
           width: double.infinity,

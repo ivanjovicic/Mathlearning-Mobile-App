@@ -30,8 +30,4 @@ class SettingsSwitchTile extends StatelessWidget {
   }
 }
 
-Widget SettingsSwitchTileFactory({required String title, String? subtitle, required bool value, IconData? icon, bool enabled = true, required ValueChanged<bool> onChanged}) {
-  return SettingsSwitchTile(title: title, subtitle: subtitle, value: value, icon: icon, enabled: enabled, onChanged: onChanged);
-}
-Widget SettingsSwitchTile({required String title, String? subtitle, required bool value, IconData? icon, bool enabled = true, required ValueChanged<bool> onChanged}) =>
-    SettingsSwitchTileFactory(title: title, subtitle: subtitle, value: value, icon: icon, enabled: enabled, onChanged: onChanged);
+ 

@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/quiz_provider.dart';
+import '../state/quiz_provider.dart';
+import '../widgets/ui/answer_option_card.dart';
+import '../widgets/ui/state_scaffold.dart';
 
 class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key});
+  final int? topicId;
+
+  const QuizScreen({super.key, this.topicId});
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -15,6 +20,7 @@ class _QuizScreenState extends State<QuizScreen>
   bool _loading = true;
   bool _initialized = false;
   int _subtopicId = 1;
+  String? _error;
 
   @override
   void didChangeDependencies() {
@@ -22,47 +28,69 @@ class _QuizScreenState extends State<QuizScreen>
     if (_initialized) return;
     _initialized = true;
 
-    _subtopicId =
-        ModalRoute.of(context)?.settings.arguments as int? ?? 1;
+    _subtopicId = widget.topicId ?? 1;
 
     _initializeQuiz();
   }
 
   Future<void> _initializeQuiz() async {
-    final quiz = context.read<QuizProvider>();
+    try {
+      final quiz = context.read<QuizProvider>();
 
-    if (!quiz.consumeSkipDailyReviewOnce()) {
-      final daily = await quiz.getDailySrsCount();
-      if (daily > 0 && mounted) {
-        Navigator.pushReplacementNamed(context, "/daily-review");
-        return;
+      if (!quiz.consumeSkipDailyReviewOnce()) {
+        final daily = await quiz.getDailySrsCount();
+        if (daily > 0 && mounted) {
+          context.go('/daily-review');
+          return;
+        }
       }
+
+      await quiz.startQuiz(_subtopicId, 10);
+
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
     }
+  }
 
-    await quiz.startQuiz(_subtopicId, 10);
-
-    if (!mounted) return;
-    setState(() => _loading = false);
+  void _retryLoad() {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    _initializeQuiz();
   }
 
   @override
   Widget build(BuildContext context) {
     final quiz = context.watch<QuizProvider>();
-    final cs = Theme.of(context).colorScheme;
 
-    if (_loading) {
-      return const _QuizLoadingSkeleton();
-    }
-
-    if (quiz.currentQuestion == null) {
-      return const _QuizEmptyState();
-    }
-
-    return _QuizScaffold(
-      question: quiz.currentQuestion!,
-      questionNumber: quiz.currentQuestionNumber,
-      totalQuestions: quiz.totalQuestions,
-      onAnswer: (id) => quiz.answer(id, context),
+    return Scaffold(
+      body: SafeArea(
+        child: StateScaffold(
+          isLoading: _loading,
+          error: _error,
+          onRetry: _retryLoad,
+          isEmpty: !_loading && _error == null && quiz.currentQuestion == null,
+          emptyTitle: 'Nema pitanja',
+          emptySubtitle: 'Startuj novu rundu ili se vrati na pocetnu.',
+          emptyIcon: Icons.quiz_outlined,
+          child: _QuizScaffold(
+            question: quiz.currentQuestion!,
+            questionNumber: quiz.currentQuestionNumber,
+            totalQuestions: quiz.totalQuestions,
+            onAnswer: (id) => quiz.answer(id, context),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -82,47 +110,39 @@ class _QuizScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      backgroundColor: cs.surface,
-      body: SafeArea(
-        child: Column(
-          children: [
-            QuizHeader(
-              questionNumber: questionNumber,
-              totalQuestions: totalQuestions,
-            ),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.1, 0),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                  );
-                },
-                child: QuizBody(
-                  key: ValueKey(question.id),
-                  question: question,
-                ),
-              ),
-            ),
-            QuizOptions(
-              options: question.options,
-              correctId: question.correctAnswerId,
-              onSelected: onAnswer,
-            ),
-            const SizedBox(height: 20),
-          ],
+    return Column(
+      children: [
+        QuizHeader(
+          questionNumber: questionNumber,
+          totalQuestions: totalQuestions,
         ),
-      ),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.06),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              );
+            },
+            child: QuizBody(key: ValueKey(question.id), question: question),
+          ),
+        ),
+        QuizOptions(
+          options: question.options,
+          correctId: question.correctAnswerId,
+          onSelected: onAnswer,
+        ),
+        const SizedBox(height: 20),
+      ],
     );
   }
 }
@@ -185,11 +205,10 @@ class QuizOptions extends StatefulWidget {
 
 class _QuizOptionsState extends State<QuizOptions> {
   String? selectedId;
+  bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -197,82 +216,27 @@ class _QuizOptionsState extends State<QuizOptions> {
           final id = option.id.toString();
           final selected = id == selectedId;
 
-          return GestureDetector(
-            onTap: () {
-              setState(() => selectedId = id);
-              widget.onSelected(id);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(bottom: 14),
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: selected
-                    ? cs.primary.withOpacity(0.15)
-                    : cs.surfaceContainerHighest,
-                border: Border.all(
-                  color: selected ? cs.primary : cs.outline,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      option.text,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ),
-                ],
-              ),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: AnswerOptionCard(
+              text: option.text,
+              selected: selected,
+              enabled: !_isSubmitting,
+              onTap: () {
+                if (_isSubmitting) return;
+                setState(() {
+                  selectedId = id;
+                  _isSubmitting = true;
+                });
+                widget.onSelected(id);
+                Future.delayed(const Duration(milliseconds: 250), () {
+                  if (!mounted) return;
+                  setState(() => _isSubmitting = false);
+                });
+              },
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-}
-
-class _QuizLoadingSkeleton extends StatelessWidget {
-  const _QuizLoadingSkeleton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      backgroundColor: cs.surface,
-      body: const SafeArea(
-        child: Center(child: CircularProgressIndicator()),
-      ),
-    );
-  }
-}
-
-class _QuizEmptyState extends StatelessWidget {
-  const _QuizEmptyState({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context);
-
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.quiz_rounded, size: 56),
-              const SizedBox(height: 12),
-              Text('Nema pitanja', style: t.textTheme.titleLarge),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
-                child: const Text('Nazad'),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -295,10 +259,7 @@ class QuizBody extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              text,
-              style: theme.textTheme.titleLarge,
-            ),
+            Text(text, style: theme.textTheme.titleLarge),
             const SizedBox(height: 18),
           ],
         ),

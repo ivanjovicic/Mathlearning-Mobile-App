@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'theme_preferences_service.dart';
 import 'astrax_theme.dart';
-import 'theme_sci_fi.dart';
 import '../widgets/game_theme_transition.dart';
-import 'theme_fantasy.dart';
-import 'theme_pastel.dart';
-import 'theme_minimal.dart';
-import 'theme_retro.dart';
+import 'themes/fantasy_theme.dart';
+import 'themes/pastel_theme.dart';
+import 'themes/minimal_theme.dart';
+import 'themes/retro_theme.dart';
+import 'themes/scifi_theme.dart';
 
 enum AppThemeType { sciFi, fantasy, pastel, minimal, retro, astra }
 
@@ -15,12 +15,13 @@ class ThemeController extends ChangeNotifier {
   final ThemePreferencesService _preferencesService;
 
   ThemeSettings _state;
-  Map<AppThemeType, ThemeData> _themeCache = {};
+  final Map<AppThemeType, ThemeData> _themeCache = {};
   bool isSwitching = false;
   bool _autoTuningInProgress = false;
 
-  ThemeController(this._preferencesService)
-      : _state = ThemeSettings.initial() {
+  ThemeController([ThemePreferencesService? preferencesService])
+      : _preferencesService = preferencesService ?? ThemePreferencesService(),
+        _state = ThemeSettings.initial() {
     _loadSavedPreferences();
   }
 
@@ -150,7 +151,7 @@ class ThemeController extends ChangeNotifier {
       onSecondaryContainer: _contrastColorFor(scheme.secondaryContainer),
       onTertiaryContainer: _contrastColorFor(scheme.tertiaryContainer),
       onErrorContainer: _contrastColorFor(scheme.errorContainer),
-      onSurfaceVariant: _contrastColorFor(scheme.surfaceVariant),
+      onSurfaceVariant: _contrastColorFor(scheme.surfaceContainerHighest),
       outline: _contrastColorFor(scheme.surface).withValues(alpha: 0.65),
       outlineVariant: _contrastColorFor(scheme.surface).withValues(alpha: 0.45),
     );

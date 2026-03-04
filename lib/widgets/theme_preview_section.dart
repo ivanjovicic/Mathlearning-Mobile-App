@@ -18,7 +18,7 @@ class ThemePreviewSection extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colorScheme.outline),
-        color: colorScheme.surfaceVariant,
+        color: colorScheme.surfaceContainerHighest,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

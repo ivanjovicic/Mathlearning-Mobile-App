@@ -8,7 +8,7 @@ class FantasyTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.background,
+      scaffoldBackgroundColor: colorScheme.surface,
       textTheme: _buildTextTheme(colorScheme),
       appBarTheme: _buildAppBarTheme(colorScheme),
       cardTheme: _buildCardTheme(colorScheme),
@@ -42,11 +42,9 @@ class FantasyTheme {
       onTertiaryContainer: Color(0xFF003300),
       error: Color(0xFFB00020),
       onError: Color(0xFFFFFFFF),
-      background: Color(0xFFF5E6C8),
-      onBackground: Color(0xFF4B2E15),
       surface: Color(0xFFFFF3DD),
       onSurface: Color(0xFF4B2E15),
-      surfaceVariant: Color(0xFFEFE2C8),
+      surfaceContainerHighest: Color(0xFFEFE2C8),
       onSurfaceVariant: Color(0xFF6B4E2E),
       outline: Color(0xFF8B6A4E),
       outlineVariant: Color(0xFFD7B899),
@@ -55,7 +53,6 @@ class FantasyTheme {
       surfaceContainerLow: Color(0xFFFDF4E3),
       surfaceContainer: Color(0xFFFBEED9),
       surfaceContainerHigh: Color(0xFFF8E6C8),
-      surfaceContainerHighest: Color(0xFFF5E0B8),
     );
   }
 
@@ -96,24 +93,20 @@ class FantasyTheme {
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurface,
       ),
-      bodyLarge: GoogleFonts.lora(
-        fontSize: 16,
-        color: colorScheme.onSurface,
-      ),
-      bodyMedium: GoogleFonts.lora(
-        fontSize: 14,
-        color: colorScheme.onSurfaceVariant,
-      ),
+       bodyMedium: GoogleFonts.lora(
+         fontSize: 14,
+         color: colorScheme.onSurfaceVariant,
+       ),
       bodySmall: GoogleFonts.lora(
-        fontSize: 12,
-        color: colorScheme.onSurfaceVariant,
-      ),
+         fontSize: 12,
+         color: colorScheme.onSurfaceVariant,
+       ),
       labelLarge: GoogleFonts.lora(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: colorScheme.onSurface,
       ),
-      labelMedium: GoogleFonts.lora(
+        labelMedium: GoogleFonts.lora(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurfaceVariant,
@@ -123,7 +116,7 @@ class FantasyTheme {
         fontWeight: FontWeight.w500,
         color: colorScheme.onSurfaceVariant,
       ),
-    );
+      );
   }
 
   static AppBarTheme _buildAppBarTheme(ColorScheme colorScheme) {
@@ -153,24 +146,24 @@ class FantasyTheme {
   static ElevatedButtonThemeData _buildElevatedButtonTheme(ColorScheme colorScheme) {
     return ElevatedButtonThemeData(
       style: ButtonStyle(
-        backgroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.disabled)) {
-            return colorScheme.surfaceVariant;
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colorScheme.surfaceContainerHighest;
           }
           return colorScheme.primary;
         }),
-        foregroundColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.disabled)) {
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
             return colorScheme.onSurfaceVariant;
           }
           return colorScheme.onPrimary;
         }),
-        shape: MaterialStateProperty.all(
+        shape: WidgetStateProperty.all(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        padding: MaterialStateProperty.all(
+        padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
         ),
       ),
@@ -180,16 +173,16 @@ class FantasyTheme {
   static OutlinedButtonThemeData _buildOutlinedButtonTheme(ColorScheme colorScheme) {
     return OutlinedButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: MaterialStateProperty.all(colorScheme.primary),
-        side: MaterialStateProperty.all(
+        foregroundColor: WidgetStateProperty.all(colorScheme.primary),
+        side: WidgetStateProperty.all(
           BorderSide(color: colorScheme.primary.withValues(alpha: 0.5)),
         ),
-        shape: MaterialStateProperty.all(
+        shape: WidgetStateProperty.all(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        padding: MaterialStateProperty.all(
+        padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
         ),
       ),
@@ -199,8 +192,8 @@ class FantasyTheme {
   static TextButtonThemeData _buildTextButtonTheme(ColorScheme colorScheme) {
     return TextButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: MaterialStateProperty.all(colorScheme.primary),
-        padding: MaterialStateProperty.all(
+        foregroundColor: WidgetStateProperty.all(colorScheme.primary),
+        padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
         ),
       ),
@@ -211,7 +204,7 @@ class FantasyTheme {
     return InputDecorationTheme(
       filled: true,
       fillColor: colorScheme.surfaceContainerHighest,
-      labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+        labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: colorScheme.outlineVariant),
@@ -229,7 +222,7 @@ class FantasyTheme {
 
   static ChipThemeData _buildChipTheme(ColorScheme colorScheme) {
     return ChipThemeData(
-      backgroundColor: colorScheme.surfaceVariant,
+      backgroundColor: colorScheme.surfaceContainerHighest,
       selectedColor: colorScheme.primaryContainer,
       labelStyle: TextStyle(color: colorScheme.onPrimaryContainer),
       side: BorderSide(color: colorScheme.outlineVariant),
@@ -251,7 +244,7 @@ class FantasyTheme {
         color: colorScheme.onSurfaceVariant,
         fontSize: 16,
       ),
-      shape: RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
     );
@@ -273,7 +266,7 @@ class FantasyTheme {
 
   static BottomSheetThemeData _buildBottomSheetTheme(ColorScheme colorScheme) {
     return BottomSheetThemeData(
-      backgroundColor: colorScheme.surfaceContainer,
+      backgroundColor: colorScheme.surfaceContainerHighest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -289,17 +282,17 @@ class FantasyTheme {
 
   static SwitchThemeData _buildSwitchTheme(ColorScheme colorScheme) {
     return SwitchThemeData(
-      thumbColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return colorScheme.primary;
         }
         return colorScheme.onSurfaceVariant;
       }),
-      trackColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return colorScheme.primaryContainer;
         }
-        return colorScheme.surfaceVariant;
+        return colorScheme.surfaceContainerHighest;
       }),
     );
   }
@@ -307,7 +300,7 @@ class FantasyTheme {
   static ProgressIndicatorThemeData _buildProgressIndicatorTheme(ColorScheme colorScheme) {
     return ProgressIndicatorThemeData(
       color: colorScheme.primary,
-      linearTrackColor: colorScheme.surfaceVariant,
+      linearTrackColor: colorScheme.surfaceContainerHighest,
     );
   }
 }

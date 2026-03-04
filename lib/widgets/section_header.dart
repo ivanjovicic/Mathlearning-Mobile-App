@@ -18,5 +18,4 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-Widget SectionHeaderFactory({required String title, IconData? icon}) => SectionHeader(title: title, icon: icon);
-Widget SectionHeader({required String title, IconData? icon}) => SectionHeaderFactory(title: title, icon: icon);
+ 

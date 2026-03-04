@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/astrax_theme.dart';
 import '../widgets/astrax_app_bar.dart';
 import '../widgets/astrax_bottom_nav.dart';
 import '../widgets/astrax_card.dart';
@@ -19,7 +18,7 @@ class _AstraHomeScreenState extends State<AstraHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: const AstraAppBar(title: 'MathLearning'),
       body: Padding(
         padding: const EdgeInsets.all(18),

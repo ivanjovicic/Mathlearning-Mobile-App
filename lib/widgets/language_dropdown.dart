@@ -18,5 +18,4 @@ class LanguageDropdown extends StatelessWidget {
   }
 }
 
-Widget LanguageDropdownFactory({dynamic settings}) => LanguageDropdown(settings: settings);
-Widget LanguageDropdown({dynamic settings}) => LanguageDropdownFactory(settings: settings);
+// Keep class `LanguageDropdown`; remove duplicate top-level factory helpers to avoid name collision.

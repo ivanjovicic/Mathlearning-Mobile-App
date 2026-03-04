@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
@@ -52,13 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
       leaderboardProvider.token = authProvider.token;
       quizProvider.token = authProvider.token;
 
-      final routeName = ModalRoute.of(context)?.settings.name;
-      // When login is rendered by AuthWrapper (root route), AuthWrapper will
-      // automatically swap to home. Navigating again to /home duplicates
-      // screen init and causes duplicate bootstrap API calls.
-      if (routeName == '/login') {
-        Navigator.of(context).pushNamedAndRemoveUntil("/home", (_) => false);
-      }
+      context.go('/home');
     } else if (mounted) {
       ScaffoldMessenger.of(
         context,
@@ -87,7 +82,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: IntrinsicHeight(
                       child: Form(
                         key: _formKey,
@@ -191,7 +188,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: double.infinity,
                               height: 48,
                               child: ElevatedButton(
-                                onPressed: authProvider.isLoading ? null : _login,
+                                onPressed: authProvider.isLoading
+                                    ? null
+                                    : _login,
                                 child: authProvider.isLoading
                                     ? SizedBox(
                                         height: 20,
@@ -213,7 +212,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               children: [
                                 Text(
                                   t.noAccount,
-                                  style: TextStyle(color: colorScheme.onSurface),
+                                  style: TextStyle(
+                                    color: colorScheme.onSurface,
+                                  ),
                                 ),
                                 TextButton(
                                   onPressed: () {

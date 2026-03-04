@@ -26,9 +26,4 @@ class SetupHeroCard extends StatelessWidget {
   }
 }
 
-Widget SetupHeroCardFactory({int completedGoals = 0, double completionProgress = 0.0, int setupXp = 0, int level = 1}) {
-  return SetupHeroCard(completedGoals: completedGoals, completionProgress: completionProgress, setupXp: setupXp, level: level);
-}
-
-Widget SetupHeroCard({int completedGoals = 0, double completionProgress = 0.0, int setupXp = 0, int level = 1}) =>
-    SetupHeroCardFactory(completedGoals: completedGoals, completionProgress: completionProgress, setupXp: setupXp, level: level);
+ 

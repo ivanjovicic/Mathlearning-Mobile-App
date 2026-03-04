@@ -79,8 +79,8 @@ class _AnimatedXpBarState extends State<AnimatedXpBar>
           const SizedBox(height: 8),
           Container(
             height: 18,
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+              decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Stack(
@@ -126,7 +126,7 @@ class _AnimatedXpBarState extends State<AnimatedXpBar>
             Container(
               height: 18,
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Stack(

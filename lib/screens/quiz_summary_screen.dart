@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:go_router/go_router.dart';
 
 import '../l10n/app_i18n.dart';
 import '../widgets/mastery_progress_bar.dart';
@@ -55,7 +56,8 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
     final t = context.t;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     final stats = _stats;
 
@@ -67,13 +69,10 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
             children: [
               const Icon(Icons.quiz_rounded, size: 40),
               const SizedBox(height: 12),
-              Text(
-                'No stats available',
-                style: theme.textTheme.bodyLarge,
-              ),
+              Text('No stats available', style: theme.textTheme.bodyLarge),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+                onPressed: () => context.go('/home'),
                 icon: const Icon(Icons.home_rounded),
                 label: Text(t.qsBackHome),
               ),
@@ -90,10 +89,11 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 720;
-
                 final content = SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 24,
+                  ),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 640),
@@ -101,16 +101,31 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: 16),
-                          _SummaryHeader(stats: stats, reduceMotion: reduceMotion),
+                          _SummaryHeader(
+                            stats: stats,
+                            reduceMotion: reduceMotion,
+                          ),
                           const SizedBox(height: 28),
-                          _SummaryStatRow(stats: stats, reduceMotion: reduceMotion),
+                          _SummaryStatRow(
+                            stats: stats,
+                            reduceMotion: reduceMotion,
+                          ),
                           const SizedBox(height: 24),
-                          _SummaryMasterySection(stats: stats, reduceMotion: reduceMotion),
+                          _SummaryMasterySection(
+                            stats: stats,
+                            reduceMotion: reduceMotion,
+                          ),
                           const SizedBox(height: 24),
                           if (stats.wrongQuestions.isNotEmpty)
-                            _SummaryWrongQuestionsSection(stats: stats, reduceMotion: reduceMotion),
+                            _SummaryWrongQuestionsSection(
+                              stats: stats,
+                              reduceMotion: reduceMotion,
+                            ),
                           const SizedBox(height: 32),
-                          SummaryActions(stats: stats, reduceMotion: reduceMotion),
+                          SummaryActions(
+                            stats: stats,
+                            reduceMotion: reduceMotion,
+                          ),
                           const SizedBox(height: 32),
                         ],
                       ),
@@ -134,10 +149,7 @@ class _SummaryHeader extends StatelessWidget {
   final QuizSessionStats stats;
   final bool reduceMotion;
 
-  const _SummaryHeader({
-    required this.stats,
-    required this.reduceMotion,
-  });
+  const _SummaryHeader({required this.stats, required this.reduceMotion});
 
   @override
   Widget build(BuildContext context) {
@@ -145,15 +157,9 @@ class _SummaryHeader extends StatelessWidget {
     final cs = theme.colorScheme;
     final t = context.t;
 
-    final heroChild = _ResultIcon(
-      accuracy: stats.accuracyPercent,
-      cs: cs,
-    );
+    final heroChild = _ResultIcon(accuracy: stats.accuracyPercent, cs: cs);
 
-    Widget icon = Hero(
-      tag: 'quiz-summary-result-icon',
-      child: heroChild,
-    );
+    Widget icon = Hero(tag: 'quiz-summary-result-icon', child: heroChild);
 
     if (!reduceMotion) {
       icon = icon
@@ -187,7 +193,7 @@ class _SummaryHeader extends StatelessWidget {
           t.qsSubtitle(stats.correct, stats.total),
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: cs.onSurface.withOpacity(0.72),
+            color: cs.onSurface.withValues(alpha: 0.72),
           ),
         ),
         const SizedBox(height: 16),
@@ -196,7 +202,10 @@ class _SummaryHeader extends StatelessWidget {
           transitionBuilder: (child, anim) => FadeTransition(
             opacity: anim,
             child: SlideTransition(
-              position: Tween(begin: const Offset(0, 0.15), end: Offset.zero).animate(anim),
+              position: Tween(
+                begin: const Offset(0, 0.15),
+                end: Offset.zero,
+              ).animate(anim),
               child: child,
             ),
           ),
@@ -350,8 +359,10 @@ class _WrongQuestionsCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: cs.error.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -367,38 +378,42 @@ class _WrongQuestionsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          ...questions.take(5).map((q) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.close_rounded,
-                      size: 18,
-                      color: cs.error.withValues(alpha: 0.7),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Math.tex(
-                        q.questionText,
-                        textStyle: theme.textTheme.bodyMedium?.copyWith(
-                          color: cs.onSurface.withValues(alpha: 0.85),
-                          height: 1.3,
-                        ),
-                        onErrorFallback: (_) => Text(
+          ...questions
+              .take(5)
+              .map(
+                (q) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: cs.error.withValues(alpha: 0.7),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Math.tex(
                           q.questionText,
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                          textStyle: theme.textTheme.bodyMedium?.copyWith(
                             color: cs.onSurface.withValues(alpha: 0.85),
                             height: 1.3,
                           ),
-                          softWrap: true,
-                          textWidthBasis: TextWidthBasis.longestLine,
+                          onErrorFallback: (_) => Text(
+                            q.questionText,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: cs.onSurface.withValues(alpha: 0.85),
+                              height: 1.3,
+                            ),
+                            softWrap: true,
+                            textWidthBasis: TextWidthBasis.longestLine,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              )),
+              ),
           if (questions.length > 5)
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -446,28 +461,31 @@ class _ConfettiOverlay extends StatelessWidget {
             return Positioned(
               left: startX,
               top: -20,
-              child: Container(
-                width: 7 + rng.nextDouble() * 7,
-                height: 7 + rng.nextDouble() * 7,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              )
-                  .animate()
-                  .moveY(
-                    begin: 0,
-                    end: endY,
-                    duration: Duration(milliseconds: 700 + rng.nextInt(700)),
-                    curve: Curves.easeIn,
-                  )
-                  .fadeIn(duration: 80.ms)
-                  .rotate(
-                    begin: 0,
-                    end: rng.nextDouble() * 2.5,
-                    duration: 1300.ms,
-                  )
-                  .fadeOut(delay: 700.ms, duration: 500.ms),
+              child:
+                  Container(
+                        width: 7 + rng.nextDouble() * 7,
+                        height: 7 + rng.nextDouble() * 7,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      )
+                      .animate()
+                      .moveY(
+                        begin: 0,
+                        end: endY,
+                        duration: Duration(
+                          milliseconds: 700 + rng.nextInt(700),
+                        ),
+                        curve: Curves.easeIn,
+                      )
+                      .fadeIn(duration: 80.ms)
+                      .rotate(
+                        begin: 0,
+                        end: rng.nextDouble() * 2.5,
+                        duration: 1300.ms,
+                      )
+                      .fadeOut(delay: 700.ms, duration: 500.ms),
             );
           }),
         ),
@@ -513,8 +531,7 @@ class QuizSessionStats {
     required this.wrongQuestions,
   });
 
-  int get accuracyPercent =>
-      total > 0 ? (correct / total * 100).round() : 0;
+  int get accuracyPercent => total > 0 ? (correct / total * 100).round() : 0;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -572,14 +589,20 @@ class _SummaryMasterySection extends StatelessWidget {
   final QuizSessionStats stats;
   final bool reduceMotion;
 
-  const _SummaryMasterySection({required this.stats, required this.reduceMotion});
+  const _SummaryMasterySection({
+    required this.stats,
+    required this.reduceMotion,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.t.qsMastery, style: Theme.of(context).textTheme.titleSmall),
+        Text(
+          context.t.qsMastery,
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
         const SizedBox(height: 12),
         MasteryProgressBar(progress: stats.masteryProgress),
       ],
@@ -591,7 +614,10 @@ class _SummaryWrongQuestionsSection extends StatelessWidget {
   final QuizSessionStats stats;
   final bool reduceMotion;
 
-  const _SummaryWrongQuestionsSection({required this.stats, required this.reduceMotion});
+  const _SummaryWrongQuestionsSection({
+    required this.stats,
+    required this.reduceMotion,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -627,14 +653,14 @@ class SummaryActions extends StatelessWidget {
       children: [
         Expanded(
           child: FilledButton(
-            onPressed: () => Navigator.pushReplacementNamed(context, '/quiz'),
+            onPressed: () => context.go('/quiz'),
             child: const Text('Retry'),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: OutlinedButton(
-            onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+            onPressed: () => context.go('/home'),
             child: Text(t.qsBackHome),
           ),
         ),

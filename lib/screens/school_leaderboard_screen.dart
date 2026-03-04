@@ -1,23 +1,23 @@
 // Refactored SchoolLeaderboardScreen to improve modularity and maintainability
 // Extracted reusable components and optimized state management
 
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/school_leaderboard_models.dart';
 import '../state/school_leaderboard_provider.dart';
 import '../theme/astrax_theme.dart';
 import '../widgets/leaderboard_item.dart';
 import '../widgets/my_school_card.dart';
 import '../widgets/refreshable_list.dart';
+import '../widgets/ui/app_section.dart';
+import '../widgets/ui/state_scaffold.dart';
 
 class SchoolLeaderboardScreen extends StatefulWidget {
   const SchoolLeaderboardScreen({super.key});
 
   @override
-  State<SchoolLeaderboardScreen> createState() => _SchoolLeaderboardScreenState();
+  State<SchoolLeaderboardScreen> createState() =>
+      _SchoolLeaderboardScreenState();
 }
 
 class _SchoolLeaderboardScreenState extends State<SchoolLeaderboardScreen> {
@@ -30,14 +30,20 @@ class _SchoolLeaderboardScreenState extends State<SchoolLeaderboardScreen> {
 
     Future.microtask(() {
       if (!mounted) return;
-      Provider.of<SchoolLeaderboardProvider>(context, listen: false).reload(range);
+      Provider.of<SchoolLeaderboardProvider>(
+        context,
+        listen: false,
+      ).reload(range);
     });
 
     _scroll.addListener(() {
       if (!_scroll.hasClients) return;
       final threshold = _scroll.position.maxScrollExtent - 320;
       if (_scroll.position.pixels > threshold) {
-        Provider.of<SchoolLeaderboardProvider>(context, listen: false).loadMore(range);
+        Provider.of<SchoolLeaderboardProvider>(
+          context,
+          listen: false,
+        ).loadMore(range);
       }
     });
   }
@@ -86,15 +92,36 @@ class _SchoolLeaderboardScreenState extends State<SchoolLeaderboardScreen> {
         children: [
           Column(
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: AppSection(
+                  title: 'Rangiranje skola',
+                  padding: EdgeInsets.zero,
+                  child: Text(
+                    'Poredi performanse skola kroz vreme.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ),
               Expanded(
-                child: RefreshableList(
-                  items: items,
-                  loading: loading,
-                  hasMore: hasMore,
-                  error: error,
-                  onRefresh: () => provider.reload(range),
-                  onLoadMore: () => provider.loadMore(range),
-                  itemBuilder: (context, index) => LeaderboardItem(item: items[index]),
+                child: StateScaffold(
+                  isLoading: loading && items.isEmpty,
+                  isEmpty: !loading && items.isEmpty && error == null,
+                  error: error?.toString(),
+                  onRetry: () => provider.reload(range),
+                  emptyTitle: 'Nema rang liste',
+                  emptySubtitle: 'Povuci nadole da osvezis podatke.',
+                  emptyIcon: Icons.school_outlined,
+                  child: RefreshableList(
+                    items: items,
+                    loading: loading,
+                    hasMore: hasMore,
+                    error: error,
+                    onRefresh: () => provider.reload(range),
+                    onLoadMore: () => provider.loadMore(range),
+                    itemBuilder: (context, index) =>
+                        LeaderboardItemWidget(item: items[index]),
+                  ),
                 ),
               ),
             ],
@@ -102,11 +129,10 @@ class _SchoolLeaderboardScreenState extends State<SchoolLeaderboardScreen> {
           if (mySchool != null)
             Align(
               alignment: Alignment.bottomCenter,
-              child: MySchoolCard(mySchool: mySchool),
+              child: MySchoolCard(school: mySchool),
             ),
         ],
       ),
     );
   }
 }
-

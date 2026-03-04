@@ -9,6 +9,8 @@ import '../state/leaderboard_provider.dart';
 import '../state/user_profile_provider.dart';
 import '../theme/astrax_theme.dart';
 import '../widgets/leaderboard_scope_selector.dart';
+import '../widgets/ui/app_section.dart';
+import '../widgets/ui/state_scaffold.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -39,8 +41,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       if (!_scroll.hasClients) return;
       final threshold = _scroll.position.maxScrollExtent - 320;
       if (_scroll.position.pixels > threshold) {
-        final provider =
-            Provider.of<LeaderboardProvider>(context, listen: false);
+        final provider = Provider.of<LeaderboardProvider>(
+          context,
+          listen: false,
+        );
         provider.loadMore(scope, range);
       }
     });
@@ -140,18 +144,22 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                child: LeaderboardScopeSelector(
-                  selectedScope: scope.apiValue,
-                  schoolId: schoolId,
-                  facultyId: facultyId,
-                  onChanged: (value) {
-                    final next = _scopeFromString(value);
-                    if (next == scope) return;
-                    setState(() => scope = next);
-                    if (_scroll.hasClients) _scroll.jumpTo(0);
-                    leaderboard.reloadScope(next, range);
-                  },
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                child: AppSection(
+                  title: "Opseg rangiranja",
+                  padding: EdgeInsets.zero,
+                  child: LeaderboardScopeSelector(
+                    selectedScope: scope.apiValue,
+                    schoolId: schoolId,
+                    facultyId: facultyId,
+                    onChanged: (value) {
+                      final next = _scopeFromString(value);
+                      if (next == scope) return;
+                      setState(() => scope = next);
+                      if (_scroll.hasClients) _scroll.jumpTo(0);
+                      leaderboard.reloadScope(next, range);
+                    },
+                  ),
                 ),
               ),
               Expanded(
@@ -209,126 +217,75 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }) {
     final bool loading = paging.isLoading;
     final bool hasMore = paging.hasMore;
+    final isInitialLoading = loading && items.isEmpty;
+    final isEmpty = !loading && items.isEmpty && error == null;
 
-    if (loading && items.isEmpty) {
-      return Center(
-        child: CircularProgressIndicator(color: colorScheme.primary),
-      );
-    }
-
-    if (error != null && items.isEmpty) {
-      return RefreshIndicator(
+    return StateScaffold(
+      isLoading: isInitialLoading,
+      isEmpty: isEmpty,
+      error: error?.toString(),
+      onRetry: () {
+        onRefresh?.call();
+      },
+      emptyTitle: "Nema podataka",
+      emptySubtitle: "Povuci nadole za osvezavanje liste.",
+      emptyIcon: Icons.emoji_events_outlined,
+      child: RefreshIndicator(
         onRefresh: onRefresh ?? () async {},
-        child: ListView(
+        child: ListView.builder(
+          controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24),
-          children: [
-            const SizedBox(height: 40),
-            Icon(
-              Icons.cloud_off,
-              size: 64,
-              color: colorScheme.onSurface.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "Ne mogu da ucitam rang listu.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colorScheme.onSurface),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "Povuci nadole za retry.",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
+          itemCount: items.length + (loading || hasMore ? 1 : 0),
+          itemBuilder: (_, i) {
+            if (i < items.length) {
+              final e = items[i];
+              return _buildRow(
+                e,
+                e.userId == myUserId,
+                colorScheme,
+                reduceMotion,
+                i,
+              );
+            }
 
-    if (items.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: onRefresh ?? () async {},
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24),
-          children: [
-            const SizedBox(height: 40),
-            Icon(
-              Icons.emoji_events_outlined,
-              size: 64,
-              color: colorScheme.onSurface.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "Nema podataka.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colorScheme.onSurface),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: onRefresh ?? () async {},
-      child: ListView.builder(
-        controller: _scroll,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
-        itemCount: items.length + (loading || hasMore ? 1 : 0),
-        itemBuilder: (_, i) {
-          if (i < items.length) {
-            final e = items[i];
-            return _buildRow(
-              e,
-              e.userId == myUserId,
-              colorScheme,
-              reduceMotion,
-              i,
-            );
-          }
-
-          // Footer: loading / load-more trigger / end of list
-          if (loading) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              child: Center(
-                child: CircularProgressIndicator(color: colorScheme.primary),
-              ),
-            );
-          }
-          if (hasMore) {
-            // Fire-and-forget; guards are inside provider.
-            onLoadMore?.call();
+            if (loading) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                child: Center(
+                  child: CircularProgressIndicator(color: colorScheme.primary),
+                ),
+              );
+            }
+            if (hasMore) {
+              onLoadMore?.call();
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                child: Center(
+                  child: Text(
+                    "Ucitam jos...",
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              );
+            }
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 18),
               child: Center(
                 child: Text(
-                  "Ucitam jos...",
+                  "Kraj liste.",
                   style: TextStyle(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: colorScheme.onSurface.withValues(alpha: 0.55),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             );
-          }
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            child: Center(
-              child: Text(
-                "Kraj liste.",
-                style: TextStyle(
-                  color: colorScheme.onSurface.withValues(alpha: 0.55),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -449,8 +406,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
   Widget _avatar(LeaderboardItem e, ColorScheme colorScheme) {
     final name = e.displayName;
-    final initial =
-        name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
     final avatarUrl = e.avatarUrl;
     final border = Border.all(
       color: AstraXTheme.neonBlue.withValues(alpha: 0.35),
@@ -469,7 +425,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             color: AstraXTheme.neonBlue.withValues(alpha: 0.08),
             blurRadius: 14,
             offset: const Offset(0, 6),
-          )
+          ),
         ],
         image: avatarUrl != null && avatarUrl.isNotEmpty
             ? DecorationImage(image: NetworkImage(avatarUrl), fit: BoxFit.cover)
@@ -581,7 +537,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                     color: Colors.black.withValues(alpha: 0.35),
                     blurRadius: 22,
                     offset: const Offset(0, 14),
-                  )
+                  ),
                 ],
               ),
               child: Row(
@@ -621,17 +577,21 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text("You are #${me.rank}  •  ${me.score} XP",
-                            style: const TextStyle(
-                              color: AstraXTheme.textPrimary,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 14,
-                            )),
+                        Text(
+                          "You are #${me.rank}  •  ${me.score} XP",
+                          style: const TextStyle(
+                            color: AstraXTheme.textPrimary,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           "Top ${me.percentile}%",
                           style: TextStyle(
-                            color: AstraXTheme.textSecondary.withValues(alpha: 0.95),
+                            color: AstraXTheme.textSecondary.withValues(
+                              alpha: 0.95,
+                            ),
                             fontWeight: FontWeight.w700,
                             fontSize: 12,
                           ),

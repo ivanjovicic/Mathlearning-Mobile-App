@@ -28,11 +28,9 @@ class MLXTheme {
       onTertiaryContainer: Color(0xFFB3FFD9),
       error: Color(0xFFFF6B6B),
       onError: Colors.white,
-      background: Color(0xFF0B0C10),
-      onBackground: Color(0xFFF0F2F5),
       surface: Color(0xFF131418),
       onSurface: Color(0xFFF0F2F5),
-      surfaceVariant: Color(0xFF1A1B21),
+      surfaceContainerHighest: Color(0xFF1A1B21),
       onSurfaceVariant: Color(0xFF9CA3AF),
       outline: Color(0xFF3A3B44),
       outlineVariant: Color(0xFF2A2B33),
@@ -43,7 +41,7 @@ class MLXTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.background,
+      scaffoldBackgroundColor: colorScheme.surface,
       appBarTheme: AppBarTheme(
         backgroundColor: colorScheme.surface,
         elevation: 0,

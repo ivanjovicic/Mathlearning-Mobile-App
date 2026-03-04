@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_i18n.dart';
@@ -11,6 +12,8 @@ import '../../widgets/level_up_animation.dart';
 import '../../widgets/offline_status_widget.dart';
 import '../../widgets/streak_badge_presenter.dart';
 import '../../widgets/theme_accessibility_mini_preview.dart';
+import '../../widgets/ui/app_section.dart';
+import '../../widgets/ui/state_scaffold.dart';
 import '../quiz/pick_topic_screen.dart';
 
 class GamifiedHomeScreen extends StatefulWidget {
@@ -22,11 +25,17 @@ class GamifiedHomeScreen extends StatefulWidget {
 
 class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
   static const int _dailyGoalTarget = 20;
+  String? _error;
+  bool _isBootstrapping = true;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() async {
+    _bootstrapHome();
+  }
+
+  Future<void> _bootstrapHome() async {
+    try {
       if (!mounted) return;
 
       final progress = Provider.of<ProgressProvider>(context, listen: false);
@@ -54,8 +63,24 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
       await progress.loadProgress();
       await progress.rollDailyStreakIfNeeded();
       if (!mounted) return;
-      progress.loadTopics();
+      await progress.loadTopics();
+      setState(() => _error = null);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _isBootstrapping = false);
+      }
+    }
+  }
+
+  void _retryBootstrap() {
+    setState(() {
+      _isBootstrapping = true;
+      _error = null;
     });
+    _bootstrapHome();
   }
 
   TopicProgress? _findRecommendedTopic(ProgressProvider progress) {
@@ -126,17 +151,13 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
       case 0:
         return;
       case 1:
-        Navigator.pushNamed(
-          context,
-          "/quiz",
-          arguments: _resolveQuizTopicId(progress),
-        );
+        context.push('/quiz', extra: _resolveQuizTopicId(progress));
         return;
       case 2:
-        Navigator.pushNamed(context, "/leaderboard");
+        context.go('/leaderboard');
         return;
       case 3:
-        Navigator.pushNamed(context, "/profile");
+        context.go('/profile');
         return;
       default:
         return;
@@ -156,195 +177,193 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(18),
-          children: [
-            const Align(
-              alignment: Alignment.topRight,
-              child: OfflineStatusWidget(),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    t.homeArena,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w800,
+      body: StateScaffold(
+        isLoading: _isBootstrapping,
+        error: _error,
+        onRetry: _retryBootstrap,
+        isEmpty: !_isBootstrapping && _error == null && progress.topics.isEmpty,
+        emptyTitle: "Nema dostupnih tema",
+        emptySubtitle: "Odaberi temu kasnije kada podaci budu dostupni.",
+        emptyIcon: Icons.auto_stories_outlined,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              const Align(
+                alignment: Alignment.topRight,
+                child: OfflineStatusWidget(),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      t.homeArena,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                t.hello(
+                  username?.isNotEmpty == true ? username! : t.fallbackPlayer,
                 ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              t.hello(
-                username?.isNotEmpty == true ? username! : t.fallbackPlayer,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurface,
+                ),
               ),
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-            // Demo mode banner
-            Consumer<AuthProvider>(
-              builder: (context, auth, child) {
-                if (!auth.isDemoMode) return const SizedBox.shrink();
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  margin: const EdgeInsets.only(bottom: 4),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: colorScheme.primary),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: colorScheme.onPrimaryContainer,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Demo režim - test podaci",
-                        style: TextStyle(
+              // Demo mode banner
+              Consumer<AuthProvider>(
+                builder: (context, auth, child) {
+                  if (!auth.isDemoMode) return const SizedBox.shrink();
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    margin: const EdgeInsets.only(bottom: 4),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: colorScheme.primary),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
                           color: colorScheme.onPrimaryContainer,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          size: 16,
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Demo režim - test podaci",
+                          style: TextStyle(
+                            color: colorScheme.onPrimaryContainer,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
 
-            const SizedBox(height: 4),
-            _buildHeroPanel(
-              context: context,
-              level: progress.level,
-              xp: progress.xp,
-              xpToNextLevel: progress.xpToNextLevel,
-              topicName: recommendedTopic?.name ?? t.chooseTopicAndContinueQuiz,
-              onStart: () {
-                Navigator.pushNamed(
-                  context,
-                  "/quiz",
-                  arguments: _resolveQuizTopicId(progress),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            const Center(child: StreakBadgePresenter()),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _buildStatChip(
+              const SizedBox(height: 4),
+              AppSection(
+                title: t.launchNextQuiz,
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildHeroPanel(
                   context: context,
-                  icon: Icons.local_fire_department,
-                  label: t.streakInRowDays(progress.streak),
-                  color: colorScheme.secondaryContainer,
-                  onColor: colorScheme.onSecondaryContainer,
-                ),
-                Consumer<CoinProvider>(
-                  builder: (context, coinProvider, _) {
-                    return _buildStatChip(
-                      context: context,
-                      icon: Icons.monetization_on,
-                      label: t.coins(coinProvider.coins),
-                      color: colorScheme.tertiaryContainer,
-                      onColor: colorScheme.onTertiaryContainer,
-                    );
+                  level: progress.level,
+                  xp: progress.xp,
+                  xpToNextLevel: progress.xpToNextLevel,
+                  topicName:
+                      recommendedTopic?.name ?? t.chooseTopicAndContinueQuiz,
+                  onStart: () {
+                    context.push('/quiz', extra: _resolveQuizTopicId(progress));
                   },
                 ),
-                _buildStatChip(
-                  context: context,
-                  icon: Icons.flag_circle_outlined,
-                  label: t.dailyGoalShort(dailyDone, _dailyGoalTarget),
-                  color: colorScheme.primaryContainer,
-                  onColor: colorScheme.onPrimaryContainer,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ThemeAccessibilityMiniPreview(
-              title: t.arenaAccessibilityPreview,
-              compact: true,
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    t.missionTopics,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w700,
-                    ),
+              ),
+              const Center(child: StreakBadgePresenter()),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _buildStatChip(
+                    context: context,
+                    icon: Icons.local_fire_department,
+                    label: t.streakInRowDays(progress.streak),
+                    color: colorScheme.secondaryContainer,
+                    onColor: colorScheme.onSecondaryContainer,
                   ),
-                ),
-                TextButton.icon(
+                  Consumer<CoinProvider>(
+                    builder: (context, coinProvider, _) {
+                      return _buildStatChip(
+                        context: context,
+                        icon: Icons.monetization_on,
+                        label: t.coins(coinProvider.coins),
+                        color: colorScheme.tertiaryContainer,
+                        onColor: colorScheme.onTertiaryContainer,
+                      );
+                    },
+                  ),
+                  _buildStatChip(
+                    context: context,
+                    icon: Icons.flag_circle_outlined,
+                    label: t.dailyGoalShort(dailyDone, _dailyGoalTarget),
+                    color: colorScheme.primaryContainer,
+                    onColor: colorScheme.onPrimaryContainer,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ThemeAccessibilityMiniPreview(
+                title: t.arenaAccessibilityPreview,
+                compact: true,
+              ),
+              const SizedBox(height: 14),
+              AppSection(
+                title: t.missionTopics,
+                trailing: TextButton.icon(
                   onPressed: progress.topics.isEmpty
                       ? null
                       : () => _openTopicPicker(progress),
                   icon: const Icon(Icons.auto_stories),
                   label: Text(t.allTopics),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ...progress.topics.map((topic) {
-              final locked =
-                  !topic.unlocked || progress.level < topic.requiredLevel;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  leading: Icon(
-                    locked ? Icons.lock_outline : Icons.play_circle_fill,
-                    color: locked
-                        ? colorScheme.onSurfaceVariant
-                        : colorScheme.primary,
-                  ),
-                  title: Text(
-                    topic.name,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: Text(
-                    locked
-                        ? t.unlockAtLevel(topic.requiredLevel)
-                        : t.readyToPlay,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  trailing: FilledButton.tonal(
-                    onPressed: locked
-                        ? null
-                        : () {
-                            Navigator.pushNamed(
-                              context,
-                              "/quiz",
-                              arguments: topic.topicId,
-                            );
-                          },
-                    child: Text(t.play),
-                  ),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  children: progress.topics.map((topic) {
+                    final locked =
+                        !topic.unlocked || progress.level < topic.requiredLevel;
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: ListTile(
+                        leading: Icon(
+                          locked ? Icons.lock_outline : Icons.play_circle_fill,
+                          color: locked
+                              ? colorScheme.onSurfaceVariant
+                              : colorScheme.primary,
+                        ),
+                        title: Text(
+                          topic.name,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          locked
+                              ? t.unlockAtLevel(topic.requiredLevel)
+                              : t.readyToPlay,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        trailing: FilledButton.tonal(
+                          onPressed: locked
+                              ? null
+                              : () {
+                                  context.push('/quiz', extra: topic.topicId);
+                                },
+                          child: Text(t.play),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
-              );
-            }),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: NavigationBar(

@@ -17,8 +17,8 @@ class ProgressOverview {
     return ProgressOverview(
       totalQuizzes: json['totalQuizzes'],
       completedQuizzes: json['completedQuizzes'],
-      averageScore: json['averageScore'].toDouble(),
-      bestScore: json['bestScore'].toDouble(),
+      averageScore: (json['averageScore'] as num?)?.toDouble() ?? 0.0,
+      bestScore: (json['bestScore'] as num?)?.toDouble() ?? 0.0,
       lastQuizDate: DateTime.parse(json['lastQuizDate']),
     );
   }

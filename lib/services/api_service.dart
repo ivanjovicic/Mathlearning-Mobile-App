@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import '../models/progress_overview.dart';
 import '../models/leaderboard_models.dart';
 import '../models/school_leaderboard_models.dart';
@@ -59,15 +57,13 @@ ApiError parseError(DioException e) {
 
 // Root API Client
 class ApiClient {
-  final Dio _dio;
   final AuthApi auth;
   final QuizApi quiz;
   final UserApi user;
   final ProgressApi progress;
 
   ApiClient(Dio dio)
-      : _dio = dio,
-        auth = AuthApi(dio),
+      : auth = AuthApi(dio),
         quiz = QuizApi(dio),
         user = UserApi(dio),
         progress = ProgressApi(dio);
