@@ -43,8 +43,8 @@ class ThemeController extends ChangeNotifier {
     _state = _state.copyWith(type: type);
     notifyListeners();
 
-    await _preferencesService.saveTheme(type);
     _triggerThemeTransition(context, oldTheme, currentTheme);
+    await _preferencesService.saveTheme(type);
     _setSwitching(false);
   }
 

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 class AppScaffold extends StatefulWidget {
   final Widget child;
 
-  const AppScaffold({required this.child, Key? key}) : super(key: key);
+  const AppScaffold({super.key, required this.child});
 
   @override
   State<AppScaffold> createState() => _AppScaffoldState();

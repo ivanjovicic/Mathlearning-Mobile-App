@@ -281,7 +281,8 @@ class _DailyReviewToggle extends StatelessWidget {
       ),
       child: SwitchListTile.adaptive(
         value: value,
-        activeColor: cs.primary,
+        activeThumbColor: cs.primary,
+        activeTrackColor: cs.primary.withValues(alpha: 0.35),
         title: Text(
           label,
           style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),

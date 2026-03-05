@@ -50,7 +50,7 @@ class _MeteorParticlesState extends State<MeteorParticles>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, __) {
+      builder: (_, _) {
         return CustomPaint(
           painter: _MeteorPainter(
             meteors: meteors,

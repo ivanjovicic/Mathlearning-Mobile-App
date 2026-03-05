@@ -13,7 +13,7 @@ import 'package:mathlearning/state/quiz_provider.dart';
 
 class TestAuthProvider extends ChangeNotifier implements AuthProvider {
   bool _isLoading;
-  String? _error;
+  final String? _error;
   bool _isAuthenticated;
   String? _token;
   String? _userId;
@@ -103,7 +103,7 @@ class TestAuthProvider extends ChangeNotifier implements AuthProvider {
 
 class TestCoinProvider extends ChangeNotifier implements CoinProvider {
   int _coins;
-  UserDailyHints? _dailyHints;
+  final UserDailyHints? _dailyHints;
   bool _isLoading;
 
   TestCoinProvider({

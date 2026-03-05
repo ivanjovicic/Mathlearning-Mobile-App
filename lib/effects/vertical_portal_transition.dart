@@ -52,7 +52,7 @@ class _VerticalPortalTransitionState extends State<VerticalPortalTransition>
 
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, __) {
+      builder: (_, _) {
         final t = _controller.value;
         final portalOpen = Curves.easeOutCubic.transform(t);
         final fadeInNew = Curves.easeIn.transform((t - 0.3).clamp(0, 1));

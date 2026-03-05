@@ -20,7 +20,7 @@ class AppTheme {
         onSecondaryContainer: baseColorScheme.onSecondaryContainer,
         surface: baseColorScheme.surface,
         onSurface: baseColorScheme.onSurface,
-        surfaceContainerHighest: baseColorScheme.surfaceVariant,
+        surfaceContainerHighest: baseColorScheme.surfaceContainerHighest,
         onSurfaceVariant: baseColorScheme.onSurfaceVariant,
         error: baseColorScheme.error,
         onError: baseColorScheme.onError,

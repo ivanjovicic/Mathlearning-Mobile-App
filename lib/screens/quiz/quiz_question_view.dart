@@ -63,7 +63,7 @@ class QuizQuestionView extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 itemCount: answers.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final text = answers[index];
                   Color border = Colors.white12;

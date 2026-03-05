@@ -45,7 +45,7 @@ class _SparkBurstState extends State<SparkBurst>
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _controller,
-        builder: (_, __) {
+        builder: (_, _) {
           return CustomPaint(
             painter: _BurstPainter(
               color: widget.color,

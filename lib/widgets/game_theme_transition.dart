@@ -76,7 +76,7 @@ class GameThemeTransitionState extends State<GameThemeTransition>
     final isAnimating = _controller.isAnimating;
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, __) {
+      builder: (_, _) {
         return Directionality(
           textDirection: TextDirection.ltr,
           child: Stack(

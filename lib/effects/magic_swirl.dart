@@ -36,7 +36,7 @@ class _MagicSwirlState extends State<MagicSwirl>
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _controller,
-        builder: (_, __) {
+        builder: (_, _) {
           return CustomPaint(
             painter: _SwirlPainter(
               color: widget.color,
