@@ -643,7 +643,11 @@ class SummaryActions extends StatelessWidget {
   final QuizSessionStats stats;
   final bool reduceMotion;
 
-  const SummaryActions({required this.stats, required this.reduceMotion});
+  const SummaryActions({
+    super.key,
+    required this.stats,
+    required this.reduceMotion,
+  });
 
   @override
   Widget build(BuildContext context) {

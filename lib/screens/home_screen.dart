@@ -9,6 +9,7 @@ import '../l10n/app_i18n.dart';
 import '../models/topic_item.dart';
 import '../state/auth_provider.dart';
 import '../state/coin_provider.dart';
+import '../state/learning_path_provider.dart';
 import '../state/progress_provider.dart';
 import '../state/quiz_provider.dart';
 import '../utils/overlay_safety.dart';
@@ -383,6 +384,8 @@ class _HomeScreenState extends State<HomeScreen>
                     },
                   ),
                 ),
+                _LearningPathBanner(),
+                const SizedBox(height: 12),
                 AppSection(
                   title: "Daily Review",
                   padding: const EdgeInsets.only(bottom: 12),
@@ -846,5 +849,89 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       ),
     );
+  }
+}
+
+class _LearningPathBanner extends StatelessWidget {
+  const _LearningPathBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final provider = context.watch<LearningPathProvider>();
+    final recommended = provider.recommended;
+    final String title =
+        recommended != null ? recommended.topicName : 'Start your path';
+    final String subtitle = recommended != null
+        ? (recommended.recommendationReason ?? 'Continue where you left off')
+        : 'Build skills step by step';
+
+    return GestureDetector(
+      onTap: () => context.go('/learning-path'),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [cs.primaryContainer, cs.secondaryContainer],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: cs.primary.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.route_rounded, color: cs.primary, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Learning Path',
+                    style: tt.labelMedium?.copyWith(
+                      color: cs.primary,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    title,
+                    style: tt.titleSmall?.copyWith(
+                      color: cs.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    subtitle,
+                    style: tt.bodySmall?.copyWith(
+                      color: cs.onPrimaryContainer.withValues(alpha: 0.75),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: cs.primary),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 350.ms).slideX(begin: 0.04, end: 0);
   }
 }

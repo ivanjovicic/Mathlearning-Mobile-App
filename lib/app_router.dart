@@ -16,6 +16,9 @@ import 'theme_selector_page.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/quiz_summary_screen.dart';
 import 'screens/my_feedback_screen.dart';
+import 'screens/adaptive_practice_screen.dart';
+import 'screens/learning_insights_screen.dart';
+import 'screens/learning_path_screen.dart';
 import 'state/auth_provider.dart';
 import 'widgets/auth_wrapper.dart';
 
@@ -111,6 +114,18 @@ class AppRouter {
         GoRoute(
           path: '/my-feedback',
           builder: (context, state) => const MyFeedbackScreen(),
+        ),
+        GoRoute(
+          path: '/adaptive-practice',
+          builder: (context, state) => const AdaptivePracticeScreen(),
+        ),
+        GoRoute(
+          path: '/learning-insights',
+          builder: (context, state) => const LearningInsightsScreen(),
+        ),
+        GoRoute(
+          path: '/learning-path',
+          builder: (context, state) => const LearningPathScreen(),
         ),
       ],
     );
