@@ -19,13 +19,18 @@ import 'state/settings_provider.dart';
 import 'state/onboarding_provider.dart';
 import 'state/streak_freeze_provider.dart';
 import 'state/user_profile_provider.dart';
+import 'state/adaptive_provider.dart';
+import 'state/learning_path_provider.dart';
 
 import 'theme/theme_controller.dart';
 import 'theme/theme_preferences_service.dart';
 import 'services/auth_service.dart';
+import 'services/api_service.dart';
 import 'services/bug_report_service.dart';
 import 'services/notification_service.dart';
 import 'services/offline_manager.dart';
+import 'services/srs_service.dart';
+import 'services/adaptive_learning_service.dart';
 import 'app_router.dart';
 
 void main() {
@@ -132,6 +137,45 @@ class MathLearningApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SchoolLeaderboardProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
+        ChangeNotifierProxyProvider<ProgressProvider, AdaptiveProvider>(
+          create: (_) => AdaptiveProvider(
+            adaptiveService: AdaptiveLearningService(
+              apiService: ApiService(),
+              srsService: SrsService.instance,
+            ),
+          ),
+          update: (_, progress, previous) {
+            final provider =
+                previous ??
+                AdaptiveProvider(
+                  adaptiveService: AdaptiveLearningService(
+                    apiService: ApiService(),
+                    srsService: SrsService.instance,
+                  ),
+                );
+            provider.updateFromProgress(progress);
+            return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider<ProgressProvider, LearningPathProvider>(
+          create: (_) => LearningPathProvider(
+            service: AdaptiveLearningService(
+              apiService: ApiService(),
+              srsService: SrsService.instance,
+            ),
+          ),
+          update: (_, progress, previous) {
+            final provider = previous ??
+                LearningPathProvider(
+                  service: AdaptiveLearningService(
+                    apiService: ApiService(),
+                    srsService: SrsService.instance,
+                  ),
+                );
+            provider.updateFromProgress(progress);
+            return provider;
+          },
+        ),
       ],
       child: const _AppRoot(),
     );

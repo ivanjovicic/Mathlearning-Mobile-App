@@ -36,7 +36,7 @@ class UserProfile {
     }
 
     return UserProfile(
-      id: json['id']?.toString() ?? '',
+      id: (json['id'] ?? json['userId'])?.toString() ?? '',
       username: json['username'] ?? '',
       email: json['email'] ?? '',
       displayName: json['displayName'] ?? json['display_name'] ?? '',
@@ -132,7 +132,7 @@ class UserSearchResult {
 
   factory UserSearchResult.fromJson(Map<String, dynamic> json) {
     return UserSearchResult(
-      id: json['id']?.toString() ?? '',
+      id: (json['id'] ?? json['userId'])?.toString() ?? '',
       username: json['username'] ?? '',
       displayName: json['displayName'] ?? json['display_name'] ?? '',
       level: json['level'] ?? 1,

@@ -17,7 +17,7 @@ class BugReportService {
   static const String _myReportsCacheKey = 'my_bug_reports_cache';
   static const String _myFeedbackCacheKey = 'my_feedback_cache';
   static const String _legacyEndpoint = '/api/bugs/report';
-  static const String _feedbackEndpoint = '/api/feedback/report';
+  static const String _feedbackEndpoint = '/api/bugs/report';
 
   Future<BugReportSubmitResult> submitReport({
     required String screen,
@@ -227,23 +227,6 @@ class BugReportService {
     int limit = 50,
     int offset = 0,
   }) async {
-    try {
-      final response = await AuthService.instance.client.get(
-        '/api/feedback/mine',
-        queryParameters: {'limit': limit, 'offset': offset},
-      );
-      final data = response.data;
-      if (data is List) {
-        final feedback = data
-            .map((item) => BugReport.fromJson(Map<String, dynamic>.from(item)))
-            .toList();
-        await _saveMyFeedbackCache(feedback);
-        return feedback;
-      }
-    } catch (_) {
-      // Fallback below.
-    }
-
     try {
       final reports = await fetchMyReports(limit: limit, offset: offset);
       final feedbackOnly = reports

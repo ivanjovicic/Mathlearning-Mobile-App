@@ -4,8 +4,10 @@ import 'package:dio/dio.dart';
 
 import '../models/api_result.dart' as models_api;
 import 'auth/auth_controller.dart';
+import 'auth/auth_client.dart';
 import 'auth/auth_repository.dart';
 import 'auth/token_storage.dart';
+import 'network/dio_factory.dart';
 import '../services/api_service.dart';
 
 /// Backwards-compatible `AuthService` wrapper expected by legacy code.
@@ -31,9 +33,10 @@ class AuthService {
   String? _username;
 
   AuthService._() {
-    _dio = Dio();
+    _dio = DioFactory.create(withAuth: false);
     _tokenStorage = TokenStorage();
     _repo = AuthRepository(_dio, _tokenStorage);
+    AuthClient(_dio, _tokenStorage, _repo);
     controller = AuthController(_repo);
   }
 

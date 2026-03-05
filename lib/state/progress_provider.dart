@@ -217,9 +217,13 @@ class ProgressProvider extends ChangeNotifier {
       if (token?.startsWith('demo_') != true) {
         final data = await api.get("/api/progress/overview", token);
         if (data != null) {
-          final remoteAttempts = data["totalAttempts"] ?? 0;
+          final remoteAttempts =
+              ((data["totalAttempts"] ?? data["totalAnswered"]) as num?)
+                  ?.toInt() ??
+              0;
           final remoteAccuracy = (data["accuracy"] as num?)?.toDouble() ?? 0.0;
-          final remoteStreak = data["streak"] ?? 0;
+          final remoteStreak =
+              ((data["streak"] ?? data["dailyStreak"]) as num?)?.toInt() ?? 0;
 
           final remoteIsNewer =
               remoteAttempts > localAttempts ||
@@ -292,10 +296,15 @@ class ProgressProvider extends ChangeNotifier {
       // Pull authoritative state from server
       final remote = await _progressService.fetchProgress();
       if (remote != null) {
-        final remoteAttempts = remote['totalAttempts'] ?? totalAttempts;
+        final remoteAttempts =
+            ((remote['totalAttempts'] ?? remote['totalAnswered']) as num?)
+                ?.toInt() ??
+            totalAttempts;
         final remoteAccuracy =
             (remote['accuracy'] as num?)?.toDouble() ?? accuracy;
-        final remoteStreak = remote['streak'] ?? streak;
+        final remoteStreak =
+            ((remote['streak'] ?? remote['dailyStreak']) as num?)?.toInt() ??
+            streak;
         // Do not regress local quiz progress with stale remote snapshot.
         final remoteIsNewer =
             remoteAttempts > localAttempts ||

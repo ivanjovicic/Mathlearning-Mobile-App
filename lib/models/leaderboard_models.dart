@@ -16,13 +16,20 @@ class LeaderboardItem {
   });
 
   factory LeaderboardItem.fromJson(Map<String, dynamic> json) {
+    int asInt(dynamic value, {int fallback = 0}) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? fallback;
+      return fallback;
+    }
+
     return LeaderboardItem(
-      rank: (json['rank'] as num).toInt(),
-      userId: (json['userId'] as num).toInt(),
+      rank: asInt(json['rank']),
+      userId: asInt(json['userId']),
       displayName: (json['displayName'] ?? '') as String,
       avatarUrl: json['avatarUrl'] as String?,
-      score: (json['score'] as num).toInt(),
-      streakDays: (json['streakDays'] as num).toInt(),
+      score: asInt(json['score'] ?? json['xp'] ?? json['weeklyXp']),
+      streakDays: asInt(json['streakDays'] ?? json['streak']),
     );
   }
 }
@@ -60,8 +67,10 @@ class LeaderboardResponse {
   });
 
   factory LeaderboardResponse.fromJson(Map<String, dynamic> json) {
+    final rawItems = (json['items'] ?? json['entries']) as List? ?? const <dynamic>[];
+
     return LeaderboardResponse(
-      items: ((json['items'] as List?) ?? const <dynamic>[])
+      items: rawItems
           .map((e) => LeaderboardItem.fromJson(e as Map<String, dynamic>))
           .toList(),
       me: json['me'] == null

@@ -5,9 +5,9 @@ class HintType {
 }
 
 class HintCosts {
-  static const int formula = 2;
-  static const int clue = 1;
-  static const int eliminate = 3;
+  static const int formula = 5;
+  static const int clue = 10;
+  static const int eliminate = 15;
 
   static int getCost(String hintType) {
     switch (hintType) {
@@ -48,6 +48,9 @@ class UserDailyHints {
   final int formulaHintsUsed;
   final int clueHintsUsed;
   final int eliminateHintsUsed;
+  final int? remainingToday;
+  final int? dailyLimit;
+  final int? usedToday;
 
   UserDailyHints({
     required this.userId,
@@ -55,6 +58,9 @@ class UserDailyHints {
     this.formulaHintsUsed = 0,
     this.clueHintsUsed = 0,
     this.eliminateHintsUsed = 0,
+    this.remainingToday,
+    this.dailyLimit,
+    this.usedToday,
   });
 
   factory UserDailyHints.fromJson(Map<String, dynamic> json) {
@@ -71,6 +77,15 @@ class UserDailyHints {
       eliminateHintsUsed: _asInt(
         json['eliminateHintsUsed'] ?? json['eliminate_hints_used'],
       ),
+      remainingToday: json.containsKey('remaining')
+          ? _asInt(json['remaining'])
+          : null,
+      dailyLimit: json.containsKey('dailyLimit')
+          ? _asInt(json['dailyLimit'])
+          : null,
+      usedToday: json.containsKey('usedToday')
+          ? _asInt(json['usedToday'])
+          : null,
     );
   }
 
@@ -81,6 +96,9 @@ class UserDailyHints {
       'formulaHintsUsed': formulaHintsUsed,
       'clueHintsUsed': clueHintsUsed,
       'eliminateHintsUsed': eliminateHintsUsed,
+      'remaining': remainingToday,
+      'dailyLimit': dailyLimit,
+      'usedToday': usedToday,
     };
   }
 
@@ -98,6 +116,10 @@ class UserDailyHints {
   }
 
   bool canUseFreeHint(String hintType) {
+    if (remainingToday != null) {
+      return remainingToday! > 0;
+    }
+
     final used = getUsedHints(hintType);
     final limit = DailyHintLimits.getFreeLimit(hintType);
     return used < limit;

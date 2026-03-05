@@ -991,13 +991,28 @@ class QuizProvider extends ChangeNotifier {
         await coinProvider.useHint(HintType.eliminate);
         _usedHintForCurrentQuestion = true;
 
-        // Find eliminated options
-        final allOptions = currentQuestion!.options
+        // Backend compatibility:
+        // - legacy shape: remaining option IDs
+        // - current shape: remaining option texts
+        final allOptionIds = currentQuestion!.options
             .map((o) => o.id.toString())
             .toList();
-        _eliminatedOptions = allOptions
-            .where((opt) => !remainingOptions.contains(opt))
-            .toList();
+        final remainingSet = remainingOptions.toSet();
+        final hasIdPayload = remainingSet.any(allOptionIds.contains);
+
+        if (hasIdPayload) {
+          _eliminatedOptions = allOptionIds
+              .where((id) => !remainingSet.contains(id))
+              .toList();
+        } else {
+          final allOptionsByText = {
+            for (final o in currentQuestion!.options) o.text: o.id.toString(),
+          };
+          _eliminatedOptions = allOptionsByText.entries
+              .where((entry) => !remainingSet.contains(entry.key))
+              .map((entry) => entry.value)
+              .toList();
+        }
 
         notifyListeners();
       } else {

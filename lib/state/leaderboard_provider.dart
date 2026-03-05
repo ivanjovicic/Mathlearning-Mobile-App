@@ -13,7 +13,7 @@ extension LeaderboardScopeX on LeaderboardScope {
       case LeaderboardScope.school:
         return 'school';
       case LeaderboardScope.faculty:
-        return 'faculty';
+        return 'global';
       case LeaderboardScope.friends:
         return 'friends';
     }

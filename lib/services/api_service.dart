@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import '../models/progress_overview.dart';
 import '../models/leaderboard_models.dart';
 import '../models/school_leaderboard_models.dart';
+import 'network/dio_factory.dart';
 
 // Models
 class ApiResult<T> {
@@ -81,7 +82,7 @@ class AuthApi {
         '/auth/login',
         data: {'username': username, 'password': password},
       );
-      return ApiResult(data: response.data['token'] != null);
+      return ApiResult(data: response.data['accessToken'] != null);
     } on DioException catch (e) {
       return ApiResult(error: parseError(e));
     }
@@ -169,12 +170,16 @@ class UserApi {
     String? email,
   }) async {
     try {
+      final body = <String, dynamic>{};
+      if (displayName != null) {
+        body['displayName'] = displayName;
+      }
+      if (email != null) {
+        body['email'] = email;
+      }
       final response = await _dio.put(
         '/api/users/profile',
-        data: {
-          if (displayName != null) 'displayName': displayName,
-          if (email != null) 'email': email,
-        },
+        data: body,
       );
       return ApiResult(data: response.data);
     } on DioException catch (e) {
@@ -195,6 +200,13 @@ class ProgressApi {
       return ApiResult(data: ProgressOverview.fromJson(response.data));
     } on DioException catch (e) {
       return ApiResult(error: parseError(e));
+    } catch (e, st) {
+      return ApiResult(
+        error: ApiError(
+          message: e.toString(),
+          stackTrace: st,
+        ),
+      );
     }
   }
 }
@@ -237,12 +249,37 @@ class ApiService {
   static final ApiService _instance = ApiService._();
   factory ApiService() => _instance;
   ApiService._() {
-    _dio = Dio();
+    _dio = DioFactory.create();
     _client = ApiClient(_dio);
   }
 
   late Dio _dio;
   late ApiClient _client;
+
+  Future<ApiResult<T>> _requestResult<T>(
+    Future<Response<dynamic>> Function() request,
+    T Function(dynamic data) mapper,
+  ) async {
+    try {
+      final resp = await request();
+      return ApiResult(
+        data: mapper(resp.data),
+        statusCode: resp.statusCode,
+      );
+    } on DioException catch (e) {
+      final parsed = parseError(e);
+      return ApiResult(
+        error: parsed,
+        statusCode: e.response?.statusCode,
+        isRateLimited: e.response?.statusCode == 429,
+        retryAfter: parsed.retryAfter,
+      );
+    } catch (e, st) {
+      return ApiResult(
+        error: ApiError(message: e.toString(), stackTrace: st),
+      );
+    }
+  }
 
   Future<ProgressOverview> getProgressOverview() async {
     final res = await _client.progress.getProgressOverview();
@@ -268,7 +305,7 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>?> searchUsers(String query) async {
     try {
-      final resp = await _dio.get('/api/users/search', queryParameters: {'q': query});
+      final resp = await _dio.get('/api/users/search', queryParameters: {'query': query});
       if (resp.data is List) return (resp.data as List).cast<Map<String, dynamic>>();
     } catch (_) {}
     return null;
@@ -281,7 +318,7 @@ class ApiService {
     required String displayName,
   }) async {
     try {
-      final resp = await _dio.post('/api/users/register-mobile', data: {
+      final resp = await _dio.post('/auth/mobile/register', data: {
         'username': username,
         'email': email,
         'password': password,
@@ -295,7 +332,7 @@ class ApiService {
 
   Future<int?> getUserCoins() async {
     try {
-      final resp = await _dio.get('/api/users/coins');
+      final resp = await _dio.get('/api/user/coins');
       if (resp.data is int) return resp.data as int;
       if (resp.data is Map && resp.data['coins'] != null) return (resp.data['coins'] as num).toInt();
     } catch (_) {}
@@ -306,6 +343,9 @@ class ApiService {
     try {
       final resp = await _dio.get('/api/quiz/questions', queryParameters: {'topic': topicKey, 'count': count});
       if (resp.data is List) return (resp.data as List).cast<Map<String, dynamic>>();
+      if (resp.data is Map && resp.data['questions'] is List) {
+        return (resp.data['questions'] as List).cast<Map<String, dynamic>>();
+      }
     } catch (_) {}
     return null;
   }
@@ -329,11 +369,12 @@ class ApiService {
     }
   }
 
-  // Legacy: daily hint usage
   Future<Map<String, dynamic>?> getDailyHintUsage() async {
     try {
       final resp = await _dio.get('/api/hints/daily');
-      if (resp.data is Map) return resp.data as Map<String, dynamic>?;
+      if (resp.data is Map<String, dynamic>) {
+        return resp.data as Map<String, dynamic>;
+      }
     } catch (_) {}
     return null;
   }
@@ -345,13 +386,21 @@ class ApiService {
     String? cursor,
   }) async {
     try {
-      final resp = await _dio.get('/api/leaderboard', queryParameters: {
+      final query = <String, dynamic>{
         'scope': scope,
         'period': period,
         'limit': limit,
-        if (cursor != null) 'cursor': cursor,
-      });
-      if (resp.data is Map) return LeaderboardResponse.fromJson(resp.data as Map<String, dynamic>);
+      };
+      if (cursor != null && cursor.isNotEmpty) {
+        query['cursor'] = cursor;
+      }
+      final resp = await _dio.get(
+        '/api/leaderboard',
+        queryParameters: query,
+      );
+      if (resp.data is Map<String, dynamic>) {
+        return LeaderboardResponse.fromJson(resp.data as Map<String, dynamic>);
+      }
     } catch (_) {}
     return null;
   }
@@ -359,40 +408,65 @@ class ApiService {
   Future<List<dynamic>?> getTopicsProgress() async {
     try {
       final resp = await _dio.get('/api/topics/progress');
-      if (resp.data is List) return resp.data as List<dynamic>;
+      if (resp.data is List) {
+        return resp.data as List<dynamic>;
+      }
+      if (resp.data is Map<String, dynamic> &&
+          (resp.data as Map<String, dynamic>)['items'] is List) {
+        return (resp.data as Map<String, dynamic>)['items'] as List<dynamic>;
+      }
     } catch (_) {}
     return null;
   }
 
   Future<String?> fetchFormulaHint(int questionId) async {
     try {
-      final resp = await _dio.get('/api/hints/formula', queryParameters: {'questionId': questionId});
+      final resp = await _dio.get(
+        '/api/hints/formula',
+        queryParameters: {'questionId': questionId},
+      );
       if (resp.data is String) return resp.data as String;
-      if (resp.data is Map && resp.data['formula'] != null) return resp.data['formula'].toString();
+      if (resp.data is Map && resp.data['formula'] != null) {
+        return resp.data['formula'].toString();
+      }
     } catch (_) {}
     return null;
   }
 
   Future<String?> fetchClueHint(int questionId) async {
     try {
-      final resp = await _dio.get('/api/hints/clue', queryParameters: {'questionId': questionId});
+      final resp = await _dio.get(
+        '/api/hints/clue',
+        queryParameters: {'questionId': questionId},
+      );
       if (resp.data is String) return resp.data as String;
-      if (resp.data is Map && resp.data['clue'] != null) return resp.data['clue'].toString();
+      if (resp.data is Map && resp.data['clue'] != null) {
+        return resp.data['clue'].toString();
+      }
     } catch (_) {}
     return null;
   }
 
   Future<List<String>?> eliminateOption(int questionId) async {
     try {
-      final resp = await _dio.post('/api/hints/eliminate', data: {'questionId': questionId});
-      if (resp.data is List) return (resp.data as List).map((e) => e.toString()).toList();
+      final resp = await _dio.post(
+        '/api/hints/eliminate',
+        data: {'questionId': questionId},
+      );
+      if (resp.data is List) {
+        return (resp.data as List).map((e) => e.toString()).toList();
+      }
       if (resp.data is Map && resp.data['remainingOptions'] is List) {
-        return (resp.data['remainingOptions'] as List).map((e) => e.toString()).toList();
+        return (resp.data['remainingOptions'] as List)
+            .map((e) => e.toString())
+            .toList();
       }
     } catch (e) {
       if (e is DioException && e.response?.statusCode == 429) {
         final retryHeader = e.response?.headers.value('retry-after');
-        final retryAfter = retryHeader != null ? Duration(seconds: int.tryParse(retryHeader) ?? 0) : null;
+        final retryAfter = retryHeader != null
+            ? Duration(seconds: int.tryParse(retryHeader) ?? 0)
+            : null;
         throw ApiRateLimitedException(retryAfter);
       }
     }
@@ -405,14 +479,139 @@ class ApiService {
     String? cursor,
   }) async {
     try {
-      final resp = await _dio.get('/api/leaderboard/schools', queryParameters: {
-        'period': period,
-        'limit': limit,
-        if (cursor != null) 'cursor': cursor,
-      });
-      if (resp.data is Map) return SchoolLeaderboardResponse.fromJson(resp.data as Map<String, dynamic>);
+      final query = <String, dynamic>{'period': period, 'limit': limit};
+      if (cursor != null && cursor.isNotEmpty) {
+        query['cursor'] = cursor;
+      }
+      final resp = await _dio.get(
+        '/api/leaderboard/schools',
+        queryParameters: query,
+      );
+      if (resp.data is Map<String, dynamic>) {
+        return SchoolLeaderboardResponse.fromJson(
+          resp.data as Map<String, dynamic>,
+        );
+      }
     } catch (_) {}
     return null;
+  }
+
+  Future<Map<String, dynamic>?> getAdaptiveRecommendations() async {
+    final result = await getAdaptiveRecommendationsResult();
+    return result.data;
+  }
+
+  Future<ApiResult<Map<String, dynamic>>> getAdaptiveRecommendationsResult() {
+    return _requestResult<Map<String, dynamic>>(
+      () => _dio.get('/adaptive/recommendations'),
+      (data) {
+        if (data is Map<String, dynamic>) return data;
+        if (data is List && data.isNotEmpty && data.first is Map<String, dynamic>) {
+          return data.first as Map<String, dynamic>;
+        }
+        return <String, dynamic>{};
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>?> startAdaptiveSession({
+    int? topicId,
+    String? topic,
+  }) async {
+    final result = await startAdaptiveSessionResult(topicId: topicId, topic: topic);
+    return result.data;
+  }
+
+  Future<ApiResult<Map<String, dynamic>>> startAdaptiveSessionResult({
+    int? topicId,
+    String? topic,
+  }) {
+    final payload = <String, dynamic>{};
+    if (topicId != null) {
+      payload['topicId'] = topicId;
+    }
+    if (topic != null && topic.isNotEmpty) {
+      payload['topic'] = topic;
+    }
+    return _requestResult<Map<String, dynamic>>(
+      () => _dio.post(
+        '/adaptive/session/start',
+        data: payload,
+      ),
+      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
+    );
+  }
+
+  Future<Map<String, dynamic>?> submitAdaptiveSessionAnswer({
+    required String sessionId,
+    required int questionId,
+    required String answer,
+    int? responseTimeMs,
+  }) async {
+    final result = await submitAdaptiveSessionAnswerResult(
+      sessionId: sessionId,
+      questionId: questionId,
+      answer: answer,
+      responseTimeMs: responseTimeMs,
+    );
+    return result.data;
+  }
+
+  Future<ApiResult<Map<String, dynamic>>> submitAdaptiveSessionAnswerResult({
+    required String sessionId,
+    required int questionId,
+    required String answer,
+    int? responseTimeMs,
+  }) {
+    final payload = <String, dynamic>{
+      'sessionId': sessionId,
+      'questionId': questionId,
+      'answer': answer,
+    };
+    if (responseTimeMs != null) {
+      payload['responseTimeMs'] = responseTimeMs;
+    }
+    return _requestResult<Map<String, dynamic>>(
+      () => _dio.post('/adaptive/session/answer', data: payload),
+      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
+    );
+  }
+
+  Future<List<Map<String, dynamic>>?> getAdaptiveReview() async {
+    final result = await getAdaptiveReviewResult();
+    return result.data;
+  }
+
+  Future<ApiResult<List<Map<String, dynamic>>>> getAdaptiveReviewResult() {
+    return _requestResult<List<Map<String, dynamic>>>(
+      () => _dio.get('/adaptive/review'),
+      (data) {
+        if (data is List) {
+          return data.whereType<Map<String, dynamic>>().toList(growable: false);
+        }
+        if (data is Map<String, dynamic> && data['items'] is List) {
+          return (data['items'] as List)
+              .whereType<Map<String, dynamic>>()
+              .toList(growable: false);
+        }
+        return const <Map<String, dynamic>>[];
+      },
+    );
+  }
+
+  /// Fetches the full learning path from the adaptive backend.
+  /// Returns null if the endpoint is unavailable — caller must fall back to
+  /// derived path from progress + SRS data.
+  Future<Map<String, dynamic>?> getAdaptivePath() async {
+    final result = await getAdaptivePathResult();
+    return result.data;
+  }
+
+  Future<ApiResult<Map<String, dynamic>>> getAdaptivePathResult() {
+    return _requestResult<Map<String, dynamic>>(
+      () => _dio.get('/adaptive/path'),
+      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
+    );
   }
 
   // Generic helpers

@@ -105,6 +105,9 @@ class CoinProvider extends ChangeNotifier {
 
   void _useFreeHint(String hintType) {
     if (_dailyHints == null) return;
+    final nextRemaining = _dailyHints!.remainingToday != null
+        ? (_dailyHints!.remainingToday! - 1).clamp(0, 1000000)
+        : null;
 
     switch (hintType) {
       case HintType.formula:
@@ -114,6 +117,9 @@ class CoinProvider extends ChangeNotifier {
           formulaHintsUsed: _dailyHints!.formulaHintsUsed + 1,
           clueHintsUsed: _dailyHints!.clueHintsUsed,
           eliminateHintsUsed: _dailyHints!.eliminateHintsUsed,
+          remainingToday: nextRemaining,
+          dailyLimit: _dailyHints!.dailyLimit,
+          usedToday: (_dailyHints!.usedToday ?? 0) + 1,
         );
         break;
       case HintType.clue:
@@ -123,6 +129,9 @@ class CoinProvider extends ChangeNotifier {
           formulaHintsUsed: _dailyHints!.formulaHintsUsed,
           clueHintsUsed: _dailyHints!.clueHintsUsed + 1,
           eliminateHintsUsed: _dailyHints!.eliminateHintsUsed,
+          remainingToday: nextRemaining,
+          dailyLimit: _dailyHints!.dailyLimit,
+          usedToday: (_dailyHints!.usedToday ?? 0) + 1,
         );
         break;
       case HintType.eliminate:
@@ -132,6 +141,9 @@ class CoinProvider extends ChangeNotifier {
           formulaHintsUsed: _dailyHints!.formulaHintsUsed,
           clueHintsUsed: _dailyHints!.clueHintsUsed,
           eliminateHintsUsed: _dailyHints!.eliminateHintsUsed + 1,
+          remainingToday: nextRemaining,
+          dailyLimit: _dailyHints!.dailyLimit,
+          usedToday: (_dailyHints!.usedToday ?? 0) + 1,
         );
         break;
     }

@@ -16,12 +16,24 @@ class SchoolAggregateItem {
   });
 
   factory SchoolAggregateItem.fromJson(Map<String, dynamic> json) {
+    int asInt(dynamic value, {int fallback = 0}) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? fallback;
+      return fallback;
+    }
+
+    final schoolName = (json['schoolName'] ?? json['name'] ?? '') as String;
+
     return SchoolAggregateItem(
-      rank: (json['rank'] as num).toInt(),
-      schoolId: (json['schoolId'] as num).toInt(),
-      schoolName: (json['schoolName'] ?? '') as String,
-      score: (json['score'] as num).toInt(),
-      members: (json['members'] as num).toInt(),
+      rank: asInt(json['rank']),
+      schoolId: asInt(
+        json['schoolId'],
+        fallback: schoolName.hashCode.abs(),
+      ),
+      schoolName: schoolName,
+      score: asInt(json['score'] ?? json['xp'] ?? json['weeklyXp']),
+      members: asInt(json['members']),
       logoUrl: json['logoUrl'] as String?,
     );
   }
@@ -39,8 +51,10 @@ class SchoolLeaderboardResponse {
   });
 
   factory SchoolLeaderboardResponse.fromJson(Map<String, dynamic> json) {
+    final rawItems = (json['items'] ?? json['entries']) as List? ?? const <dynamic>[];
+
     return SchoolLeaderboardResponse(
-      items: ((json['items'] as List?) ?? const <dynamic>[])
+      items: rawItems
           .map((e) => SchoolAggregateItem.fromJson(e as Map<String, dynamic>))
           .toList(),
       mySchool: json['mySchool'] == null

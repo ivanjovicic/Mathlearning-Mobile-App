@@ -9,7 +9,34 @@ class HeatmapProvider extends ChangeNotifier {
 
   Future<void> loadWeek() async {
     final data = await api.get("/api/progress/week-activity", token);
-    if (data == null) return;
+    if (data == null) {
+      // Backend fallback: derive minimal weekly signal from overview.
+      final overview = await api.get("/api/progress/overview", token);
+      if (overview == null) return;
+
+      weekData = List.filled(7, 0);
+      final rawDate = overview["lastActivityDay"] ?? overview["lastStreakDay"];
+      final parsed = rawDate is String ? DateTime.tryParse(rawDate) : null;
+
+      if (parsed != null) {
+        final now = DateTime.now();
+        final start = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(Duration(days: now.weekday - 1));
+
+        final index = DateTime(parsed.year, parsed.month, parsed.day)
+            .difference(start)
+            .inDays;
+        if (index >= 0 && index < 7) {
+          weekData[index] = 1;
+        }
+      }
+
+      notifyListeners();
+      return;
+    }
 
     Map days = data["days"];
 

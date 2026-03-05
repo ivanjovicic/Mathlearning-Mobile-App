@@ -33,23 +33,25 @@ class _AuthInterceptor extends Interceptor {
   @override
   Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401 && !_isAuthRoute(err.requestOptions.path)) {
-      if (_refreshCompleter == null) {
-        _refreshCompleter = Completer<bool>();
+      var completer = _refreshCompleter;
+      if (completer == null) {
+        completer = Completer<bool>();
+        _refreshCompleter = completer;
         try {
           final refreshResult = await _authRepository.refreshToken();
           if (refreshResult is ApiSuccess<bool>) {
-            _refreshCompleter?.complete(refreshResult.data == true);
+            completer.complete(refreshResult.data == true);
           } else {
-            _refreshCompleter?.complete(false);
+            completer.complete(false);
           }
         } catch (_) {
-          _refreshCompleter?.complete(false);
+          completer.complete(false);
         } finally {
           _refreshCompleter = null;
         }
       }
 
-      final refreshSuccess = await _refreshCompleter!.future;
+      final refreshSuccess = await completer.future;
       if (refreshSuccess == true) {
         final retryRequest = await _retry(err.requestOptions);
         return handler.resolve(retryRequest);

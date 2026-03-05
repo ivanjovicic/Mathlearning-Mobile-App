@@ -20,7 +20,7 @@ class TokenStorage {
     _accessToken = token;
   }
 
-  String? _accessToken;
+  static String? _accessToken;
 
   Future<String?> getAccessToken() async {
     return _accessToken;
