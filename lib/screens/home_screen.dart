@@ -861,18 +861,21 @@ class _LearningPathBanner extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final provider = context.watch<LearningPathProvider>();
     final recommended = provider.recommended;
-    final String title =
-        recommended != null ? recommended.topicName : 'Start your path';
+    final String title = recommended != null
+        ? recommended.topicName
+        : 'Start your path';
     final String subtitle = recommended != null
         ? (recommended.recommendationReason ?? 'Continue where you left off')
         : 'Build skills step by step';
+    final String route = recommended != null
+        ? '/learning-map?focus=${recommended.id}'
+        : '/learning-map';
 
     return GestureDetector(
-      onTap: () => context.go('/learning-path'),
+      onTap: () => context.go(route),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [cs.primaryContainer, cs.secondaryContainer],
@@ -880,9 +883,7 @@ class _LearningPathBanner extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: cs.primary.withValues(alpha: 0.25),
-          ),
+          border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
         ),
         child: Row(
           children: [
@@ -900,7 +901,7 @@ class _LearningPathBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Learning Path',
+                    'Open Learning Map',
                     style: tt.labelMedium?.copyWith(
                       color: cs.primary,
                       fontWeight: FontWeight.w700,

@@ -19,6 +19,10 @@ import 'screens/my_feedback_screen.dart';
 import 'screens/adaptive_practice_screen.dart';
 import 'screens/learning_insights_screen.dart';
 import 'screens/learning_path_screen.dart';
+import 'features/adaptive_practice/screens/adaptive_practice_screen.dart'
+    as adaptive_practice;
+import 'features/learning_map/models/practice_launch_plan.dart';
+import 'features/learning_map/screens/learning_map_screen.dart';
 import 'state/auth_provider.dart';
 import 'widgets/auth_wrapper.dart';
 
@@ -126,6 +130,29 @@ class AppRouter {
         GoRoute(
           path: '/learning-path',
           builder: (context, state) => const LearningPathScreen(),
+        ),
+        GoRoute(
+          path: '/learning-map',
+          builder: (context, state) {
+            final userId =
+                (state.extra is String ? state.extra as String : null) ??
+                state.queryParams['userId'] ??
+                authProvider.userId ??
+                'me';
+            final focusNodeId = state.queryParams['focus'];
+            return LearningMapScreen(userId: userId, focusNodeId: focusNodeId);
+          },
+        ),
+        GoRoute(
+          path: '/learning-map/practice',
+          builder: (context, state) {
+            final payload = state.extra;
+            if (payload is PracticeLaunchPlan) {
+              return adaptive_practice.AdaptivePracticeScreen(plan: payload);
+            }
+            final userId = authProvider.userId ?? 'me';
+            return LearningMapScreen(userId: userId);
+          },
         ),
       ],
     );

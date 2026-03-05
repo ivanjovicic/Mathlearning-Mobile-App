@@ -51,7 +51,9 @@ ApiError parseError(DioException e) {
     stackTrace: e.stackTrace,
     dioErrorType: e.type,
     statusCode: e.response?.statusCode,
-    retryAfter: retryAfter != null ? Duration(seconds: int.tryParse(retryAfter) ?? 0) : null,
+    retryAfter: retryAfter != null
+        ? Duration(seconds: int.tryParse(retryAfter) ?? 0)
+        : null,
     responseBody: e.response?.data,
   );
 }
@@ -64,10 +66,10 @@ class ApiClient {
   final ProgressApi progress;
 
   ApiClient(Dio dio)
-      : auth = AuthApi(dio),
-        quiz = QuizApi(dio),
-        user = UserApi(dio),
-        progress = ProgressApi(dio);
+    : auth = AuthApi(dio),
+      quiz = QuizApi(dio),
+      user = UserApi(dio),
+      progress = ProgressApi(dio);
 }
 
 // Auth API
@@ -104,7 +106,6 @@ class AuthApi {
     }
   }
 }
-
 
 // Quiz API
 class QuizApi {
@@ -177,10 +178,7 @@ class UserApi {
       if (email != null) {
         body['email'] = email;
       }
-      final response = await _dio.put(
-        '/api/users/profile',
-        data: body,
-      );
+      final response = await _dio.put('/api/users/profile', data: body);
       return ApiResult(data: response.data);
     } on DioException catch (e) {
       return ApiResult(error: parseError(e));
@@ -202,10 +200,7 @@ class ProgressApi {
       return ApiResult(error: parseError(e));
     } catch (e, st) {
       return ApiResult(
-        error: ApiError(
-          message: e.toString(),
-          stackTrace: st,
-        ),
+        error: ApiError(message: e.toString(), stackTrace: st),
       );
     }
   }
@@ -262,10 +257,7 @@ class ApiService {
   ) async {
     try {
       final resp = await request();
-      return ApiResult(
-        data: mapper(resp.data),
-        statusCode: resp.statusCode,
-      );
+      return ApiResult(data: mapper(resp.data), statusCode: resp.statusCode);
     } on DioException catch (e) {
       final parsed = parseError(e);
       return ApiResult(
@@ -298,15 +290,26 @@ class ApiService {
     return res.data;
   }
 
-  Future<Map<String, dynamic>?> updateUserProfile({String? displayName, String? email}) async {
-    final res = await _client.user.updateUserProfile(displayName: displayName, email: email);
+  Future<Map<String, dynamic>?> updateUserProfile({
+    String? displayName,
+    String? email,
+  }) async {
+    final res = await _client.user.updateUserProfile(
+      displayName: displayName,
+      email: email,
+    );
     return res.data;
   }
 
   Future<List<Map<String, dynamic>>?> searchUsers(String query) async {
     try {
-      final resp = await _dio.get('/api/users/search', queryParameters: {'query': query});
-      if (resp.data is List) return (resp.data as List).cast<Map<String, dynamic>>();
+      final resp = await _dio.get(
+        '/api/users/search',
+        queryParameters: {'query': query},
+      );
+      if (resp.data is List) {
+        return (resp.data as List).cast<Map<String, dynamic>>();
+      }
     } catch (_) {}
     return null;
   }
@@ -318,12 +321,15 @@ class ApiService {
     required String displayName,
   }) async {
     try {
-      final resp = await _dio.post('/auth/mobile/register', data: {
-        'username': username,
-        'email': email,
-        'password': password,
-        'displayName': displayName,
-      });
+      final resp = await _dio.post(
+        '/auth/mobile/register',
+        data: {
+          'username': username,
+          'email': email,
+          'password': password,
+          'displayName': displayName,
+        },
+      );
       return resp.data as Map<String, dynamic>?;
     } catch (_) {
       return null;
@@ -334,15 +340,25 @@ class ApiService {
     try {
       final resp = await _dio.get('/api/user/coins');
       if (resp.data is int) return resp.data as int;
-      if (resp.data is Map && resp.data['coins'] != null) return (resp.data['coins'] as num).toInt();
+      if (resp.data is Map && resp.data['coins'] != null) {
+        return (resp.data['coins'] as num).toInt();
+      }
     } catch (_) {}
     return null;
   }
 
-  Future<List<Map<String, dynamic>>?> getQuestions(String topicKey, int count) async {
+  Future<List<Map<String, dynamic>>?> getQuestions(
+    String topicKey,
+    int count,
+  ) async {
     try {
-      final resp = await _dio.get('/api/quiz/questions', queryParameters: {'topic': topicKey, 'count': count});
-      if (resp.data is List) return (resp.data as List).cast<Map<String, dynamic>>();
+      final resp = await _dio.get(
+        '/api/quiz/questions',
+        queryParameters: {'topic': topicKey, 'count': count},
+      );
+      if (resp.data is List) {
+        return (resp.data as List).cast<Map<String, dynamic>>();
+      }
       if (resp.data is Map && resp.data['questions'] is List) {
         return (resp.data['questions'] as List).cast<Map<String, dynamic>>();
       }
@@ -350,19 +366,30 @@ class ApiService {
     return null;
   }
 
-  Future<Map<String, dynamic>?> submitAnswer(String quizId, int questionId, String answer, int timeSpentSeconds, [String? token]) async {
+  Future<Map<String, dynamic>?> submitAnswer(
+    String quizId,
+    int questionId,
+    String answer,
+    int timeSpentSeconds, [
+    String? token,
+  ]) async {
     try {
-      final resp = await _dio.post('/api/quiz/answer', data: {
-        'quizId': quizId,
-        'questionId': questionId,
-        'answer': answer,
-        'timeSpentSeconds': timeSpentSeconds,
-      });
+      final resp = await _dio.post(
+        '/api/quiz/answer',
+        data: {
+          'quizId': quizId,
+          'questionId': questionId,
+          'answer': answer,
+          'timeSpentSeconds': timeSpentSeconds,
+        },
+      );
       return resp.data as Map<String, dynamic>?;
     } catch (e) {
       if (e is DioException && e.response?.statusCode == 429) {
         final retryHeader = e.response?.headers.value('retry-after');
-        final retryAfter = retryHeader != null ? Duration(seconds: int.tryParse(retryHeader) ?? 0) : null;
+        final retryAfter = retryHeader != null
+            ? Duration(seconds: int.tryParse(retryHeader) ?? 0)
+            : null;
         throw ApiRateLimitedException(retryAfter);
       }
       return null;
@@ -394,10 +421,7 @@ class ApiService {
       if (cursor != null && cursor.isNotEmpty) {
         query['cursor'] = cursor;
       }
-      final resp = await _dio.get(
-        '/api/leaderboard',
-        queryParameters: query,
-      );
+      final resp = await _dio.get('/api/leaderboard', queryParameters: query);
       if (resp.data is Map<String, dynamic>) {
         return LeaderboardResponse.fromJson(resp.data as Map<String, dynamic>);
       }
@@ -496,6 +520,77 @@ class ApiService {
     return null;
   }
 
+  Future<ApiResult<Map<String, dynamic>>> getAdaptivePathForUserResult(
+    String userId,
+  ) {
+    return _requestResult<Map<String, dynamic>>(
+      () => _dio.get('/api/adaptive/path/$userId'),
+      (data) {
+        if (data is Map<String, dynamic>) {
+          if (data['data'] is Map<String, dynamic>) {
+            return data['data'] as Map<String, dynamic>;
+          }
+          return data;
+        }
+        return <String, dynamic>{};
+      },
+    );
+  }
+
+  Future<ApiResult<List<Map<String, dynamic>>>> getMasteryForUserResult(
+    String userId,
+  ) {
+    return _requestResult<List<Map<String, dynamic>>>(
+      () => _dio.get('/api/analytics/mastery/$userId'),
+      _normalizeListPayload,
+    );
+  }
+
+  Future<ApiResult<List<Map<String, dynamic>>>> getWeaknessForUserResult(
+    String userId,
+  ) {
+    return _requestResult<List<Map<String, dynamic>>>(
+      () => _dio.get('/api/analytics/weakness/$userId'),
+      _normalizeListPayload,
+    );
+  }
+
+  Future<ApiResult<List<Map<String, dynamic>>>>
+  getPracticeRecommendationsForUserResult(String userId) {
+    return _requestResult<List<Map<String, dynamic>>>(
+      () => _dio.get('/api/recommendations/practice/$userId'),
+      _normalizeListPayload,
+    );
+  }
+
+  Future<ApiResult<Map<String, dynamic>>> startPracticeSessionResult(
+    Map<String, dynamic> payload,
+  ) {
+    return _requestResult<Map<String, dynamic>>(
+      () => _dio.post('/api/practice/session/start', data: payload),
+      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
+    );
+  }
+
+  Future<ApiResult<Map<String, dynamic>>> submitPracticeSessionAnswerResult(
+    String sessionId,
+    Map<String, dynamic> payload,
+  ) {
+    return _requestResult<Map<String, dynamic>>(
+      () => _dio.post('/api/practice/session/$sessionId/answer', data: payload),
+      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
+    );
+  }
+
+  Future<ApiResult<Map<String, dynamic>>> completePracticeSessionResult(
+    String sessionId,
+  ) {
+    return _requestResult<Map<String, dynamic>>(
+      () => _dio.post('/api/practice/session/$sessionId/complete'),
+      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
+    );
+  }
+
   Future<Map<String, dynamic>?> getAdaptiveRecommendations() async {
     final result = await getAdaptiveRecommendationsResult();
     return result.data;
@@ -506,7 +601,9 @@ class ApiService {
       () => _dio.get('/adaptive/recommendations'),
       (data) {
         if (data is Map<String, dynamic>) return data;
-        if (data is List && data.isNotEmpty && data.first is Map<String, dynamic>) {
+        if (data is List &&
+            data.isNotEmpty &&
+            data.first is Map<String, dynamic>) {
           return data.first as Map<String, dynamic>;
         }
         return <String, dynamic>{};
@@ -518,7 +615,10 @@ class ApiService {
     int? topicId,
     String? topic,
   }) async {
-    final result = await startAdaptiveSessionResult(topicId: topicId, topic: topic);
+    final result = await startAdaptiveSessionResult(
+      topicId: topicId,
+      topic: topic,
+    );
     return result.data;
   }
 
@@ -534,10 +634,7 @@ class ApiService {
       payload['topic'] = topic;
     }
     return _requestResult<Map<String, dynamic>>(
-      () => _dio.post(
-        '/adaptive/session/start',
-        data: payload,
-      ),
+      () => _dio.post('/adaptive/session/start', data: payload),
       (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
     );
   }
@@ -618,20 +715,58 @@ class ApiService {
   Future<Map<String, dynamic>?> get(String endpoint, [String? token]) async {
     try {
       final response = await _dio.get(endpoint);
-      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
         return response.data as Map<String, dynamic>?;
       }
     } catch (_) {}
     return null;
   }
 
-  Future<Map<String, dynamic>?> post(String endpoint, Map data, [String? token]) async {
+  Future<Map<String, dynamic>?> post(
+    String endpoint,
+    Map data, [
+    String? token,
+  ]) async {
     try {
       final response = await _dio.post(endpoint, data: data);
-      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
         return response.data as Map<String, dynamic>?;
       }
     } catch (_) {}
     return null;
+  }
+
+  List<Map<String, dynamic>> _normalizeListPayload(dynamic data) {
+    if (data is List) {
+      return data.whereType<Map<String, dynamic>>().toList(growable: false);
+    }
+
+    if (data is Map<String, dynamic>) {
+      final nestedData = data['data'];
+      if (nestedData is List) {
+        return nestedData.whereType<Map<String, dynamic>>().toList(
+          growable: false,
+        );
+      }
+
+      final nestedItems = data['items'];
+      if (nestedItems is List) {
+        return nestedItems.whereType<Map<String, dynamic>>().toList(
+          growable: false,
+        );
+      }
+
+      if (nestedData is Map<String, dynamic>) {
+        return [nestedData];
+      }
+
+      return [data];
+    }
+
+    return const <Map<String, dynamic>>[];
   }
 }

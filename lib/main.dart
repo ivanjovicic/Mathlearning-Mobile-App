@@ -21,6 +21,8 @@ import 'state/streak_freeze_provider.dart';
 import 'state/user_profile_provider.dart';
 import 'state/adaptive_provider.dart';
 import 'state/learning_path_provider.dart';
+import 'features/learning_map/providers/learning_map_provider.dart';
+import 'features/learning_map/services/learning_map_service.dart';
 
 import 'theme/theme_controller.dart';
 import 'theme/theme_preferences_service.dart';
@@ -137,6 +139,11 @@ class MathLearningApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SchoolLeaderboardProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
+        ChangeNotifierProvider(
+          create: (_) => LearningMapProvider(
+            service: LearningMapService(apiService: ApiService()),
+          ),
+        ),
         ChangeNotifierProxyProvider<ProgressProvider, AdaptiveProvider>(
           create: (_) => AdaptiveProvider(
             adaptiveService: AdaptiveLearningService(
@@ -165,7 +172,8 @@ class MathLearningApp extends StatelessWidget {
             ),
           ),
           update: (_, progress, previous) {
-            final provider = previous ??
+            final provider =
+                previous ??
                 LearningPathProvider(
                   service: AdaptiveLearningService(
                     apiService: ApiService(),

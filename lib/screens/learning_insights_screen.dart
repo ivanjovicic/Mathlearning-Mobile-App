@@ -84,9 +84,9 @@ class _LearningInsightsScreenState extends State<LearningInsightsScreen>
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/learning-path'),
+        onPressed: () => context.go('/learning-map'),
         icon: const Icon(Icons.route_rounded),
-        label: const Text('View Path'),
+        label: const Text('Open Map'),
         backgroundColor: cs.primaryContainer,
         foregroundColor: cs.onPrimaryContainer,
       ),
@@ -110,8 +110,9 @@ class _OverviewTab extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final completed =
-        nodes.where((n) => n.state == PathNodeState.completed).length;
+    final completed = nodes
+        .where((n) => n.state == PathNodeState.completed)
+        .length;
     final total = nodes.length;
     final avgMastery = total == 0
         ? 0.0
@@ -152,17 +153,22 @@ class _OverviewTab extends StatelessWidget {
 
         // Up Next card
         if (recommended != null) ...[
-          Text('Up Next', style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'Up Next',
+            style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 10),
-          _NextNodeCard(node: recommended)
-              .animate()
-              .fadeIn(delay: 200.ms)
-              .slideX(begin: 0.03),
+          _NextNodeCard(
+            node: recommended,
+          ).animate().fadeIn(delay: 200.ms).slideX(begin: 0.03),
           const SizedBox(height: 24),
         ],
 
         // Path progress bar
-        Text('Path Progress', style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          'Path Progress',
+          style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 10),
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
@@ -196,7 +202,9 @@ class _OverviewTab extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Showing offline path — connect to sync with your progress.',
-                    style: tt.bodySmall?.copyWith(color: cs.onTertiaryContainer),
+                    style: tt.bodySmall?.copyWith(
+                      color: cs.onTertiaryContainer,
+                    ),
                   ),
                 ),
               ],
@@ -237,13 +245,17 @@ class _StatCard extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: color),
             const SizedBox(height: 6),
-            Text(value,
-                style: tt.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: cs.onSurface,
-                )),
-            Text(label,
-                style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+            Text(
+              value,
+              style: tt.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: cs.onSurface,
+              ),
+            ),
+            Text(
+              label,
+              style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
           ],
         ),
       ),
@@ -274,18 +286,22 @@ class _NextNodeCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(node.topicName,
-                    style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                Text(
+                  node.topicName,
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
                 if (node.subtopicName != null)
-                  Text(node.subtopicName!,
-                      style: tt.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant)),
+                  Text(
+                    node.subtopicName!,
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                  ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
                     AdaptiveDifficultyBadge(
-                        difficulty: node.difficulty,
-                        confidence: node.confidence),
+                      difficulty: node.difficulty,
+                      confidence: node.confidence,
+                    ),
                     if (node.dueReviewCount > 0) ...[
                       const SizedBox(width: 6),
                       ReviewDuePill(count: node.dueReviewCount),
@@ -324,16 +340,23 @@ class _MasteryTab extends StatelessWidget {
     // Unique topics, sorted by mastery ascending
     final Map<String, int> topicMastery = {};
     for (final n in nodes) {
-      topicMastery.update(n.topicName, (v) => (v + n.mastery.round()) ~/ 2,
-          ifAbsent: () => n.mastery.round());
+      topicMastery.update(
+        n.topicName,
+        (v) => (v + n.mastery.round()) ~/ 2,
+        ifAbsent: () => n.mastery.round(),
+      );
     }
     final sorted = topicMastery.entries.toList()
       ..sort((a, b) => a.value.compareTo(b.value));
 
     if (sorted.isEmpty) {
       return Center(
-        child: Text('No mastery data yet',
-            style: tt.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        child: Text(
+          'No mastery data yet',
+          style: tt.bodyLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       );
     }
 
@@ -386,11 +409,15 @@ class _WeakTopicsTab extends StatelessWidget {
           children: [
             Icon(Icons.check_circle_outline, size: 56, color: cs.primary),
             const SizedBox(height: 12),
-            Text('No weak topics — great work!',
-                style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              'No weak topics — great work!',
+              style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 6),
-            Text('Keep practicing to maintain your mastery.',
-                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+            Text(
+              'Keep practicing to maintain your mastery.',
+              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
           ],
         ),
       );
@@ -407,8 +434,10 @@ class _WeakTopicsTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Needs Work',
-                    style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                Text(
+                  'Needs Work',
+                  style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   '${weakTopics.length} topic${weakTopics.length == 1 ? '' : 's'} below 70% accuracy',
@@ -421,10 +450,10 @@ class _WeakTopicsTab extends StatelessWidget {
         final item = weakTopics[i - 1];
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: _WeakTopicTile(topic: item.topic, accuracy: item.accuracy)
-              .animate()
-              .fadeIn(delay: (i * 50).ms)
-              .slideX(begin: 0.04),
+          child: _WeakTopicTile(
+            topic: item.topic,
+            accuracy: item.accuracy,
+          ).animate().fadeIn(delay: (i * 50).ms).slideX(begin: 0.04),
         );
       },
     );
@@ -444,8 +473,8 @@ class _WeakTopicTile extends StatelessWidget {
     final Color barColor = pct < 40
         ? cs.error
         : pct < 60
-            ? cs.tertiary
-            : cs.secondary;
+        ? cs.tertiary
+        : cs.secondary;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -460,12 +489,18 @@ class _WeakTopicTile extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(topic,
-                    style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                child: Text(
+                  topic,
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
               ),
-              Text('${pct.round()}%',
-                  style: tt.labelLarge?.copyWith(
-                      color: barColor, fontWeight: FontWeight.w700)),
+              Text(
+                '${pct.round()}%',
+                style: tt.labelLarge?.copyWith(
+                  color: barColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
