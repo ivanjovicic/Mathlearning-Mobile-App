@@ -1,47 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 
 import 'package:mathlearning/models/option.dart';
 import 'package:mathlearning/models/question.dart';
 import 'package:mathlearning/screens/daily_review_screen.dart';
 import 'package:mathlearning/state/progress_provider.dart';
+import 'package:mathlearning/state/quiz_provider.dart';
 
 import '../helpers/test_app.dart';
 import '../helpers/test_bootstrap.dart';
 import '../helpers/test_fakes.dart';
+import 'daily_review_screen_test.mocks.dart';
 
+@GenerateMocks([QuizProvider])
 void main() {
   bootstrapTests();
 
   group('DailyReviewScreen', () {
-    testWidgets('shows loading text initially', (tester) async {
-      final quiz = TestQuizProvider(
-        reviewQuestions: [
-          Question(
-            id: 1,
-            text: 'Q1',
-            correctAnswerId: 1,
-            options: [Option(id: 1, text: 'A')],
-          ),
-        ],
-      );
-      final progress = ProgressProvider()..streak = 5;
+    testWidgets('shows loading indicator initially', (WidgetTester tester) async {
+      // Arrange
+      final quizProvider = MockQuizProvider();
+      when(quizProvider.isLoadingHint).thenReturn(true);
+      when(quizProvider.questions).thenReturn([]);
 
       await tester.pumpWidget(
-        buildTestApp(
-          home: const DailyReviewScreen(),
-          providers: [
-            ChangeNotifierProvider.value(value: quiz),
-            ChangeNotifierProvider.value(value: progress),
-          ],
-          routes: {
-            '/quiz': (_) => const Scaffold(body: Text('Quiz Screen')),
-          },
+        ChangeNotifierProvider<QuizProvider>.value(
+          value: quizProvider,
+          child: const MaterialApp(
+            home: DailyReviewScreen(),
+          ),
         ),
       );
 
-      expect(find.text('Ucitavam pitanja...'), findsOneWidget);
+      // Act
+      await tester.pump();
+
+      // Assert
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
     testWidgets('shows count and preview after load', (tester) async {
@@ -110,8 +108,7 @@ void main() {
       expect(find.text('Danas si sve zavrsio. Bravo!'), findsOneWidget);
     });
 
-    testWidgets('Start Review navigates and sets skipDailyReviewOnce',
-        (tester) async {
+    testWidgets('Start Review navigates and sets skipDailyReviewOnce', (tester) async {
       final quiz = TestQuizProvider(
         reviewQuestions: [
           Question(

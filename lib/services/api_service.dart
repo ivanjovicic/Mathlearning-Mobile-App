@@ -520,6 +520,68 @@ class ApiService {
     return null;
   }
 
+  Future<SchoolLeaderboardDetail?> fetchSchoolLeaderboardDetail({
+    required int schoolId,
+    required String period,
+  }) async {
+    try {
+      final resp = await _dio.get(
+        '/api/leaderboard/schools/$schoolId',
+        queryParameters: {'period': period},
+      );
+      if (resp.data is Map<String, dynamic>) {
+        return SchoolLeaderboardDetail.fromJson(
+          resp.data as Map<String, dynamic>,
+        );
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<List<SchoolLeaderboardHistoryPoint>?> fetchSchoolLeaderboardHistory({
+    required int schoolId,
+    required String period,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    try {
+      final query = <String, dynamic>{'period': period};
+      if (from != null) {
+        query['from'] = from.toUtc().toIso8601String();
+      }
+      if (to != null) {
+        query['to'] = to.toUtc().toIso8601String();
+      }
+
+      final resp = await _dio.get(
+        '/api/leaderboard/schools/history/$schoolId',
+        queryParameters: query,
+      );
+      if (resp.data is List) {
+        return (resp.data as List)
+            .whereType<Map>()
+            .map(
+              (item) => SchoolLeaderboardHistoryPoint.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList();
+      }
+      if (resp.data is Map<String, dynamic> &&
+          (resp.data as Map<String, dynamic>)['items'] is List) {
+        return ((resp.data as Map<String, dynamic>)['items'] as List)
+            .whereType<Map>()
+            .map(
+              (item) => SchoolLeaderboardHistoryPoint.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<ApiResult<Map<String, dynamic>>> getAdaptivePathForUserResult(
     String userId,
   ) {

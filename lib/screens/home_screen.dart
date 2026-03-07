@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -12,6 +14,7 @@ import '../state/coin_provider.dart';
 import '../state/learning_path_provider.dart';
 import '../state/progress_provider.dart';
 import '../state/quiz_provider.dart';
+import '../state/streak_freeze_provider.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/offline_status_widget.dart';
@@ -39,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isBootstrapping = true;
   bool _isRefreshingDailyReview = false;
   bool _showRefreshSuccess = false;
+  Timer? _refreshSuccessTimer;
 
   @override
   void initState() {
@@ -56,7 +60,24 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _refreshSpinController.dispose();
+    _refreshSuccessTimer?.cancel();
     super.dispose();
+  }
+
+  Future<T?> _pushRoute<T extends Object?>(String route, {Object? extra}) {
+    final router = GoRouter.maybeOf(context);
+    if (router != null) {
+      return router.push<T>(route, extra: extra);
+    }
+    return Navigator.of(context).pushNamed<T>(route, arguments: extra);
+  }
+
+  Future<void> _safeSelectionHaptic() async {
+    try {
+      await HapticFeedback.selectionClick();
+    } catch (_) {
+      // No-op in test/non-mobile environments without haptics channel.
+    }
   }
 
   Future<void> _bootstrapHome() async {
@@ -68,7 +89,10 @@ class _HomeScreenState extends State<HomeScreen>
       final coinProvider = Provider.of<CoinProvider>(context, listen: false);
 
       progress.token = auth.token;
-      coinProvider.loadCoinsAndHints();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        coinProvider.loadCoinsAndHints();
+      });
 
       progress.onLevelUp = () {
         showDialog(
@@ -139,7 +163,8 @@ class _HomeScreenState extends State<HomeScreen>
         ..stop()
         ..reset();
       setState(() => _showRefreshSuccess = true);
-      Future.delayed(const Duration(milliseconds: 700), () {
+      _refreshSuccessTimer?.cancel();
+      _refreshSuccessTimer = Timer(const Duration(milliseconds: 700), () {
         if (!mounted) return;
         setState(() => _showRefreshSuccess = false);
       });
@@ -246,6 +271,8 @@ class _HomeScreenState extends State<HomeScreen>
     final username = auth.username?.trim();
     final recommendedTopic = _findRecommendedTopic(progress);
     final dailyDone = progress.totalAttempts % _dailyGoalTarget;
+    final hasStreakFreezeProvider =
+        context.watch<StreakFreezeProvider?>() != null;
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -331,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
                 const SizedBox(height: 20),
-                const StreakBadgePresenter(),
+                if (hasStreakFreezeProvider) const StreakBadgePresenter(),
                 const SizedBox(height: 16),
                 Text(
                   t.level(progress.level),
@@ -407,8 +434,8 @@ class _HomeScreenState extends State<HomeScreen>
                         enabled: isEnabled,
                         onTap: isEnabled
                             ? () async {
-                                HapticFeedback.selectionClick();
-                                await context.push('/daily-review');
+                                _safeSelectionHaptic();
+                                await _pushRoute('/daily-review');
                                 if (!mounted) return;
                                 _refreshDailyReviewCount();
                               }
@@ -748,7 +775,7 @@ class _HomeScreenState extends State<HomeScreen>
                     label: "Osvezi",
                     child: InkResponse(
                       onTap: () {
-                        HapticFeedback.selectionClick();
+                        _safeSelectionHaptic();
                         onRefresh();
                       },
                       radius: 22,
@@ -859,8 +886,8 @@ class _LearningPathBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    final provider = context.watch<LearningPathProvider>();
-    final recommended = provider.recommended;
+    final provider = context.watch<LearningPathProvider?>();
+    final recommended = provider?.recommended;
     final String title = recommended != null
         ? recommended.topicName
         : 'Start your path';

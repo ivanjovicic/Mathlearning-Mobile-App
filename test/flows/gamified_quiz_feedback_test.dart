@@ -13,8 +13,27 @@ import 'package:mathlearning/widgets/streak_flame.dart';
 import '../helpers/test_app.dart';
 import '../helpers/test_bootstrap.dart';
 import '../helpers/test_fakes.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
+import 'gamified_quiz_feedback_test.mocks.dart';
 
+import '../test_helper.dart';
+
+@GenerateMocks([FlutterSecureStorage])
 void main() {
+  setupGlobalMocks();
+
+  late MockFlutterSecureStorage mockSecureStorage;
+
+  setUp(() {
+    mockSecureStorage = MockFlutterSecureStorage();
+    when(mockSecureStorage.read(key: anyNamed('key'))).thenAnswer((_) async => null);
+    when(mockSecureStorage.write(key: anyNamed('key'), value: anyNamed('value'))).thenAnswer((_) async {});
+    when(mockSecureStorage.delete(key: anyNamed('key'))).thenAnswer((_) async {});
+  });
+
   bootstrapTests();
 
   GamifiedQuizScreen buildScreen() {
@@ -67,8 +86,7 @@ void main() {
       expect(find.text('0%'), findsOneWidget);
     });
 
-    testWidgets('correct answer shows XP pop + streak flame and mastery updates',
-        (tester) async {
+    testWidgets('correct answer shows XP pop + streak flame and mastery updates', (tester) async {
       final quiz = TestQuizProvider();
       final progress = ProgressProvider()..streak = 3;
 

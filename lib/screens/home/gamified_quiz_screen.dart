@@ -18,6 +18,8 @@ import '../../widgets/mastery_progress_bar.dart';
 import '../../widgets/streak_flame.dart';
 import '../../widgets/xp_pop_animation.dart';
 import '../../widgets/formula_hint_bottom_sheet.dart';
+import '../../widgets/explanations/mistake_explanation_card.dart';
+import '../../widgets/explanations/step_explanation_controller.dart';
 
 import '../../models/question.dart';
 
@@ -652,6 +654,16 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
             ),
           ),
         ],
+        if (!isCorrect) ...[
+          const SizedBox(height: 10),
+          MistakeExplanationCard(
+            explanation: _resolveMistakeExplanation(),
+            misconception: _resolveCommonMisconception(),
+            mistakeType: _resolveMistakeTypeForFeedback(),
+            studentAnswer: _resolveSelectedOptionText(),
+            expectedAnswer: _resolveCorrectOptionText(),
+          ),
+        ],
       ],
     );
   }
@@ -1249,6 +1261,56 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       if (value.isNotEmpty) return value;
     }
     return null;
+  }
+
+  String? _resolveSelectedOptionText() {
+    for (final option in widget.options) {
+      if (option.id != selectedAnswer) continue;
+      final value = option.text.trim();
+      if (value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  MistakeType _resolveMistakeTypeForFeedback() {
+    return StepExplanationController.detectMistakeType(
+      studentAnswer: _resolveSelectedOptionText(),
+      expectedAnswer: _resolveCorrectOptionText(),
+      expression: widget.question.text,
+    );
+  }
+
+  String _resolveMistakeExplanation() {
+    final explicit = _firstNonEmptyText([
+      widget.question.explanation,
+      widget.question.hintFull,
+      widget.question.hintMedium,
+    ]);
+    if (explicit != null) return explicit;
+
+    switch (_resolveMistakeTypeForFeedback()) {
+      case MistakeType.signError:
+        return 'Pazi na znakove dok prebacujes clanove sa jedne strane jednakosti na drugu.';
+      case MistakeType.denominatorError:
+        return 'Kada radis sa razlomcima, proveri da li si pravilno tretirao imenilac u svakom koraku.';
+      case MistakeType.orderOfOperations:
+        return 'Primeni redosled operacija: prvo zagrade, zatim mnozenje/deljenje, pa sabiranje/oduzimanje.';
+      case MistakeType.unknown:
+        return 'Hajde da prodjemo resenje korak po korak i pronadjemo gde je doslo do greske.';
+    }
+  }
+
+  String? _resolveCommonMisconception() {
+    switch (_resolveMistakeTypeForFeedback()) {
+      case MistakeType.signError:
+        return 'Menjanje strane jednakosti menja i znak.';
+      case MistakeType.denominatorError:
+        return 'Brojilac i imenilac moraju da se tretiraju konzistentno.';
+      case MistakeType.orderOfOperations:
+        return 'Operacije se ne izvrsavaju sleva nadesno bez prioriteta.';
+      case MistakeType.unknown:
+        return null;
+    }
   }
 
   String? _resolveCorrectOptionText() {

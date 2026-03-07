@@ -11,6 +11,9 @@ class SchoolLeaderboardProvider extends ChangeNotifier {
   final SchoolPagingController paging = SchoolPagingController();
   SchoolAggregateItem? mySchool;
   Object? error;
+  final Map<int, SchoolLeaderboardDetail> _details = {};
+  final Map<String, List<SchoolLeaderboardHistoryPoint>> _history = {};
+  final Set<int> _loadingDetails = <int>{};
 
   String _mapRangeToPeriod(String range) {
     if (range == 'allTime') return 'all_time';
@@ -59,5 +62,60 @@ class SchoolLeaderboardProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  SchoolLeaderboardDetail? detailFor(int schoolId) => _details[schoolId];
+
+  List<SchoolLeaderboardHistoryPoint> historyFor(int schoolId, String range) =>
+      _history[_historyKey(schoolId, range)] ?? const [];
+
+  bool isLoadingDetail(int schoolId) => _loadingDetails.contains(schoolId);
+
+  Future<SchoolLeaderboardDetail?> loadDetail(int schoolId, String range) async {
+    if (_loadingDetails.contains(schoolId)) {
+      return _details[schoolId];
+    }
+
+    _loadingDetails.add(schoolId);
+    notifyListeners();
+    try {
+      final detail = await api.fetchSchoolLeaderboardDetail(
+        schoolId: schoolId,
+        period: _mapRangeToPeriod(range),
+      );
+      if (detail != null) {
+        _details[schoolId] = detail;
+        if (detail.history.isNotEmpty) {
+          _history[_historyKey(schoolId, range)] = detail.history;
+        }
+      }
+      return detail;
+    } finally {
+      _loadingDetails.remove(schoolId);
+      notifyListeners();
+    }
+  }
+
+  Future<List<SchoolLeaderboardHistoryPoint>> loadHistory(
+    int schoolId,
+    String range,
+  ) async {
+    final cached = _history[_historyKey(schoolId, range)];
+    if (cached != null && cached.isNotEmpty) {
+      return cached;
+    }
+
+    final history = await api.fetchSchoolLeaderboardHistory(
+      schoolId: schoolId,
+      period: _mapRangeToPeriod(range),
+    );
+    if (history != null) {
+      _history[_historyKey(schoolId, range)] = history;
+      notifyListeners();
+      return history;
+    }
+    return const [];
+  }
+
+  String _historyKey(int schoolId, String range) => '$schoolId::$range';
 }
 

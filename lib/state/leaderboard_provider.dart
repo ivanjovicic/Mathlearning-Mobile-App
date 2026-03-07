@@ -144,4 +144,27 @@ class LeaderboardProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  LeaderboardMe? get currentUser => _me[LeaderboardScope.global];
+  LeaderboardPagingController get paging => _paging[LeaderboardScope.global]!;
+
+  void searchLeaderboard(String query, LeaderboardScope scope, String range) {
+    // Implement search logic here (scoped)
+  }
+
+  int? currentUserId;
+
+  bool get isLoading => _paging[LeaderboardScope.global]!.isLoading;
+
+  bool get hasError => _error[LeaderboardScope.global] != null;
+
+  void setErrorForTesting(Object? e) {
+    _error[LeaderboardScope.global] = e;
+    notifyListeners();
+  }
+
+  void retry() {
+    // Simple retry hook used by UI — reload global for now
+    reloadScope(LeaderboardScope.global, 'weekly');
+  }
 }

@@ -51,10 +51,16 @@ dependencies:
   go_router: ^6.2.0
   flutter_animate: ^4.5.0
   flutter_timezone: ^4.1.1
+  flutter_shimmer: ^2.1.2
+  fl_chart: ^1.1.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
+  mockito: ^5.0.17
+  build_runner: ^2.4.6
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

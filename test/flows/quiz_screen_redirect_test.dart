@@ -8,6 +8,7 @@ import 'package:mathlearning/screens/daily_review_screen.dart';
 import 'package:mathlearning/screens/home/gamified_quiz_screen.dart';
 import 'package:mathlearning/screens/quiz_screen.dart';
 import 'package:mathlearning/state/progress_provider.dart';
+import 'package:mathlearning/state/quiz_provider.dart';
 import 'package:mathlearning/state/settings_provider.dart';
 
 import '../helpers/test_app.dart';
@@ -29,7 +30,7 @@ void main() {
                 const Scaffold(body: Center(child: Text('Daily Review Route'))),
           },
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
           ],
         ),
@@ -62,7 +63,7 @@ void main() {
                 const Scaffold(body: Center(child: Text('Daily Review Route'))),
           },
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
           ],
         ),
@@ -87,7 +88,7 @@ void main() {
                 const Scaffold(body: Center(child: Text('Daily Review Route'))),
           },
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
           ],
         ),
@@ -124,7 +125,7 @@ void main() {
             '/daily-review': (_) => const DailyReviewScreen(),
           },
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
             ChangeNotifierProvider.value(value: progress),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
           ],

@@ -7,7 +7,6 @@ import 'package:mathlearning/screens/leaderboard_screen.dart';
 import 'package:mathlearning/state/auth_provider.dart';
 import 'package:mathlearning/state/leaderboard_provider.dart';
 
-import '../helpers/test_app.dart';
 import '../helpers/test_bootstrap.dart';
 import '../helpers/test_fakes.dart';
 
@@ -29,16 +28,17 @@ void main() {
         (tester) async {
       final leaderboard = _NoopLeaderboardProvider();
       leaderboard.pagingFor(LeaderboardScope.global).isLoading = true;
+      final auth = TestAuthProvider();
 
       await tester.pumpWidget(
-        buildTestApp(
-          home: const LeaderboardScreen(),
-          providers: [
-            ChangeNotifierProvider<LeaderboardProvider>.value(value: leaderboard),
-            ChangeNotifierProvider<AuthProvider>.value(
-              value: TestAuthProvider(userId: '42'),
+        MaterialApp(
+          home: ChangeNotifierProvider<LeaderboardProvider>.value(
+            value: leaderboard,
+            child: ChangeNotifierProvider<AuthProvider>.value(
+              value: auth,
+              child: const LeaderboardScreen(),
             ),
-          ],
+          ),
         ),
       );
 
@@ -51,14 +51,11 @@ void main() {
       leaderboard.pagingFor(LeaderboardScope.global).isLoading = false;
 
       await tester.pumpWidget(
-        buildTestApp(
-          home: const LeaderboardScreen(),
-          providers: [
-            ChangeNotifierProvider<LeaderboardProvider>.value(value: leaderboard),
-            ChangeNotifierProvider<AuthProvider>.value(
-              value: TestAuthProvider(userId: '42'),
-            ),
-          ],
+        MaterialApp(
+          home: ChangeNotifierProvider<LeaderboardProvider>.value(
+            value: leaderboard,
+            child: const LeaderboardScreen(),
+          ),
         ),
       );
 
@@ -89,12 +86,14 @@ void main() {
       final auth = TestAuthProvider(userId: '42');
 
       await tester.pumpWidget(
-        buildTestApp(
-          home: const LeaderboardScreen(),
-          providers: [
-            ChangeNotifierProvider<LeaderboardProvider>.value(value: leaderboard),
-            ChangeNotifierProvider<AuthProvider>.value(value: auth),
-          ],
+        MaterialApp(
+          home: ChangeNotifierProvider<LeaderboardProvider>.value(
+            value: leaderboard,
+            child: ChangeNotifierProvider<AuthProvider>.value(
+              value: auth,
+              child: const LeaderboardScreen(),
+            ),
+          ),
         ),
       );
 
@@ -106,22 +105,18 @@ void main() {
       expect(find.text('123 XP'), findsOneWidget);
     });
 
-    testWidgets('changing range reloads current scope with new range',
-        (tester) async {
+    testWidgets('changing range reloads current scope with new range', (tester) async {
       final leaderboard = TestLeaderboardProvider(
         globalItems: const [],
         friendsItems: const [],
       );
 
       await tester.pumpWidget(
-        buildTestApp(
-          home: const LeaderboardScreen(),
-          providers: [
-            ChangeNotifierProvider<LeaderboardProvider>.value(value: leaderboard),
-            ChangeNotifierProvider<AuthProvider>.value(
-              value: TestAuthProvider(userId: '42'),
-            ),
-          ],
+        MaterialApp(
+          home: ChangeNotifierProvider<LeaderboardProvider>.value(
+            value: leaderboard,
+            child: const LeaderboardScreen(),
+          ),
         ),
       );
 

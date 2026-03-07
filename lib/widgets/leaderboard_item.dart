@@ -4,80 +4,128 @@ import '../models/leaderboard_models.dart';
 import '../models/school_leaderboard_models.dart' show SchoolAggregateItem;
 
 class LeaderboardItemWidget extends StatelessWidget {
-  final dynamic item;
-  final bool isLoading;
-  final String? errorMessage;
+  final LeaderboardItem item;
   final bool isCurrentUser;
 
   const LeaderboardItemWidget({
     super.key,
-    this.item,
-    this.isLoading = false,
-    this.errorMessage,
+    required this.item,
     this.isCurrentUser = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return const _LeaderboardLoadingTile();
-    if (errorMessage != null) {
-      return _LeaderboardErrorTile(message: errorMessage!);
-    }
-    if (item == null) return const SizedBox.shrink();
-
-    if (item is LeaderboardItem) {
-      return _UserTile(item: item as LeaderboardItem, isCurrentUser: isCurrentUser);
-    }
-
-    if (item is SchoolAggregateItem) {
-      return _SchoolTile(item: item as SchoolAggregateItem);
-    }
-
-    return ListTile(
-      title: Text(item.toString()),
-      dense: true,
-    );
-  }
-}
-
-class _UserTile extends StatelessWidget {
-  final LeaderboardItem item;
-  final bool isCurrentUser;
-
-  const _UserTile({required this.item, required this.isCurrentUser});
-
-  @override
-  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final isTopThree = item.rank <= 3;
 
-    return Semantics(
-      label: 'Rank ${item.rank}, ${item.displayName}, ${item.score} points',
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        color: isCurrentUser ? cs.primaryContainer.withValues(alpha: 0.45) : null,
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: cs.surfaceContainerHighest,
-            child: Text('${item.rank}'),
-          ),
-          title: Text(
-            item.displayName,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: isCurrentUser ? FontWeight.w700 : FontWeight.w600,
-            ),
-          ),
-          subtitle: Text('Streak: ${item.streakDays} days'),
-          trailing: Text(
-            '${item.score}',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: cs.primary,
-            ),
-          ),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isCurrentUser
+            ? cs.primaryContainer.withValues(alpha: 0.2)
+            : cs.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isTopThree ? _rankColor(item.rank) : cs.outline,
+          width: isTopThree ? 2 : 1,
         ),
       ),
+      child: Row(
+        children: [
+          _buildRankBadge(item.rank, cs),
+          const SizedBox(width: 12),
+          _buildAvatar(item, cs),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.displayName,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Streak: ${item.streakDays} days',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${item.score} XP',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: cs.primary,
+                ),
+              ),
+              if (isCurrentUser)
+                Text(
+                  'You',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.secondary,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildRankBadge(int rank, ColorScheme cs) {
+    final color = _rankColor(rank);
+    return CircleAvatar(
+      backgroundColor: color.withValues(alpha: 0.2),
+      child: rank <= 3
+          ? Icon(
+              Icons.emoji_events,
+              color: color,
+            )
+          : Text(
+              '$rank',
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+    );
+  }
+
+  Widget _buildAvatar(LeaderboardItem item, ColorScheme cs) {
+    return CircleAvatar(
+      backgroundImage: item.avatarUrl != null
+          ? NetworkImage(item.avatarUrl!)
+          : null,
+      child: item.avatarUrl == null
+          ? Text(
+              item.displayName[0].toUpperCase(),
+              style: TextStyle(
+                color: cs.onSurface,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          : null,
+    );
+  }
+
+  Color _rankColor(int rank) {
+    switch (rank) {
+      case 1:
+        return Colors.amber;
+      case 2:
+        return Colors.grey;
+      case 3:
+        return const Color(0xFFCD7F32); // Bronze color
+      default:
+        return Colors.blueGrey;
+    }
   }
 }
 
@@ -89,6 +137,12 @@ class _SchoolTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final rankDelta = item.rankDelta;
+    final rankDeltaText = rankDelta == null || rankDelta == 0
+        ? null
+        : rankDelta > 0
+        ? '+$rankDelta'
+        : '$rankDelta';
     return Semantics(
       label: 'School rank ${item.rank}, ${item.schoolName}, score ${item.score}',
       child: Card(
@@ -99,13 +153,51 @@ class _SchoolTile extends StatelessWidget {
             child: Text('${item.rank}'),
           ),
           title: Text(item.schoolName),
-          subtitle: Text('${item.members} members'),
-          trailing: Text(
-            '${item.score}',
-            style: TextStyle(
-              color: cs.secondary,
-              fontWeight: FontWeight.w700,
-            ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${item.members} members'),
+              if (item.averageXp != null || item.activeStudents != null)
+                Text(
+                  [
+                    if (item.averageXp != null)
+                      '${item.averageXp!.toStringAsFixed(1)} avg XP',
+                    if (item.activeStudents != null)
+                      '${item.activeStudents} active',
+                  ].join(' • '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${item.score}',
+                style: TextStyle(
+                  color: cs.secondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (rankDeltaText != null)
+                Text(
+                  rankDeltaText,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: rankDelta! > 0 ? Colors.green : cs.error,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              if (item.leagueTier != null && item.leagueTier!.isNotEmpty)
+                Text(
+                  item.leagueTier!,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: cs.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -113,41 +205,68 @@ class _SchoolTile extends StatelessWidget {
   }
 }
 
-class _LeaderboardLoadingTile extends StatelessWidget {
-  const _LeaderboardLoadingTile();
+/// Public tile for displaying school aggregate items in the school leaderboard.
+class SchoolLeaderboardTile extends StatelessWidget {
+  final SchoolAggregateItem item;
+
+  const SchoolLeaderboardTile({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        leading: CircleAvatar(backgroundColor: cs.surfaceContainerHighest),
-        title: Container(height: 12, color: cs.surfaceContainerHighest),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Container(height: 10, color: cs.surfaceContainerHigh),
-        ),
-      ),
-    );
+    return _SchoolTile(item: item);
   }
 }
 
-class _LeaderboardErrorTile extends StatelessWidget {
-  final String message;
+class AnimatedLeaderboardItem extends StatefulWidget {
+  final LeaderboardItem item;
+  final bool isCurrentUser;
+  final int previousRank;
 
-  const _LeaderboardErrorTile({required this.message});
+  const AnimatedLeaderboardItem({
+    super.key,
+    required this.item,
+    required this.isCurrentUser,
+    required this.previousRank,
+  });
+
+  @override
+  State<AnimatedLeaderboardItem> createState() => _AnimatedLeaderboardItemState();
+}
+
+class _AnimatedLeaderboardItemState extends State<AnimatedLeaderboardItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1)
+        .chain(CurveTween(curve: Curves.easeOut))
+        .animate(_controller);
+
+    if (widget.item.rank < widget.previousRank) {
+      _controller.forward().then((_) => _controller.reverse());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      color: cs.errorContainer.withValues(alpha: 0.55),
-      child: ListTile(
-        leading: Icon(Icons.error_outline_rounded, color: cs.error),
-        title: const Text('Could not load leaderboard row'),
-        subtitle: Text(message, maxLines: 2, overflow: TextOverflow.ellipsis),
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: LeaderboardItemWidget(
+        item: widget.item,
+        isCurrentUser: widget.isCurrentUser,
       ),
     );
   }

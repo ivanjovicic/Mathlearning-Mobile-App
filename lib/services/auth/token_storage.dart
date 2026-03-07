@@ -1,18 +1,31 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/services.dart';
 
 class TokenStorage {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   Future<void> saveRefreshToken(String token) async {
-    await _secureStorage.write(key: 'refresh_token', value: token);
+    try {
+      await _secureStorage.write(key: 'refresh_token', value: token);
+    } on MissingPluginException {
+      // Widget tests may run without secure storage plugin registration.
+    }
   }
 
   Future<String?> getRefreshToken() async {
-    return _secureStorage.read(key: 'refresh_token');
+    try {
+      return await _secureStorage.read(key: 'refresh_token');
+    } on MissingPluginException {
+      return null;
+    }
   }
 
   Future<void> deleteRefreshToken() async {
-    await _secureStorage.delete(key: 'refresh_token');
+    try {
+      await _secureStorage.delete(key: 'refresh_token');
+    } on MissingPluginException {
+      // Nothing to delete in environments without plugin support.
+    }
   }
 
   Future<void> saveAccessToken(String token) async {

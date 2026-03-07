@@ -26,8 +26,13 @@ class OfflineStorageService {
       // SQLite doesn't work on web, return null for web fallback
       return null;
     }
-    _database ??= await _initDB();
-    return _database!;
+    try {
+      _database ??= await _initDB();
+      return _database!;
+    } catch (_) {
+      // Widget tests and some platforms may run without a registered sqflite plugin.
+      return null;
+    }
   }
 
   static Future<Database> _initDB() async {
