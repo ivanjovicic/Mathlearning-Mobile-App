@@ -20,6 +20,7 @@ import 'state/onboarding_provider.dart';
 import 'state/streak_freeze_provider.dart';
 import 'state/user_profile_provider.dart';
 import 'state/adaptive_provider.dart';
+import 'state/avatar_provider.dart';
 import 'state/learning_path_provider.dart';
 import 'features/learning_map/providers/learning_map_provider.dart';
 import 'features/learning_map/services/learning_map_service.dart';
@@ -34,6 +35,8 @@ import 'services/offline_manager.dart';
 import 'services/srs_service.dart';
 import 'services/adaptive_learning_service.dart';
 import 'app_router.dart';
+import 'theme/app_scale.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -164,6 +167,20 @@ class MathLearningApp extends StatelessWidget {
             return provider;
           },
         ),
+        ChangeNotifierProxyProvider<AuthProvider, AvatarProvider>(
+          create: (_) => AvatarProvider(),
+          update: (context, auth, previous) {
+            final provider = previous ?? AvatarProvider();
+            if (auth.isAuthenticated) {
+              if (provider.avatarConfig == null && !provider.isLoading) {
+                provider.load();
+              }
+            } else {
+              provider.clear();
+            }
+            return provider;
+          },
+        ),
         ChangeNotifierProxyProvider<ProgressProvider, LearningPathProvider>(
           create: (_) => LearningPathProvider(
             service: AdaptiveLearningService(
@@ -256,12 +273,20 @@ class _AppRootState extends State<_AppRoot> {
       routerConfig: _router,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
+        AppScale.init(context);
+        final scaledTheme = AppTheme.enhance(
+          Theme.of(context),
+          highContrast: highContrast,
+        );
         return MediaQuery(
           data: mediaQuery.copyWith(
             disableAnimations: mediaQuery.disableAnimations || reduceMotion,
             highContrast: mediaQuery.highContrast || highContrast,
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: Theme(
+            data: scaledTheme,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );

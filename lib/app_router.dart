@@ -12,6 +12,7 @@ import 'screens/badge_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/avatar_customization_screen.dart';
 import 'theme_selector_page.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/quiz_summary_screen.dart';
@@ -88,6 +89,10 @@ class AppRouter {
         GoRoute(
           path: '/profile',
           builder: (context, state) => const ProfileScreen(),
+        ),
+        GoRoute(
+          path: '/avatar',
+          builder: (context, state) => const AvatarCustomizationScreen(),
         ),
         GoRoute(
           path: '/settings',

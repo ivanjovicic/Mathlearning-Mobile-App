@@ -9,6 +9,7 @@ import '../state/progress_provider.dart';
 import '../theme/theme_controller.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/animated_xp_bar.dart';
+import '../widgets/avatar_widget.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
 import '../widgets/ui/app_section.dart';
 import 'user_search_screen.dart';
@@ -69,6 +70,13 @@ class ProfileScreen extends StatelessWidget {
                 child: _MenuItem(
                   icon: Icons.edit_outlined,
                   text: 'Izmeni profil',
+                ),
+              ),
+              const PopupMenuItem(
+                value: _ProfileMenuAction.customizeAvatar,
+                child: _MenuItem(
+                  icon: Icons.face_retouching_natural,
+                  text: 'Prilagodi avatar',
                 ),
               ),
               PopupMenuItem(
@@ -182,6 +190,9 @@ class ProfileScreen extends StatelessWidget {
         return;
       case _ProfileMenuAction.editProfile:
         _showEditProfileDialog(context);
+        return;
+      case _ProfileMenuAction.customizeAvatar:
+        context.push('/avatar');
         return;
       case _ProfileMenuAction.logout:
         await auth.logout();
@@ -450,18 +461,36 @@ class _ProfileHeader extends StatelessWidget {
 
     return Column(
       children: [
-        Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: theme.cardColor.withAlpha((0.1 * 255).round()),
-            border: Border.all(color: colorScheme.secondary, width: 3),
-          ),
-          alignment: Alignment.center,
-          child: const Text(
-            'M',
-            style: TextStyle(fontSize: 52, fontWeight: FontWeight.bold),
+        GestureDetector(
+          onTap: () => context.push('/avatar'),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              const AvatarWidget(
+                size: 110,
+                showFrame: true,
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colorScheme.primary,
+                    border: Border.all(
+                      color: colorScheme.surface,
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.edit,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
@@ -500,4 +529,11 @@ class _MenuItem extends StatelessWidget {
   }
 }
 
-enum _ProfileMenuAction { settings, themes, userSearch, editProfile, logout }
+enum _ProfileMenuAction {
+  settings,
+  themes,
+  userSearch,
+  editProfile,
+  customizeAvatar,
+  logout,
+}
