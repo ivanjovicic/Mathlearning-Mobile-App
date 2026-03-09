@@ -1,26 +1,43 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'theme_controller.dart';
 
 class ThemePreferencesService {
-  // Minimal shim implementing the methods used by ThemeController.
+  static const _keyTheme = 'theme_type';
+  static const _keyReduceMotion = 'reduce_motion';
+  static const _keyHighContrast = 'high_contrast';
+
   Future<void> saveTheme(AppThemeType? type) async {
-    // no-op shim
-    return;
+    if (type == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyTheme, type.name);
   }
 
   Future<void> saveReduceMotion(bool enabled) async {
-    return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyReduceMotion, enabled);
   }
 
   Future<void> saveHighContrast(bool enabled) async {
-    return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyHighContrast, enabled);
   }
 
-  Future<void> saveGamifiedHome(bool enabled) async {
-    return;
-  }
+  // Kept for backward compatibility — useGamifiedHome removed from ThemeSettings.
+  Future<void> saveGamifiedHome(bool enabled) async {}
 
   Future<ThemeSettings> loadAllPreferences() async {
-    // Return defaults matching ThemeSettings.initial()
-    return ThemeSettings.initial();
+    final prefs = await SharedPreferences.getInstance();
+
+    final typeName = prefs.getString(_keyTheme);
+    final type = AppThemeType.values.firstWhere(
+      (t) => t.name == typeName,
+      orElse: () => AppThemeType.sciFi,
+    );
+
+    return ThemeSettings(
+      type: type,
+      reduceMotion: prefs.getBool(_keyReduceMotion) ?? false,
+      highContrast: prefs.getBool(_keyHighContrast) ?? false,
+    );
   }
 }

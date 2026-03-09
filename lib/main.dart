@@ -38,6 +38,14 @@ import 'app_router.dart';
 import 'theme/app_scale.dart';
 import 'theme/app_theme.dart';
 
+// Singletons created once at process start — passed into providers instead
+// of re-instantiating ApiService/SrsService in every proxy-provider callback.
+final _apiService = ApiService();
+final _adaptiveLearningService = AdaptiveLearningService(
+  apiService: _apiService,
+  srsService: SrsService.instance,
+);
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -144,25 +152,17 @@ class MathLearningApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
         ChangeNotifierProvider(
           create: (_) => LearningMapProvider(
-            service: LearningMapService(apiService: ApiService()),
+            service: LearningMapService(apiService: _apiService),
           ),
         ),
         ChangeNotifierProxyProvider<ProgressProvider, AdaptiveProvider>(
           create: (_) => AdaptiveProvider(
-            adaptiveService: AdaptiveLearningService(
-              apiService: ApiService(),
-              srsService: SrsService.instance,
-            ),
+            adaptiveService: _adaptiveLearningService,
           ),
           update: (_, progress, previous) {
             final provider =
                 previous ??
-                AdaptiveProvider(
-                  adaptiveService: AdaptiveLearningService(
-                    apiService: ApiService(),
-                    srsService: SrsService.instance,
-                  ),
-                );
+                AdaptiveProvider(adaptiveService: _adaptiveLearningService);
             provider.updateFromProgress(progress);
             return provider;
           },
@@ -182,21 +182,11 @@ class MathLearningApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProxyProvider<ProgressProvider, LearningPathProvider>(
-          create: (_) => LearningPathProvider(
-            service: AdaptiveLearningService(
-              apiService: ApiService(),
-              srsService: SrsService.instance,
-            ),
-          ),
+          create: (_) => LearningPathProvider(service: _adaptiveLearningService),
           update: (_, progress, previous) {
             final provider =
                 previous ??
-                LearningPathProvider(
-                  service: AdaptiveLearningService(
-                    apiService: ApiService(),
-                    srsService: SrsService.instance,
-                  ),
-                );
+                LearningPathProvider(service: _adaptiveLearningService);
             provider.updateFromProgress(progress);
             return provider;
           },
@@ -254,7 +244,6 @@ class _AppRootState extends State<_AppRoot> {
     final highContrast = themeController.highContrast;
 
     return MaterialApp.router(
-      key: ValueKey(themeController.currentType),
       debugShowCheckedModeBanner: false,
       title: 'Math Learning',
       theme: themeController.currentTheme,

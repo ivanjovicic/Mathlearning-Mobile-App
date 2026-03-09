@@ -44,7 +44,7 @@ class _QuizScreenState extends State<QuizScreen>
       if (!quiz.consumeSkipDailyReviewOnce()) {
         final daily = await quiz.getDailySrsCount();
         if (daily > 0 && mounted) {
-          context.go('/daily-review');
+          context.go('/home/daily-review');
           return;
         }
       }

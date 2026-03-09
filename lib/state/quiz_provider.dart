@@ -1092,7 +1092,7 @@ class QuizProvider extends ChangeNotifier {
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              parentContext.go('/settings');
+              parentContext.go('/profile/settings');
             },
             child: const Text('Podesavanja'),
           ),

@@ -6,7 +6,6 @@ import '../services/user_service.dart';
 import '../state/auth_provider.dart';
 import '../state/badge_provider.dart';
 import '../state/progress_provider.dart';
-import '../theme/theme_controller.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/animated_xp_bar.dart';
 import '../widgets/avatar_widget.dart';
@@ -24,7 +23,6 @@ class ProfileScreen extends StatelessWidget {
     final progress = context.watch<ProgressProvider>();
     final badges = context.watch<BadgeProvider>().badges;
     final auth = context.watch<AuthProvider>();
-    final themeController = context.watch<ThemeController>();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -118,23 +116,6 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Card(
-                    child: SwitchListTile(
-                      value: themeController.useGamifiedHome,
-                      onChanged: themeController.setUseGamifiedHome,
-                      secondary: Icon(
-                        Icons.videogame_asset_outlined,
-                        color: colorScheme.primary,
-                      ),
-                      title: const Text('Gamifikovana pocetna'),
-                      subtitle: Text(
-                        themeController.useGamifiedHome
-                            ? 'Arena pocetna je ukljucena'
-                            : 'Klasicna pocetna je ukljucena',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Card(
                     child: ListTile(
                       leading: Icon(
                         Icons.rate_review_outlined,
@@ -143,7 +124,7 @@ class ProfileScreen extends StatelessWidget {
                       title: const Text('My Feedback'),
                       subtitle: const Text('Pregled poslatog UX/UI feedback-a'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.go('/my-feedback'),
+                      onTap: () => context.go('/profile/feedback'),
                     ),
                   ),
                 ],
@@ -178,10 +159,10 @@ class ProfileScreen extends StatelessWidget {
   ) async {
     switch (value) {
       case _ProfileMenuAction.settings:
-        context.go('/settings');
+        context.go('/profile/settings');
         return;
       case _ProfileMenuAction.themes:
-        context.go('/themes');
+        context.go('/profile/themes');
         return;
       case _ProfileMenuAction.userSearch:
         Navigator.of(context).push(
@@ -192,7 +173,7 @@ class ProfileScreen extends StatelessWidget {
         _showEditProfileDialog(context);
         return;
       case _ProfileMenuAction.customizeAvatar:
-        context.push('/avatar');
+        context.push('/profile/avatar');
         return;
       case _ProfileMenuAction.logout:
         await auth.logout();
@@ -462,7 +443,7 @@ class _ProfileHeader extends StatelessWidget {
     return Column(
       children: [
         GestureDetector(
-          onTap: () => context.push('/avatar'),
+          onTap: () => context.push('/profile/avatar'),
           child: Stack(
             alignment: Alignment.center,
             children: [

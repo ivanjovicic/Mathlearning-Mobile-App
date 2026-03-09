@@ -84,7 +84,7 @@ class _LearningInsightsScreenState extends State<LearningInsightsScreen>
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/learning-map'),
+        onPressed: () => context.go('/learn'),
         icon: const Icon(Icons.route_rounded),
         label: const Text('Open Map'),
         backgroundColor: cs.primaryContainer,

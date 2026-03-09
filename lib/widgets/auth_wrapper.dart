@@ -9,9 +9,7 @@ import '../services/auth_service.dart';
 import '../services/bug_report_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_manager.dart';
-import '../theme/theme_controller.dart';
-import '../screens/home/gamified_home_screen.dart';
-import '../screens/home_screen.dart';
+import '../screens/dashboard_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import 'screen_wrapper.dart';
@@ -21,8 +19,8 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<AuthProvider, ThemeController>(
-      builder: (context, authProvider, _, child) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
         final t = context.t;
         // Show loading screen while checking auth status
         if (authProvider.isLoading) {
@@ -65,25 +63,8 @@ class AuthWrapper extends StatelessWidget {
           return const ScreenWrapper(child: OnboardingScreen());
         }
 
-        return const HomeEntryScreen();
+        return const ScreenWrapper(child: DashboardScreen());
       },
-    );
-  }
-}
-
-class HomeEntryScreen extends StatelessWidget {
-  const HomeEntryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final useGamifiedHome = context.select<ThemeController, bool>(
-      (controller) => controller.useGamifiedHome,
-    );
-
-    return ScreenWrapper(
-      child: useGamifiedHome
-          ? const GamifiedHomeScreen()
-          : const HomeScreen(),
     );
   }
 }

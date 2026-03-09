@@ -28,7 +28,6 @@ class ThemeController extends ChangeNotifier {
   AppThemeType get currentType => _state.type;
   bool get reduceMotion => _state.reduceMotion;
   bool get highContrast => _state.highContrast;
-  bool get useGamifiedHome => _state.useGamifiedHome;
 
   ThemeData get currentTheme {
     final baseTheme = _getCachedTheme(_state.type);
@@ -60,13 +59,6 @@ class ThemeController extends ChangeNotifier {
     _state = _state.copyWith(highContrast: enabled);
     notifyListeners();
     await _preferencesService.saveHighContrast(enabled);
-  }
-
-  void setUseGamifiedHome(bool enabled) async {
-    if (_state.useGamifiedHome == enabled) return;
-    _state = _state.copyWith(useGamifiedHome: enabled);
-    notifyListeners();
-    await _preferencesService.saveGamifiedHome(enabled);
   }
 
   Future<void> _loadSavedPreferences() async {
@@ -187,13 +179,11 @@ class ThemeSettings {
   final AppThemeType type;
   final bool reduceMotion;
   final bool highContrast;
-  final bool useGamifiedHome;
 
   ThemeSettings({
     required this.type,
     required this.reduceMotion,
     required this.highContrast,
-    required this.useGamifiedHome,
   });
 
   factory ThemeSettings.initial() {
@@ -201,7 +191,6 @@ class ThemeSettings {
       type: AppThemeType.sciFi,
       reduceMotion: false,
       highContrast: false,
-      useGamifiedHome: true,
     );
   }
 
@@ -209,13 +198,11 @@ class ThemeSettings {
     AppThemeType? type,
     bool? reduceMotion,
     bool? highContrast,
-    bool? useGamifiedHome,
   }) {
     return ThemeSettings(
       type: type ?? this.type,
       reduceMotion: reduceMotion ?? this.reduceMotion,
       highContrast: highContrast ?? this.highContrast,
-      useGamifiedHome: useGamifiedHome ?? this.useGamifiedHome,
     );
   }
 }

@@ -320,7 +320,7 @@ class SettingsScreen extends StatelessWidget {
         onTap: () async {
           await settings.markThemeConfigured();
           if (context.mounted) {
-            context.go('/themes');
+            context.go('/profile/themes');
           }
         },
       ),
