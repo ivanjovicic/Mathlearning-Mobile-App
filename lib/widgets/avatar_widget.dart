@@ -212,13 +212,13 @@ class _PlaceholderAvatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withOpacity(0.15),
-        border: Border.all(color: color.withOpacity(0.5), width: size * 0.025),
+        color: color.withValues(alpha: 0.15),
+        border: Border.all(color: color.withValues(alpha: 0.5), width: size * 0.025),
       ),
       child: Icon(
         Icons.person,
         size: size * 0.55,
-        color: color.withOpacity(0.6),
+        color: color.withValues(alpha: 0.6),
       ),
     );
   }

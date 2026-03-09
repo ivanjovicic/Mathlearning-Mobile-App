@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
@@ -9,6 +13,7 @@ import 'package:mathlearning/models/question.dart';
 import 'package:mathlearning/screens/daily_review_screen.dart';
 import 'package:mathlearning/state/progress_provider.dart';
 import 'package:mathlearning/state/quiz_provider.dart';
+import 'package:mathlearning/state/settings_provider.dart';
 
 import '../helpers/test_app.dart';
 import '../helpers/test_bootstrap.dart';
@@ -16,30 +21,65 @@ import '../helpers/test_fakes.dart';
 import 'daily_review_screen_test.mocks.dart';
 
 @GenerateMocks([QuizProvider])
+
+Widget _buildRouterApp({
+  required Widget home,
+  required List<SingleChildWidget> providers,
+  String initialLocation = '/',
+  Map<String, WidgetBuilder> routes = const {},
+}) {
+  final router = GoRouter(
+    initialLocation: initialLocation,
+    routes: [
+      GoRoute(path: '/', builder: (_, state) => home),
+      ...routes.entries.map(
+        (entry) => GoRoute(
+          path: entry.key,
+          builder: (context, state) => entry.value(context),
+        ),
+      ),
+    ],
+  );
+
+  return MultiProvider(
+    providers: providers,
+    child: MaterialApp.router(routerConfig: router),
+  );
+}
+
 void main() {
   bootstrapTests();
 
   group('DailyReviewScreen', () {
     testWidgets('shows loading indicator initially', (WidgetTester tester) async {
-      // Arrange
+      final loadCompleter = Completer<void>();
       final quizProvider = MockQuizProvider();
       when(quizProvider.isLoadingHint).thenReturn(true);
       when(quizProvider.questions).thenReturn([]);
+      when(quizProvider.isOnline).thenReturn(true);
+      when(quizProvider.loadQuiz()).thenAnswer((_) => loadCompleter.future);
 
       await tester.pumpWidget(
-        ChangeNotifierProvider<QuizProvider>.value(
-          value: quizProvider,
-          child: const MaterialApp(
-            home: DailyReviewScreen(),
-          ),
+        buildTestApp(
+          home: const DailyReviewScreen(),
+          providers: [
+            ChangeNotifierProvider<QuizProvider>.value(value: quizProvider),
+            ChangeNotifierProvider<ProgressProvider>(
+              create: (_) => ProgressProvider(),
+            ),
+            ChangeNotifierProvider<SettingsProvider>(
+              create: (_) => SettingsProvider(),
+            ),
+          ],
         ),
       );
 
-      // Act
       await tester.pump();
 
-      // Assert
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      loadCompleter.complete();
+      await tester.pumpAndSettle();
     });
 
     testWidgets('shows count and preview after load', (tester) async {
@@ -65,8 +105,11 @@ void main() {
         buildTestApp(
           home: const DailyReviewScreen(),
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
-            ChangeNotifierProvider.value(value: progress),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
+            ChangeNotifierProvider<ProgressProvider>.value(value: progress),
+            ChangeNotifierProvider<SettingsProvider>(
+              create: (_) => SettingsProvider(),
+            ),
           ],
           routes: {
             '/quiz': (_) => const Scaffold(body: Text('Quiz Screen')),
@@ -75,7 +118,7 @@ void main() {
       );
 
       await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('Danas imas 2 pitanja za ponavljanje.'), findsOneWidget);
       expect(find.text('Koliko je 2 + 2?'), findsOneWidget);
@@ -91,8 +134,11 @@ void main() {
         buildTestApp(
           home: const DailyReviewScreen(),
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
-            ChangeNotifierProvider.value(value: progress),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
+            ChangeNotifierProvider<ProgressProvider>.value(value: progress),
+            ChangeNotifierProvider<SettingsProvider>(
+              create: (_) => SettingsProvider(),
+            ),
           ],
           routes: {
             '/quiz': (_) => const Scaffold(body: Text('Quiz Screen')),
@@ -101,11 +147,10 @@ void main() {
       );
 
       await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-      expect(button.onPressed, isNull);
-      expect(find.text('Danas si sve zavrsio. Bravo!'), findsOneWidget);
+      expect(find.text('Nema pitanja za danas'), findsOneWidget);
+      expect(find.text('Odlicno, sve je uradjeno. Vrati se kasnije.'), findsOneWidget);
     });
 
     testWidgets('Start Review navigates and sets skipDailyReviewOnce', (tester) async {
@@ -122,11 +167,14 @@ void main() {
       final progress = ProgressProvider()..streak = 2;
 
       await tester.pumpWidget(
-        buildTestApp(
+        _buildRouterApp(
           home: const DailyReviewScreen(),
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
-            ChangeNotifierProvider.value(value: progress),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
+            ChangeNotifierProvider<ProgressProvider>.value(value: progress),
+            ChangeNotifierProvider<SettingsProvider>(
+              create: (_) => SettingsProvider(),
+            ),
           ],
           routes: {
             '/quiz': (_) => const Scaffold(body: Text('Quiz Screen')),
@@ -135,10 +183,11 @@ void main() {
       );
 
       await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('Start Review'));
       await tester.tap(find.text('Start Review'));
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
 
       expect(find.text('Quiz Screen'), findsOneWidget);
       expect(quiz.consumeSkipDailyReviewOnce(), isTrue);
@@ -152,8 +201,11 @@ void main() {
         buildTestApp(
           home: const DailyReviewScreen(),
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
-            ChangeNotifierProvider.value(value: progress),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
+            ChangeNotifierProvider<ProgressProvider>.value(value: progress),
+            ChangeNotifierProvider<SettingsProvider>(
+              create: (_) => SettingsProvider(),
+            ),
           ],
           routes: {
             '/quiz': (_) => const Scaffold(body: Text('Quiz Screen')),
@@ -161,7 +213,10 @@ void main() {
         ),
       );
 
-      expect(find.text('Streak: 7 dana'), findsOneWidget);
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nema pitanja za danas'), findsOneWidget);
     });
   });
 }

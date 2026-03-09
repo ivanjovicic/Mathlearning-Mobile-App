@@ -6,7 +6,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../l10n/app_i18n.dart';
 import '../state/quiz_provider.dart';
 import '../state/progress_provider.dart';
+import '../theme/app_scale.dart';
 import '../theme/astrax_theme.dart';
+import '../theme/tokens/spacing_tokens.dart';
 import '../widgets/astrax_buttons.dart';
 import '../widgets/astrax_card.dart';
 import '../widgets/ui/state_scaffold.dart';
@@ -25,7 +27,10 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSrs();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadSrs();
+    });
   }
 
   Future<void> _loadSrs() async {
@@ -62,10 +67,13 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
           emptyTitle: "Nema pitanja za danas",
           emptySubtitle: "Odlicno, sve je uradjeno. Vrati se kasnije.",
           emptyIcon: Icons.check_circle_outline,
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: SingleChildScrollView(
-              child: Column(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: AppScale.centeredContentConstraints(),
+              child: Padding(
+                padding: EdgeInsets.all(AppSpacing.lg),
+                child: SingleChildScrollView(
+                  child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Align(
@@ -74,31 +82,34 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                       onPressed: () {
                         context.go('/home');
                       },
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.home_outlined,
                         color: Colors.white,
+                        size: AppScale.icon(24, min: 22, max: 32),
                       ),
                       tooltip: t.navHome,
                     ),
                   ),
-                  const SizedBox(height: 40),
-                  const Text(
+                  SizedBox(height: AppScale.s(40)),
+                  Text(
                     'Daily Review',
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: AppScale.font(32, min: 26, max: 40),
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: AppSpacing.md),
                   Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppSpacing.base,
+                          vertical: AppSpacing.sm,
                         ),
                         decoration: BoxDecoration(
                           color: AstraXTheme.neonPurple.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(
+                            AppScale.radius(18),
+                          ),
                           border: Border.all(
                             color: AstraXTheme.neonPurple.withValues(
                               alpha: 0.35,
@@ -108,18 +119,18 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.local_fire_department,
                               color: AstraXTheme.neonPurple,
-                              size: 18,
+                              size: AppScale.icon(18, min: 16, max: 24),
                             ),
-                            const SizedBox(width: 6),
+                            SizedBox(width: AppSpacing.xs + AppSpacing.sm / 4),
                             Text(
                               "Streak: ${progress.streak} dana",
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AstraXTheme.neonPurple,
                                 fontWeight: FontWeight.w700,
-                                fontSize: 13,
+                                fontSize: AppScale.font(13, min: 12, max: 18),
                               ),
                             ),
                           ],
@@ -136,54 +147,61 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                   Text(
                     "Danas imas ${qp.questions.length} pitanja za ponavljanje.",
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 18, color: Colors.white70),
+                    style: TextStyle(
+                      fontSize: AppScale.font(18, min: 16, max: 24),
+                      color: Colors.white70,
+                    ),
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: AppScale.s(14)),
                   if (!_loading && !qp.isOnline) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppScale.s(14),
+                        vertical: AppScale.s(10),
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(
+                          AppScale.radius(14),
+                        ),
                         border: Border.all(
                           color: Colors.white.withValues(alpha: 0.18),
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.cloud_off,
                             color: Colors.white70,
-                            size: 16,
+                            size: AppScale.icon(16, min: 14, max: 22),
                           ),
-                          SizedBox(width: 8),
+                          SizedBox(width: AppSpacing.sm),
                           Flexible(
                             child: Text(
                               "Offline: koristim poslednja sacuvana SRS pitanja.",
                               style: TextStyle(
                                 color: Colors.white70,
-                                fontSize: 13,
+                                fontSize: AppScale.font(13, min: 12, max: 18),
                               ),
                             ),
                           ),
                         ],
                       ),
                     ).animate().fadeIn(duration: 250.ms),
-                    const SizedBox(height: 12),
+                    SizedBox(height: AppSpacing.md),
                   ],
                   if (!_loading)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppScale.s(14),
+                        vertical: AppScale.s(6),
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(
+                          AppScale.radius(16),
+                        ),
                         border: Border.all(
                           color: Colors.white.withValues(alpha: 0.2),
                         ),
@@ -194,51 +212,56 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                                   ? "Danas si sve zavrsio. Bravo!"
                                   : "Offline: nema sacuvanih pitanja. Otvori aplikaciju online da preuzmemo Daily Review.")
                             : "Procena: ~${(qp.questions.length * 45 / 60).round().clamp(1, 99)} min",
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white70,
-                          fontSize: 13,
+                          fontSize: AppScale.font(13, min: 12, max: 18),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ).animate().fadeIn(duration: 250.ms),
-                  const SizedBox(height: 30),
-                  const Icon(
+                  SizedBox(height: AppScale.s(30)),
+                  Icon(
                         Icons.auto_awesome,
-                        size: 120,
+                        size: AppScale.icon(120, min: 88, max: 160),
                         color: Colors.yellow,
                       )
                       .animate()
                       .scale(duration: 450.ms, curve: Curves.easeOutBack)
                       .then()
                       .shimmer(duration: 1200.ms, color: Colors.yellowAccent),
-                  const SizedBox(height: 30),
+                  SizedBox(height: AppScale.s(30)),
                   if (questions.isNotEmpty)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: List.generate(questions.length, (index) {
                         final q = questions[index];
                         return Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
+                              padding: EdgeInsets.only(bottom: AppScale.s(10)),
                               child: AstraCard(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: AppScale.s(14),
+                                  vertical: AppScale.s(12),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.check_circle_outline,
                                       color: AstraXTheme.neonGreen,
+                                      size: AppScale.icon(20, min: 18, max: 28),
                                     ),
-                                    const SizedBox(width: 10),
+                                    SizedBox(width: AppSpacing.md),
                                     Expanded(
                                       child: Text(
                                         q.text,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Colors.white70,
-                                          fontSize: 14,
+                                          fontSize: AppScale.font(
+                                            14,
+                                            min: 13,
+                                            max: 20,
+                                          ),
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -253,27 +276,29 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                       }),
                     ),
                   if (questions.isNotEmpty) ...[
-                    const SizedBox(height: 6),
+                    SizedBox(height: AppSpacing.xs + AppSpacing.sm / 2),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(3, (index) {
                         final filled = index < questions.length;
                         return AnimatedContainer(
                           duration: 250.ms,
-                          width: filled ? 16 : 8,
-                          height: 8,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: filled ? AppScale.s(16) : AppScale.s(8),
+                          height: AppScale.s(8),
+                          margin: EdgeInsets.symmetric(horizontal: AppScale.s(4)),
                           decoration: BoxDecoration(
                             color: filled
                                 ? AstraXTheme.neonGreen
                                 : Colors.white24,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(
+                              AppScale.radius(10),
+                            ),
                           ),
                         );
                       }),
                     ).animate().fadeIn(duration: 250.ms),
                   ],
-                  const SizedBox(height: 30),
+                  SizedBox(height: AppScale.s(30)),
                   IgnorePointer(
                     ignoring: !canStart,
                     child: Opacity(
@@ -290,13 +315,18 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                     duration: 300.ms,
                     curve: Curves.easeOutBack,
                   ),
-                  const SizedBox(height: 24),
-                  const Text(
+                  SizedBox(height: AppSpacing.lg),
+                  Text(
                     'Ponavljanje pojacava pamcenje',
-                    style: TextStyle(color: Colors.white54),
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: AppScale.font(13, min: 12, max: 18),
+                    ),
                   ),
-                  const SizedBox(height: 30),
+                  SizedBox(height: AppScale.s(30)),
                 ],
+                  ),
+                ),
               ),
             ),
           ),

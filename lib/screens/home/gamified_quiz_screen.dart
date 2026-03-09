@@ -9,6 +9,8 @@ import '../../l10n/app_i18n.dart';
 import '../../state/quiz_provider.dart';
 import '../../state/progress_provider.dart';
 import '../../state/settings_provider.dart';
+import '../../theme/app_scale.dart';
+import '../../theme/tokens/spacing_tokens.dart';
 import '../../utils/overlay_safety.dart';
 import '../../widgets/gamified_math_panel.dart';
 import '../../widgets/game_button.dart';
@@ -20,17 +22,9 @@ import '../../widgets/xp_pop_animation.dart';
 import '../../widgets/formula_hint_bottom_sheet.dart';
 import '../../widgets/explanations/mistake_explanation_card.dart';
 import '../../widgets/explanations/step_explanation_controller.dart';
+import '../../widgets/math_content_text.dart';
 
 import '../../models/question.dart';
-
-enum _QuizBreakpoint { compactPhone, phone, tabletPortrait, tabletLandscape }
-
-_QuizBreakpoint _quizBreakpointForWidth(double width) {
-  if (width < 360) return _QuizBreakpoint.compactPhone;
-  if (width < 600) return _QuizBreakpoint.phone;
-  if (width < 900) return _QuizBreakpoint.tabletPortrait;
-  return _QuizBreakpoint.tabletLandscape;
-}
 
 class GamifiedQuizScreen extends StatefulWidget {
   final Question question;
@@ -115,69 +109,31 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
           builder: (context, constraints) {
             final width = constraints.maxWidth;
             final height = constraints.maxHeight;
-            final bp = _quizBreakpointForWidth(width);
+            final isLandscape = width > height;
+            final columns = isLandscape ? 2 : 1;
+            final horizontalPadding = AppScale.s(18).clamp(12.0, 40.0).toDouble();
+            final topGap = AppScale.s(14).clamp(10.0, 22.0).toDouble();
+            final betweenHeaderGap = AppScale.s(8).clamp(6.0, 14.0).toDouble();
+            final sectionGap = AppScale.s(12).clamp(10.0, 18.0).toDouble();
 
-            final isCompact = bp == _QuizBreakpoint.compactPhone;
-            final isLandscape = bp == _QuizBreakpoint.tabletLandscape;
-            final columns =
-                (bp == _QuizBreakpoint.tabletPortrait ||
-                    bp == _QuizBreakpoint.tabletLandscape)
-                ? 2
-                : 1;
+            final questionCardPadding = EdgeInsets.all(AppScale.s(18));
+            final afterQuestionGap = AppScale.s(24).clamp(18.0, 32.0).toDouble();
 
-            double padFactor;
-            switch (bp) {
-              case _QuizBreakpoint.compactPhone:
-                padFactor = 0.04;
-                break;
-              case _QuizBreakpoint.phone:
-                padFactor = 0.06;
-                break;
-              case _QuizBreakpoint.tabletPortrait:
-                padFactor = 0.10;
-                break;
-              case _QuizBreakpoint.tabletLandscape:
-                padFactor = 0.08;
-                break;
-            }
-
-            final horizontalPadding = (width * padFactor)
-                .clamp(12.0, 96.0)
-                .toDouble();
-            final topGap = (height * (isCompact ? 0.012 : 0.02))
-                .clamp(10.0, 18.0)
-                .toDouble();
-            final betweenHeaderGap = isCompact ? 6.0 : 8.0;
-            final sectionGap = isCompact ? 10.0 : 12.0;
-
-            final questionCardPadding = EdgeInsets.all(isCompact ? 16.0 : 20.0);
-            final afterQuestionGap = isCompact ? 18.0 : 28.0;
-
-            final optionSpacing = isCompact ? 8.0 : 10.0;
+            final optionSpacing = AppScale.s(10).clamp(8.0, 16.0).toDouble();
             final optionPadding = EdgeInsets.symmetric(
-              vertical: isCompact ? 10.0 : 12.0,
-              horizontal: isCompact ? 14.0 : 16.0,
+              vertical: AppScale.s(12).clamp(10.0, 18.0).toDouble(),
+              horizontal: AppScale.s(16).clamp(14.0, 24.0).toDouble(),
             );
 
-            final optionDensity = isCompact
-                ? 0.92
-                : (bp == _QuizBreakpoint.tabletLandscape ? 1.05 : 1.0);
+            final optionDensity = (0.95 + (AppScale.scale - 1) * 0.15)
+                .clamp(0.92, 1.08)
+                .toDouble();
 
-            double questionFontSize;
-            switch (bp) {
-              case _QuizBreakpoint.compactPhone:
-                questionFontSize = (width * 0.065).clamp(18.0, 26.0).toDouble();
-                break;
-              case _QuizBreakpoint.phone:
-                questionFontSize = (width * 0.07).clamp(20.0, 30.0).toDouble();
-                break;
-              case _QuizBreakpoint.tabletPortrait:
-                questionFontSize = 32.0;
-                break;
-              case _QuizBreakpoint.tabletLandscape:
-                questionFontSize = 36.0;
-                break;
-            }
+            final questionFontSize = AppScale.font(
+              24,
+              min: 18,
+              max: 36,
+            );
 
             final questionExpressionStyle =
                 theme.textTheme.headlineSmall?.copyWith(
@@ -195,9 +151,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                   letterSpacing: 0.3,
                 );
 
-            final optionFontSize = isCompact
-                ? 16.0
-                : (bp == _QuizBreakpoint.tabletLandscape ? 19.0 : 18.0);
+            final optionFontSize = AppScale.font(18, min: 16, max: 22);
 
             Widget buildQuestionCard() {
               return AnimatedContainer(
@@ -210,14 +164,14 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 padding: questionCardPadding,
                 decoration: BoxDecoration(
                   color: theme.cardColor,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(AppScale.radius(18)),
                   boxShadow: [
                     BoxShadow(
                       color: colorScheme.primary.withAlpha(
                         (0.12 * 255).round(),
                       ),
-                      blurRadius: 20,
-                      offset: const Offset(0, 5),
+                      blurRadius: AppScale.s(20),
+                      offset: Offset(0, AppScale.s(5)),
                     ),
                   ],
                 ),
@@ -282,7 +236,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 // In 1-column layouts we want option cards to size to content
                 // instead of being forced to a tall fixed grid height.
                 return SliverPadding(
-                  padding: EdgeInsets.only(top: topPadding, bottom: 12),
+                  padding: EdgeInsets.only(top: topPadding, bottom: AppSpacing.md),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) => Padding(
@@ -299,9 +253,11 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 );
               }
 
-              final ratio = bp == _QuizBreakpoint.tabletLandscape ? 2.9 : 2.6;
+              final ratio = (3.0 - ((AppScale.scale - 1) * 0.25))
+                  .clamp(2.4, 3.0)
+                  .toDouble();
               return SliverPadding(
-                padding: EdgeInsets.only(top: topPadding, bottom: 12),
+                padding: EdgeInsets.only(top: topPadding, bottom: AppSpacing.md),
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
@@ -325,22 +281,22 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                           key: ValueKey('quiz_left_${widget.question.id}'),
                           slivers: [
                             SliverToBoxAdapter(child: buildQuestionCard()),
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: 12),
+                            SliverToBoxAdapter(
+                              child: SizedBox(height: AppSpacing.md),
                             ),
                           ],
                         ),
                       ),
                       SizedBox(
-                        width: (width * 0.04).clamp(20.0, 40.0).toDouble(),
+                        width: AppScale.s(24).clamp(16.0, 36.0).toDouble(),
                       ),
                       Expanded(
                         child: CustomScrollView(
                           key: ValueKey('quiz_right_${widget.question.id}'),
                           slivers: [
                             buildOptionsSliver(topPadding: 0),
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: 12),
+                            SliverToBoxAdapter(
+                              child: SizedBox(height: AppSpacing.md),
                             ),
                           ],
                         ),
@@ -352,97 +308,111 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                     slivers: [
                       SliverToBoxAdapter(child: buildQuestionCard()),
                       buildOptionsSliver(topPadding: afterQuestionGap),
-                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                      SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
                     ],
                   );
 
-            final actionMaxWidth =
-                (bp == _QuizBreakpoint.tabletPortrait || isLandscape)
-                ? 520.0
-                : double.infinity;
-
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-              child: Column(
-                children: [
-                  SizedBox(height: topGap),
-                  _buildHeader(theme, colorScheme, progress),
-                  SizedBox(height: betweenHeaderGap),
-                  _buildMasteryRow(
-                    theme: theme,
-                    colorScheme: colorScheme,
-                    masteryProgress: quizProvider.masteryPercent,
-                  ),
-                  if (_combo > 1) ...[
-                    SizedBox(height: betweenHeaderGap),
-                    _buildComboChip(theme, colorScheme, t.comboLabel(_combo)),
-                  ],
-                  SizedBox(height: sectionGap),
-                  Expanded(child: body),
-                  if (answered) ...[
-                    const SizedBox(height: 10),
-                    _buildAnswerFeedback(
-                      theme: theme,
-                      colorScheme: colorScheme,
-                      t: t,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (quizProvider.isCooldown)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 24),
-                      child: Center(child: CooldownCircle(seconds: 1)),
-                    )
-                  else if (answered)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Align(
-                        alignment: Alignment.center,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: actionMaxWidth),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed:
-                                  (isSubmitting ||
-                                      quizProvider.isSubmittingAnswer)
-                                  ? null
-                                  : _submitAndContinue,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: colorScheme.primary,
-                                foregroundColor: colorScheme.onPrimary,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                elevation: 0,
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isLandscape ? 920 : AppScale.maxContentWidth,
+                ),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  child: Column(
+                    children: [
+                      SizedBox(height: topGap),
+                      _buildHeader(theme, colorScheme, progress),
+                      SizedBox(height: betweenHeaderGap),
+                      _buildMasteryRow(
+                        theme: theme,
+                        colorScheme: colorScheme,
+                        masteryProgress: quizProvider.masteryPercent,
+                      ),
+                      if (_combo > 1) ...[
+                        SizedBox(height: betweenHeaderGap),
+                        _buildComboChip(
+                          theme,
+                          colorScheme,
+                          t.comboLabel(_combo),
+                        ),
+                      ],
+                      SizedBox(height: sectionGap),
+                      Expanded(child: body),
+                      if (answered) ...[
+                        SizedBox(height: AppScale.s(10)),
+                        _buildAnswerFeedback(
+                          theme: theme,
+                          colorScheme: colorScheme,
+                          t: t,
+                        ),
+                        SizedBox(height: AppSpacing.md),
+                      ],
+                      if (quizProvider.isCooldown)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: AppSpacing.lg),
+                          child: const Center(child: CooldownCircle(seconds: 1)),
+                        )
+                      else if (answered)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: AppSpacing.lg),
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: AppScale.maxContentWidth,
                               ),
-                              child: isSubmitting
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : Text(
-                                      widget.questionNumber >=
-                                              widget.totalQuestions
-                                          ? t.finishQuiz
-                                          : t.nextQuestion,
-                                      style: const TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.bold,
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed:
+                                      (isSubmitting ||
+                                          quizProvider.isSubmittingAnswer)
+                                      ? null
+                                      : _submitAndContinue,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colorScheme.primary,
+                                    foregroundColor: colorScheme.onPrimary,
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: AppScale.s(14),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        AppScale.radius(14),
                                       ),
                                     ),
+                                    elevation: 0,
+                                  ),
+                                  child: isSubmitting
+                                      ? SizedBox(
+                                          height: AppScale.s(20),
+                                          width: AppScale.s(20),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: AppScale.s(2),
+                                          ),
+                                        )
+                                      : Text(
+                                          widget.questionNumber >=
+                                                  widget.totalQuestions
+                                              ? t.finishQuiz
+                                              : t.nextQuestion,
+                                          style: TextStyle(
+                                            fontSize: AppScale.font(
+                                              17,
+                                              min: 15,
+                                              max: 22,
+                                            ),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             );
           },
@@ -1348,7 +1318,10 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
-        content: Text(text),
+        content: MathContentText(
+          value: text,
+          style: Theme.of(dialogContext).textTheme.bodyMedium,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),

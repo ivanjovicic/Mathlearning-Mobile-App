@@ -143,8 +143,8 @@ class _AvatarCustomizationScreenState
                   controller: _tabController,
                   isScrollable: true,
                   labelColor: colorScheme.primary,
-                  unselectedLabelColor:
-                      colorScheme.onSurface.withOpacity(0.5),
+                    unselectedLabelColor:
+                      colorScheme.onSurface.withValues(alpha: 0.5),
                   indicatorColor: colorScheme.primary,
                   tabs: _categories
                       .map(
@@ -304,8 +304,8 @@ class _CategoryGrid extends StatelessWidget {
         LinearProgressIndicator(
           value: entries.isEmpty ? 0 : ownedCount / entries.length,
           minHeight: 3,
-          backgroundColor:
-              Theme.of(context).colorScheme.surfaceVariant,
+            backgroundColor:
+              Theme.of(context).colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation(
             Theme.of(context).colorScheme.primary,
           ),

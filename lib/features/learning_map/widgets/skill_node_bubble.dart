@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
 import 'package:mathlearning/features/learning_map/models/skill_node_state.dart';
+import 'package:mathlearning/theme/app_scale.dart';
+import 'package:mathlearning/theme/theme_extensions/theme_context.dart';
+import 'package:mathlearning/theme/tokens/app_motion.dart';
 
 class SkillNodeBubble extends StatefulWidget {
   const SkillNodeBubble({
@@ -39,10 +42,10 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
     super.initState();
     _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: AppMotion.slow,
     );
     _progressAnimation = Tween<double>(begin: 0, end: widget.progress).animate(
-      CurvedAnimation(parent: _progressController, curve: Curves.easeOutCubic),
+      CurvedAnimation(parent: _progressController, curve: AppMotion.standard),
     );
     _progressController.forward();
   }
@@ -58,7 +61,7 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
           ).animate(
             CurvedAnimation(
               parent: _progressController,
-              curve: Curves.easeOutCubic,
+              curve: AppMotion.standard,
             ),
           );
       _progressController
@@ -71,7 +74,7 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
       setState(() => _unlockPulse = true);
       _unlockTimer?.cancel();
       _unlockTimer = Timer(
-        const Duration(milliseconds: 420),
+        AppMotion.slow,
         () => mounted ? setState(() => _unlockPulse = false) : null,
       );
     }
@@ -88,15 +91,17 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = _colorsForState(theme.colorScheme, widget.state);
+    final spacing = context.spacing;
+    final motion = context.motion;
     final progress = widget.progress.clamp(0.0, 1.0);
     final isLocked = widget.state == SkillNodeState.locked;
     final icon = _iconForTitle(widget.node.title);
 
     final bubble = AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-      width: 112,
-      height: 112,
+      duration: motion.fast,
+      curve: motion.decelerate,
+      width: AppScale.s(112),
+      height: AppScale.s(112),
       decoration: BoxDecoration(
         color: colors.background,
         shape: BoxShape.circle,
@@ -104,29 +109,29 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
           if (widget.state == SkillNodeState.recommended)
             BoxShadow(
               color: colors.glow.withValues(alpha: 0.45),
-              blurRadius: 18,
-              spreadRadius: 1.5,
+              blurRadius: AppScale.s(18),
+              spreadRadius: AppScale.s(1.5),
             ),
           BoxShadow(
             color: theme.colorScheme.shadow.withValues(alpha: 0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: AppScale.s(10),
+            offset: Offset(0, AppScale.s(4)),
           ),
         ],
-        border: Border.all(color: colors.border, width: 2),
+        border: Border.all(color: colors.border, width: AppScale.s(2)),
       ),
       child: Stack(
         alignment: Alignment.center,
         children: [
           SizedBox(
-            width: 96,
-            height: 96,
+            width: AppScale.s(96),
+            height: AppScale.s(96),
             child: AnimatedBuilder(
               animation: _progressAnimation,
               builder: (context, _) {
                 return CircularProgressIndicator(
                   value: isLocked ? 0 : _progressAnimation.value,
-                  strokeWidth: 5,
+                  strokeWidth: AppScale.s(5),
                   color: colors.progress,
                   backgroundColor: colors.progressBackground,
                 );
@@ -139,9 +144,9 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
               Icon(
                 isLocked ? Icons.lock_outline_rounded : icon,
                 color: colors.foreground,
-                size: 24,
+                size: AppScale.icon(24, min: 20, max: 30),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: spacing.xs),
               Text(
                 '${(progress * 100).round()}%',
                 style: theme.textTheme.labelMedium?.copyWith(
@@ -152,10 +157,14 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
             ],
           ),
           if (widget.state == SkillNodeState.mastered)
-            const Positioned(
-              right: 14,
-              top: 14,
-              child: Icon(Icons.check_circle, color: Colors.green, size: 20),
+            Positioned(
+              right: AppScale.s(14),
+              top: AppScale.s(14),
+              child: Icon(
+                Icons.check_circle,
+                color: context.learningTheme.masteryStrong,
+                size: AppScale.icon(20, min: 18, max: 24),
+              ),
             ),
         ],
       ),
@@ -167,21 +176,24 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
         label: widget.semanticLabel,
         child: InkWell(
           key: Key('skill_node_${widget.node.id}'),
-          borderRadius: BorderRadius.circular(72),
+          borderRadius: BorderRadius.circular(AppScale.radius(72)),
           onTap: widget.onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+            padding: EdgeInsets.symmetric(
+              vertical: spacing.s,
+              horizontal: spacing.xs + spacing.xs / 2,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 AnimatedScale(
-                  duration: const Duration(milliseconds: 240),
+                  duration: motion.fast,
                   scale: _unlockPulse ? 1.08 : 1.0,
                   child: bubble,
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: spacing.s),
                 SizedBox(
-                  width: 150,
+                  width: AppScale.s(150),
                   child: Text(
                     widget.node.title,
                     maxLines: 2,
@@ -193,15 +205,15 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
                   ),
                 ),
                 if (widget.showNextLabel) ...[
-                  const SizedBox(height: 4),
+                  SizedBox(height: spacing.xs),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacing.s + spacing.xs / 2,
+                      vertical: spacing.xs,
                     ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.tertiaryContainer,
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(context.radius.pill),
                     ),
                     child: Text(
                       'Next',

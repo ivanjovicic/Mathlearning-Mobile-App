@@ -63,7 +63,50 @@ void main() {
       ),
     );
 
-    expect(find.byType(Math), findsOneWidget);
+    expect(find.byType(Math), findsWidgets);
+  });
+
+  testWidgets('renders inline latex inside step text and hint as readable text', (
+    tester,
+  ) async {
+    var hintVisible = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              return StepExplanationCard(
+                step: const StepExplanation(
+                  text: r'Compute $f(x)=x^2$ at $x=5$.',
+                  hint: "Use \$f'(x)=2x\$ and then substitute \$x=5\$.",
+                ),
+                stepNumber: 1,
+                totalSteps: 1,
+                isHintVisible: hintVisible,
+                onHintToggle: () {
+                  setState(() {
+                    hintVisible = !hintVisible;
+                  });
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Compute f(x)=x^2 at x=5.', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        "Use f'(x)=2x and then substitute x=5.",
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
   });
 }
 

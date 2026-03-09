@@ -9,7 +9,9 @@ import '../l10n/app_i18n.dart';
 import '../state/auth_provider.dart';
 import '../state/progress_provider.dart';
 import '../state/settings_provider.dart';
+import '../theme/app_scale.dart';
 import '../theme/theme_controller.dart';
+import '../theme/tokens/spacing_tokens.dart';
 import '../widgets/section_header.dart';
 import '../widgets/settings_switch_tile.dart';
 import '../widgets/language_dropdown.dart';
@@ -35,7 +37,10 @@ class SettingsScreen extends StatelessWidget {
             onPressed: () {
               context.go('/home');
             },
-            icon: const Icon(Icons.home_outlined),
+            icon: Icon(
+              Icons.home_outlined,
+              size: AppScale.icon(24, min: 22, max: 32),
+            ),
             tooltip: t.navHome,
           ),
         ],
@@ -50,85 +55,98 @@ class SettingsScreen extends StatelessWidget {
           >(
             builder:
                 (context, settings, themeController, progress, auth, child) {
-                  return ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      SetupHeroCard(
-                        completedGoals: settings.completedGoals,
-                        completionProgress: settings.completionProgress,
-                        setupXp: settings.setupXp,
-                        level: progress.level,
-                      ),
-                      const SizedBox(height: 12),
-                      QuestChecklist(settings: settings),
-                      const SizedBox(height: 20),
-                      SectionHeader(
-                        title: t.sectionProfile,
-                        icon: Icons.person_outline,
-                      ),
-                      _buildProfileCard(
-                        context,
-                        settings,
-                        auth,
-                        theme,
-                        colorScheme,
-                      ),
-                      const SizedBox(height: 8),
-                      LanguageDropdown(settings: settings),
-                      const SizedBox(height: 20),
-                      SectionHeader(
-                        title: t.sectionQuizExperience,
-                        icon: Icons.extension_outlined,
-                      ),
-                      ..._buildQuizExperienceTiles(settings, t),
-                      const SizedBox(height: 20),
-                      SectionHeader(
-                        title: t.sectionNotifications,
-                        icon: Icons.notifications_outlined,
-                      ),
-                      ..._buildNotificationTiles(
-                        context,
-                        settings,
-                        t,
-                        colorScheme,
-                      ),
-                      const SizedBox(height: 20),
-                      SectionHeader(
-                        title: t.sectionThemeAndApp,
-                        icon: Icons.palette_outlined,
-                      ),
-                      ThemeModeQuickSwitch(
-                        themeController: themeController,
-                        onThemePicked: settings.markThemeConfigured,
-                      ),
-                      const SizedBox(height: 8),
-                      ThemeDropdown(
-                        themeController: themeController,
-                        onThemePicked: settings.markThemeConfigured,
-                      ),
-                      const SizedBox(height: 8),
-                      _buildAdvancedThemeCard(
-                        context,
-                        settings,
-                        colorScheme,
-                        t,
-                      ),
-                      const SizedBox(height: 20),
-                      SectionHeader(
-                        title: t.sectionAudioHaptics,
-                        icon: Icons.volume_up_outlined,
-                      ),
-                      ..._buildAudioHapticsTiles(settings, t),
-                      const SizedBox(height: 8),
-                      if (!settings.dailyReminderEnabled)
-                        Text(
-                          t.dailyTip,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface,
-                            fontWeight: FontWeight.w600,
+                  return SafeArea(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: AppScale.centeredContentConstraints(),
+                        child: ListView(
+                          padding: EdgeInsets.fromLTRB(
+                            AppSpacing.screenHPadding,
+                            AppSpacing.screenVPadding,
+                            AppSpacing.screenHPadding,
+                            AppSpacing.screenVPadding +
+                                AppScale.viewInsets.bottom,
                           ),
+                          children: [
+                            SetupHeroCard(
+                              completedGoals: settings.completedGoals,
+                              completionProgress: settings.completionProgress,
+                              setupXp: settings.setupXp,
+                              level: progress.level,
+                            ),
+                            SizedBox(height: AppSpacing.md),
+                            QuestChecklist(settings: settings),
+                            SizedBox(height: AppSpacing.sectionSpacing),
+                            SectionHeader(
+                              title: t.sectionProfile,
+                              icon: Icons.person_outline,
+                            ),
+                            _buildProfileCard(
+                              context,
+                              settings,
+                              auth,
+                              theme,
+                              colorScheme,
+                            ),
+                            SizedBox(height: AppSpacing.sm),
+                            LanguageDropdown(settings: settings),
+                            SizedBox(height: AppSpacing.sectionSpacing),
+                            SectionHeader(
+                              title: t.sectionQuizExperience,
+                              icon: Icons.extension_outlined,
+                            ),
+                            ..._buildQuizExperienceTiles(settings, t),
+                            SizedBox(height: AppSpacing.sectionSpacing),
+                            SectionHeader(
+                              title: t.sectionNotifications,
+                              icon: Icons.notifications_outlined,
+                            ),
+                            ..._buildNotificationTiles(
+                              context,
+                              settings,
+                              t,
+                              colorScheme,
+                            ),
+                            SizedBox(height: AppSpacing.sectionSpacing),
+                            SectionHeader(
+                              title: t.sectionThemeAndApp,
+                              icon: Icons.palette_outlined,
+                            ),
+                            ThemeModeQuickSwitch(
+                              themeController: themeController,
+                              onThemePicked: settings.markThemeConfigured,
+                            ),
+                            SizedBox(height: AppSpacing.sm),
+                            ThemeDropdown(
+                              themeController: themeController,
+                              onThemePicked: settings.markThemeConfigured,
+                            ),
+                            SizedBox(height: AppSpacing.sm),
+                            _buildAdvancedThemeCard(
+                              context,
+                              settings,
+                              colorScheme,
+                              t,
+                            ),
+                            SizedBox(height: AppSpacing.sectionSpacing),
+                            SectionHeader(
+                              title: t.sectionAudioHaptics,
+                              icon: Icons.volume_up_outlined,
+                            ),
+                            ..._buildAudioHapticsTiles(settings, t),
+                            SizedBox(height: AppSpacing.sm),
+                            if (!settings.dailyReminderEnabled)
+                              Text(
+                                t.dailyTip,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
+                      ),
+                    ),
                   );
                 },
           ),
@@ -161,7 +179,10 @@ class SettingsScreen extends StatelessWidget {
             color: colorScheme.onSurface,
           ),
         ),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+        trailing: Icon(
+          Icons.arrow_forward_ios_rounded,
+          size: AppScale.icon(16, min: 14, max: 22),
+        ),
         onTap: () async {
           await settings.markProfileConfigured();
           if (context.mounted) {
@@ -237,7 +258,10 @@ class SettingsScreen extends StatelessWidget {
             leading: Icon(Icons.schedule, color: colorScheme.secondary),
             title: Text(t.reminderTime),
             subtitle: Text(settings.dailyReminderTime.format(context)),
-            trailing: const Icon(Icons.edit_outlined),
+        trailing: Icon(
+          Icons.edit_outlined,
+          size: AppScale.icon(20, min: 18, max: 28),
+        ),
             onTap: () async {
               final picked = await showTimePicker(
                 context: context,
@@ -289,7 +313,10 @@ class SettingsScreen extends StatelessWidget {
         leading: Icon(Icons.auto_awesome_outlined, color: colorScheme.primary),
         title: Text(t.advancedThemeTitle),
         subtitle: Text(t.advancedThemeSubtitle),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+        trailing: Icon(
+          Icons.arrow_forward_ios_rounded,
+          size: AppScale.icon(16, min: 14, max: 22),
+        ),
         onTap: () async {
           await settings.markThemeConfigured();
           if (context.mounted) {

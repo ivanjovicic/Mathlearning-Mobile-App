@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 
-class AnswerOptionCard extends StatelessWidget {
-  final String text;
-  final bool selected;
-  final bool correct;
-  final bool wrong;
-  final bool enabled;
-  final VoidCallback? onTap;
+import '../../theme/app_scale.dart';
+import '../../theme/theme_extensions/theme_context.dart';
 
-  const AnswerOptionCard({
+class QuizOptionTile extends StatelessWidget {
+  const QuizOptionTile({
     super.key,
     required this.text,
     required this.selected,
@@ -18,39 +14,55 @@ class AnswerOptionCard extends StatelessWidget {
     this.onTap,
   });
 
+  final String text;
+  final bool selected;
+  final bool correct;
+  final bool wrong;
+  final bool enabled;
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final spacing = context.spacing;
+    final radius = context.radius;
+    final motion = context.motion;
     final bgColor = correct
         ? cs.tertiaryContainer
         : wrong
         ? cs.errorContainer
         : selected
         ? cs.primaryContainer
-        : cs.surfaceContainerHighest;
+        : context.colors.cardBackground;
     final borderColor = correct
         ? cs.tertiary
         : wrong
         ? cs.error
         : selected
         ? cs.primary
-        : cs.outlineVariant;
+        : context.colors.border;
 
     return Semantics(
       button: true,
       enabled: enabled,
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(radius.large),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          duration: motion.fast,
+          curve: motion.standard,
+          constraints: BoxConstraints(minHeight: AppScale.s(48)),
+          padding: EdgeInsets.symmetric(
+            horizontal: spacing.m,
+            vertical: spacing.s + spacing.xs / 2,
+          ),
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor, width: selected ? 1.6 : 1),
+            borderRadius: BorderRadius.circular(radius.large),
+            border: Border.all(
+              color: borderColor,
+              width: selected ? AppScale.s(1.6) : AppScale.s(1),
+            ),
           ),
           child: Row(
             children: [
@@ -63,4 +75,16 @@ class AnswerOptionCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class AnswerOptionCard extends QuizOptionTile {
+  const AnswerOptionCard({
+    super.key,
+    required super.text,
+    required super.selected,
+    super.correct = false,
+    super.wrong = false,
+    super.enabled = true,
+    super.onTap,
+  });
 }

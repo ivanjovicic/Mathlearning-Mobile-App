@@ -1,99 +1,71 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+import 'app_theme_dark.dart';
+import 'app_theme_light.dart';
+import 'theme_extensions/leaderboard_theme_extension.dart';
+import 'theme_extensions/learning_theme_extension.dart';
+import 'theme_extensions/semantic_colors_extension.dart';
+import 'theme_extensions/status_theme_extension.dart';
+import 'tokens/app_typography.dart';
 
 class AppTheme {
-  static ThemeData buildDarkGamifiedTheme({bool highContrast = false}) {
-    final baseColorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF6C63FF),
-      brightness: Brightness.dark,
-    );
+  const AppTheme._();
 
+  static ThemeData light({bool highContrast = false}) {
+    return AppThemeLight.build(highContrast: highContrast);
+  }
+
+  static ThemeData dark({bool highContrast = false}) {
+    return AppThemeDark.build(highContrast: highContrast);
+  }
+
+  static ThemeData enhance(
+    ThemeData baseTheme, {
+    bool highContrast = false,
+  }) {
     final colorScheme = highContrast
-      ? baseColorScheme.copyWith(
-        primary: baseColorScheme.primary,
-        onPrimary: baseColorScheme.onPrimary,
-        primaryContainer: baseColorScheme.primaryContainer,
-        onPrimaryContainer: baseColorScheme.onPrimaryContainer,
-        secondary: baseColorScheme.secondary,
-        onSecondary: baseColorScheme.onSecondary,
-        secondaryContainer: baseColorScheme.secondaryContainer,
-        onSecondaryContainer: baseColorScheme.onSecondaryContainer,
-        surface: baseColorScheme.surface,
-        onSurface: baseColorScheme.onSurface,
-        surfaceContainerHighest: baseColorScheme.surfaceContainerHighest,
-        onSurfaceVariant: baseColorScheme.onSurfaceVariant,
-        error: baseColorScheme.error,
-        onError: baseColorScheme.onError,
-        outline: baseColorScheme.outline,
-        )
-        : baseColorScheme;
+        ? _withHighContrast(baseTheme.colorScheme)
+        : baseTheme.colorScheme;
+    final semanticColors = AppSemanticColors.fromColorScheme(colorScheme);
+    final extensions = <ThemeExtension>[
+      semanticColors,
+      StatusThemeExtension.fromColors(semanticColors),
+      LeaderboardThemeExtension.fromColors(semanticColors),
+      LearningThemeExtension.fromColors(semanticColors),
+    ];
 
-    final textTheme = GoogleFonts.interTextTheme(
-      Typography.material2021().white,
-    ).apply(
-      displayColor: colorScheme.onSurface,
-      bodyColor: colorScheme.onSurface,
-    ).copyWith(
-      displayLarge: GoogleFonts.orbitron(
-        fontSize: 57,
-        fontWeight: FontWeight.w700,
-      ),
-      headlineLarge: GoogleFonts.orbitron(
-        fontSize: 32,
-        fontWeight: FontWeight.w700,
-      ),
-      titleLarge: GoogleFonts.orbitron(
-        fontSize: 22,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-
-    return ThemeData(
-      brightness: Brightness.dark,
+    return baseTheme.copyWith(
       colorScheme: colorScheme,
-      useMaterial3: true,
-      textTheme: textTheme,
-      scaffoldBackgroundColor: colorScheme.surface,
-      appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surface,
-        surfaceTintColor: colorScheme.primary,
-        elevation: 0,
-        titleTextStyle: textTheme.titleLarge,
+      scaffoldBackgroundColor: semanticColors.screenBackground,
+      textTheme: AppTypography.scaleTheme(baseTheme.textTheme, colorScheme),
+      primaryTextTheme: AppTypography.scaleTheme(
+        baseTheme.primaryTextTheme,
+        colorScheme,
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.disabled)
-                ? colorScheme.onSurface.withValues(alpha: 0.12)
-                : colorScheme.primary),
-            foregroundColor: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.disabled)
-                ? colorScheme.onSurface.withValues(alpha: 0.38)
-                : colorScheme.onPrimary),
-            shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-            elevation: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.pressed) ? 1 : 3),
-        ),
-      ),
-      chipTheme: ChipThemeData(
-        backgroundColor: colorScheme.surfaceContainerHighest,
-        selectedColor: colorScheme.secondaryContainer,
-        disabledColor: colorScheme.onSurface.withValues(alpha: 0.12),
-        labelStyle: textTheme.labelLarge?.copyWith(
-          color: colorScheme.onSurface,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: colorScheme.secondaryContainer,
-        foregroundColor: colorScheme.onSecondaryContainer,
-        elevation: 6,
-      ),
-      iconTheme: IconThemeData(
-        color: colorScheme.onSurfaceVariant,
-      ),
+      extensions: extensions.cast<ThemeExtension<dynamic>>(),
+    );
+  }
+
+  static ColorScheme _withHighContrast(ColorScheme scheme) {
+    Color contrastFor(Color color) {
+      return ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+          ? Colors.white
+          : Colors.black;
+    }
+
+    return scheme.copyWith(
+      onPrimary: contrastFor(scheme.primary),
+      onSecondary: contrastFor(scheme.secondary),
+      onTertiary: contrastFor(scheme.tertiary),
+      onSurface: contrastFor(scheme.surface),
+      onError: contrastFor(scheme.error),
+      onPrimaryContainer: contrastFor(scheme.primaryContainer),
+      onSecondaryContainer: contrastFor(scheme.secondaryContainer),
+      onTertiaryContainer: contrastFor(scheme.tertiaryContainer),
+      onErrorContainer: contrastFor(scheme.errorContainer),
+      onSurfaceVariant: contrastFor(scheme.surfaceContainerHighest),
+      outline: contrastFor(scheme.surface).withValues(alpha: 0.72),
+      outlineVariant: contrastFor(scheme.surface).withValues(alpha: 0.44),
     );
   }
 }

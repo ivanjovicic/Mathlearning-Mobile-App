@@ -67,12 +67,11 @@ class AppI18n {
   String streakInRowDays(int value) =>
       _pick(en: '$value-day streak', sr: '$value dana niza');
 
-  String coins(int value) => _pick(en: '$value gold', sr: '$value zlatnika');
+  String coins(int value) => _pick(en: '$value coins', sr: '$value coina');
   String level(int value) => _pick(en: 'Level $value', sr: 'Nivo $value');
-  String get nextLevelHint => _pick(
-    en: 'Solve new questions to unlock the next level.',
-    sr: 'Resavaj nova pitanja za sledeci nivo.',
-  );
+
+    String get nextLevelHint => _pick(
+            en: 'Earn XP to reach the next level', sr: 'Sakupljaj XP da dostignes sledeci nivo');
 
   String dailyGoal(int value) =>
       _pick(en: 'Daily goal: $value questions', sr: 'Dnevni cilj: $value pitanja');
@@ -134,6 +133,11 @@ class AppI18n {
   String get qsTitle => _pick(en: 'Quiz Complete!', sr: 'Kviz zavrsen!');
   String qsSubtitle(int correct, int total) =>
       _pick(en: 'You got $correct out of $total correct.', sr: 'Tacno: $correct od $total.');
+    String get qsErrorNoStats => _pick(en: 'No stats available.', sr: 'Nema statistike.');
+    String get qsCorrect => _pick(en: 'Correct', sr: 'Tacno');
+    String get qsTotal => _pick(en: 'Total', sr: 'Ukupno');
+    String get qsXp => _pick(en: 'XP', sr: 'XP');
+    String get qsRetry => _pick(en: 'Retry', sr: 'Pokusaj ponovo');
   String get qsStreak => _pick(en: 'Streak', sr: 'Niz');
   String get qsAccuracy => _pick(en: 'Accuracy', sr: 'Tacnost');
   String get qsMastery => _pick(en: 'Mastery', sr: 'Savladanost');
@@ -240,6 +244,11 @@ class AppI18n {
   );
   String get visualTheme => _pick(en: 'Visual theme', sr: 'Vizuelna tema');
 
+    String get networkError => _pick(
+        en: 'Network error',
+        sr: 'Došlo je do greške u mreži.',
+    );
+
   String get obWelcomeTitle => _pick(en: 'Welcome!', sr: 'Dobrodosli!');
   String get obWelcomeSubtitle => _pick(
     en: "Let's level up your math skills",
@@ -270,3 +279,4 @@ extension AppI18nContextX on BuildContext {
     return AppI18n(language);
   }
 }
+

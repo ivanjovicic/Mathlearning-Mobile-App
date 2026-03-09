@@ -145,7 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        authProvider.error!,
+                                        authProvider.error == networkErrorKey
+                                            ? t.networkError
+                                            : authProvider.error!,
                                         style: TextStyle(
                                           color: colorScheme.onErrorContainer,
                                         ),

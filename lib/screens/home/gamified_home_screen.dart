@@ -45,7 +45,10 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
       final coinProvider = Provider.of<CoinProvider>(context, listen: false);
 
       progress.token = auth.token;
-      coinProvider.loadCoinsAndHints();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        coinProvider.loadCoinsAndHints();
+      });
 
       progress.onLevelUp = () {
         if (!mounted) return;

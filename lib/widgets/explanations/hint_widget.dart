@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../math_content_text.dart';
+
 class HintWidget extends StatelessWidget {
   const HintWidget({
     super.key,
@@ -71,8 +73,8 @@ class HintWidget extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            hintText,
+                          child: MathContentText(
+                            value: hintText,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(color: cs.onSecondaryContainer),
                           ),

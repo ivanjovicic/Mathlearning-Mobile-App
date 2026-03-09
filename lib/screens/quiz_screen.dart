@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../models/option.dart';
+import '../models/question.dart';
 import '../state/quiz_provider.dart';
+import '../theme/app_scale.dart';
+import '../theme/tokens/spacing_tokens.dart';
 import '../widgets/ui/answer_option_card.dart';
 import '../widgets/ui/state_scaffold.dart';
 
@@ -72,6 +76,7 @@ class _QuizScreenState extends State<QuizScreen>
   @override
   Widget build(BuildContext context) {
     final quiz = context.watch<QuizProvider>();
+    final currentQuestion = quiz.currentQuestion;
 
     return Scaffold(
       body: SafeArea(
@@ -79,15 +84,22 @@ class _QuizScreenState extends State<QuizScreen>
           isLoading: _loading,
           error: _error,
           onRetry: _retryLoad,
-          isEmpty: !_loading && _error == null && quiz.currentQuestion == null,
+          isEmpty: !_loading && _error == null && currentQuestion == null,
           emptyTitle: 'Nema pitanja',
           emptySubtitle: 'Startuj novu rundu ili se vrati na pocetnu.',
           emptyIcon: Icons.quiz_outlined,
-          child: _QuizScaffold(
-            question: quiz.currentQuestion!,
-            questionNumber: quiz.currentQuestionNumber,
-            totalQuestions: quiz.totalQuestions,
-            onAnswer: (id) => quiz.answer(id, context),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: AppScale.centeredContentConstraints(),
+              child: currentQuestion == null
+                  ? const SizedBox.shrink()
+                  : _QuizScaffold(
+                      question: currentQuestion,
+                      questionNumber: quiz.currentQuestionNumber,
+                      totalQuestions: quiz.totalQuestions,
+                      onAnswer: (id) => quiz.answer(id, context),
+                    ),
+            ),
           ),
         ),
       ),
@@ -96,7 +108,7 @@ class _QuizScreenState extends State<QuizScreen>
 }
 
 class _QuizScaffold extends StatelessWidget {
-  final dynamic question;
+  final Question question;
   final int questionNumber;
   final int totalQuestions;
   final Function(String) onAnswer;
@@ -141,7 +153,7 @@ class _QuizScaffold extends StatelessWidget {
           correctId: question.correctAnswerId,
           onSelected: onAnswer,
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: AppSpacing.sectionSpacing),
       ],
     );
   }
@@ -162,7 +174,7 @@ class QuizHeader extends StatelessWidget {
     final progress = questionNumber / totalQuestions;
 
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(AppSpacing.spacingM),
       child: Column(
         children: [
           TweenAnimationBuilder<double>(
@@ -171,14 +183,14 @@ class QuizHeader extends StatelessWidget {
             builder: (context, value, _) {
               return LinearProgressIndicator(
                 value: value,
-                minHeight: 8,
-                borderRadius: BorderRadius.circular(20),
+                minHeight: AppScale.s(8),
+                borderRadius: BorderRadius.circular(AppScale.radius(20)),
               );
             },
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: AppSpacing.itemSpacing),
           Text(
-            "$questionNumber / $totalQuestions",
+            '$questionNumber / $totalQuestions',
             style: Theme.of(context).textTheme.labelLarge,
           ),
         ],
@@ -188,7 +200,7 @@ class QuizHeader extends StatelessWidget {
 }
 
 class QuizOptions extends StatefulWidget {
-  final List<dynamic> options;
+  final List<Option> options;
   final int correctId;
   final Function(String) onSelected;
 
@@ -210,14 +222,14 @@ class _QuizOptionsState extends State<QuizOptions> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.spacingM),
       child: Column(
         children: widget.options.map((option) {
           final id = option.id.toString();
           final selected = id == selectedId;
 
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: EdgeInsets.only(bottom: AppSpacing.itemSpacing),
             child: AnswerOptionCard(
               text: option.text,
               selected: selected,
@@ -243,7 +255,7 @@ class _QuizOptionsState extends State<QuizOptions> {
 }
 
 class QuizBody extends StatelessWidget {
-  final dynamic question;
+  final Question question;
 
   const QuizBody({super.key, required this.question});
 
@@ -251,16 +263,17 @@ class QuizBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final text = question?.questionText ?? question?.text ?? '—';
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.spacingM,
+        vertical: AppSpacing.base,
+      ),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(text, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 18),
+            Text(question.text, style: theme.textTheme.titleLarge),
+            SizedBox(height: AppScale.s(18)),
           ],
         ),
       ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/tokens/spacing_tokens.dart';
+
 class AppSection extends StatelessWidget {
   final String title;
   final Widget child;
@@ -36,7 +38,7 @@ class AppSection extends StatelessWidget {
               if (trailing case final Widget widget) widget,
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: AppSpacing.md),
           child,
         ],
       ),

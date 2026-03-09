@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:mathlearning/features/learning_map/models/quest.dart';
+import 'package:mathlearning/theme/app_scale.dart';
+import 'package:mathlearning/theme/theme_extensions/theme_context.dart';
+import 'package:mathlearning/ui/components/app_card.dart';
+import 'package:mathlearning/ui/components/app_progress_bar.dart';
 
 class QuestProgressList extends StatelessWidget {
   const QuestProgressList({super.key, required this.quests});
@@ -15,18 +19,16 @@ class QuestProgressList extends StatelessWidget {
 
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final spacing = context.spacing;
 
     return Column(
       children: quests
           .map((quest) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: colors.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: colors.outlineVariant),
-              ),
+            return AppCard(
+              margin: EdgeInsets.only(bottom: spacing.s + spacing.xs / 2),
+              padding: EdgeInsets.all(spacing.s + spacing.xs + spacing.xs / 2),
+              backgroundColor: colors.surfaceContainerLow,
+              borderColor: context.colors.border,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -41,27 +43,26 @@ class QuestProgressList extends StatelessWidget {
                         ),
                       ),
                       if (quest.completed)
-                        const Icon(
+                        Icon(
                           Icons.celebration_outlined,
-                          color: Colors.green,
-                          size: 18,
+                          color: context.status.success,
+                          size: AppScale.icon(18, min: 16, max: 22),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: spacing.xs),
                   Text(
                     quest.description,
                     style: textTheme.bodySmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(
+                  SizedBox(height: spacing.s + spacing.xs / 2),
+                  AppProgressBar(
                     value: quest.progress01,
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(999),
+                    height: AppScale.s(8),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: spacing.s),
                   Row(
                     children: [
                       Text(

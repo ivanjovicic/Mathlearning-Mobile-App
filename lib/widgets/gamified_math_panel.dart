@@ -101,9 +101,7 @@ class GamifiedMathPanel extends StatelessWidget {
       if (hasMultiline) {
         return _buildMixedBlock(context, parts);
       }
-      // Avoid RichText+WidgetSpan baseline quirks (especially on web) by using
-      // a normal Wrap with Math widgets.
-      return _buildInlineMixedWrap(context, parts);
+      return _buildInlineMixedText(context, parts);
     }
 
     if (_looksLikeMathExpression(expression)) {
@@ -216,15 +214,15 @@ class GamifiedMathPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildInlineMixedWrap(BuildContext context, List<_InlinePart> parts) {
+  Widget _buildInlineMixedText(BuildContext context, List<_InlinePart> parts) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textStyle =
         expressionTextStyle ??
         theme.textTheme.titleLarge?.copyWith(
           color: colorScheme.onSurface,
-          fontWeight: FontWeight.w700,
-          height: 1.4, // Better line height for mixed text
+            fontWeight: FontWeight.w700,
+            height: 1.4, // Better line height for mixed text
         ) ??
         TextStyle(
           color: colorScheme.onSurface,
@@ -232,52 +230,40 @@ class GamifiedMathPanel extends StatelessWidget {
           fontWeight: FontWeight.w700,
           height: 1.4,
         );
-    final children = <Widget>[];
+    final spans = <InlineSpan>[];
 
     for (final part in parts) {
       final raw = part.raw;
-      if (raw.trim().isEmpty) continue;
+      if (raw.isEmpty) continue;
 
       if (part.kind == _InlinePartKind.text) {
-        children.add(
-          Text(
-            raw,
+        spans.add(
+          TextSpan(
+            text: raw,
             style: textStyle,
-            softWrap: true,
-            textWidthBasis: TextWidthBasis.longestLine,
           ),
         );
         continue;
       }
 
-      final normalized = _normalizeTex(raw, allowLineBreaks: false);
-      children.add(
-        Math.tex(
-          normalized,
-          mathStyle: MathStyle.text,
-          textStyle: textStyle.copyWith(
-            fontSize: (textStyle.fontSize ?? 18) * 1.05,
-          ),
-          onErrorFallback: (_) => Text(
-            '\$$raw\$',
-            style: textStyle,
-            softWrap: true,
-            textWidthBasis: TextWidthBasis.longestLine,
+      spans.add(
+        TextSpan(
+          text: _inlineMathToReadableText(raw),
+          style: textStyle.copyWith(
+            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
           ),
         ),
       );
     }
 
-    if (children.isEmpty) {
+    if (spans.isEmpty) {
       return _buildPlainText(context, parts.map((p) => p.raw).join());
     }
 
-    return Wrap(
-      alignment: WrapAlignment.start,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      runSpacing: 8,
-      spacing: 6,
-      children: children,
+    return RichText(
+      text: TextSpan(children: spans),
+      softWrap: true,
+      textWidthBasis: TextWidthBasis.parent,
     );
   }
 
@@ -441,6 +427,41 @@ class GamifiedMathPanel extends StatelessWidget {
     );
 
     return out;
+  }
+
+  String _inlineMathToReadableText(String tex) {
+    var value = _normalizeTex(tex, allowLineBreaks: false);
+
+    value = value.replaceAllMapped(
+      RegExp(r'\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}'),
+      (m) => '(${m.group(1)})/(${m.group(2)})',
+    );
+    value = value.replaceAllMapped(
+      RegExp(r'\\sqrt\s*\{([^{}]+)\}'),
+      (m) => 'sqrt(${m.group(1)})',
+    );
+
+    const replacements = <String, String>{
+      r'\cdot': '·',
+      r'\times': '×',
+      r'\div': '÷',
+      r'\pm': '±',
+      r'\ge': '>=',
+      r'\le': '<=',
+      r'\neq': '!=',
+      r'\left': '',
+      r'\right': '',
+    };
+    replacements.forEach((from, to) {
+      value = value.replaceAll(from, to);
+    });
+
+    value = value.replaceAll('{', '');
+    value = value.replaceAll('}', '');
+    value = value.replaceAll(r'\', '');
+    value = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    return value;
   }
 
   bool _looksLikeMathExpression(String value) {

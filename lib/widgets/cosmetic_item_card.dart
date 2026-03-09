@@ -31,18 +31,18 @@ class CosmeticItemCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           gradient: isEquipped ? gradient : null,
           color: isEquipped && gradient == null ? rarityColor : null,
-          border: Border.all(
+            border: Border.all(
             color: isEquipped
                 ? rarityColor
                 : isOwned
-                    ? rarityColor.withOpacity(0.5)
-                    : Colors.grey.withOpacity(0.2),
+                    ? rarityColor.withValues(alpha: 0.5)
+                    : Colors.grey.withValues(alpha: 0.2),
             width: isEquipped ? 2.5 : 1.5,
           ),
           boxShadow: isEquipped
               ? [
                   BoxShadow(
-                    color: rarityColor.withOpacity(0.4),
+                    color: rarityColor.withValues(alpha: 0.4),
                     blurRadius: 8,
                     spreadRadius: 1,
                   ),
@@ -57,8 +57,8 @@ class CosmeticItemCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(11),
                   color: isOwned
-                      ? rarityColor.withOpacity(isEquipped ? 0.15 : 0.08)
-                      : Colors.grey.withOpacity(0.06),
+                      ? rarityColor.withValues(alpha: isEquipped ? 0.15 : 0.08)
+                      : Colors.grey.withValues(alpha: 0.06),
                 ),
               ),
             ),
@@ -148,7 +148,7 @@ class CosmeticItemCard extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(11),
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                   ),
                   child: const Center(
                     child: Icon(Icons.lock_outline, color: Colors.white54, size: 20),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/offline_manager.dart';
 
+const String networkErrorKey = '__network_error__';
+
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService.instance;
 
@@ -69,7 +71,7 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('[AUTH_PROVIDER] login exception: $e');
-      _setError('Doslo je do greske u mrezi');
+      _setError(networkErrorKey);
       return false;
     } finally {
       _setLoading(false);
@@ -96,7 +98,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _setError('Doslo je do greske u mrezi');
+      _setError(networkErrorKey);
       return false;
     } finally {
       _setLoading(false);
@@ -146,7 +148,7 @@ class AuthProvider extends ChangeNotifier {
         value.contains('timeout') ||
         value.contains('connection') ||
         value.contains('socket')) {
-      return 'Doslo je do greske u mrezi.';
+      return networkErrorKey;
     }
     return fallback;
   }

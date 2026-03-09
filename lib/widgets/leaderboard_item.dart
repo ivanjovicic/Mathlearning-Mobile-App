@@ -2,42 +2,43 @@ import 'package:flutter/material.dart';
 
 import '../models/leaderboard_models.dart';
 import '../models/school_leaderboard_models.dart' show SchoolAggregateItem;
+import '../theme/app_scale.dart';
+import '../theme/theme_extensions/theme_context.dart';
+import '../theme/tokens/app_motion.dart';
+import '../ui/components/app_badge.dart';
+import '../ui/components/app_card.dart';
 
 class LeaderboardItemWidget extends StatelessWidget {
-  final LeaderboardItem item;
-  final bool isCurrentUser;
-
   const LeaderboardItemWidget({
     super.key,
     required this.item,
     this.isCurrentUser = false,
   });
 
+  final LeaderboardItem item;
+  final bool isCurrentUser;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final colors = context.colors;
+    final spacing = context.spacing;
+    final leaderboard = context.leaderboardTheme;
     final isTopThree = item.rank <= 3;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isCurrentUser
-            ? cs.primaryContainer.withValues(alpha: 0.2)
-            : cs.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isTopThree ? _rankColor(item.rank) : cs.outline,
-          width: isTopThree ? 2 : 1,
-        ),
-      ),
+    return AppCard(
+      margin: EdgeInsets.symmetric(vertical: spacing.xs + spacing.xs / 2),
+      padding: EdgeInsets.all(spacing.m),
+      backgroundColor: isCurrentUser
+          ? leaderboard.currentUserHighlight
+          : colors.cardBackground,
+      borderColor: isTopThree ? _rankColor(context, item.rank) : colors.border,
       child: Row(
         children: [
-          _buildRankBadge(item.rank, cs),
-          const SizedBox(width: 12),
-          _buildAvatar(item, cs),
-          const SizedBox(width: 12),
+          _buildRankBadge(context, item.rank),
+          SizedBox(width: spacing.m),
+          _buildAvatar(context, item),
+          SizedBox(width: spacing.m),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,11 +47,15 @@ class LeaderboardItemWidget extends StatelessWidget {
                   item.displayName,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
                   ),
                 ),
+                SizedBox(height: spacing.xs),
                 Text(
                   'Streak: ${item.streakDays} days',
-                  style: theme.textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -60,16 +65,20 @@ class LeaderboardItemWidget extends StatelessWidget {
             children: [
               Text(
                 '${item.score} XP',
-                style: theme.textTheme.bodyLarge?.copyWith(
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: cs.primary,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               if (isCurrentUser)
-                Text(
-                  'You',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.secondary,
+                Padding(
+                  padding: EdgeInsets.only(top: spacing.xs),
+                  child: AppBadge(
+                    label: 'You',
+                    backgroundColor:
+                        Theme.of(context).colorScheme.primaryContainer,
+                    foregroundColor:
+                        Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
                 ),
             ],
@@ -79,76 +88,86 @@ class LeaderboardItemWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildRankBadge(int rank, ColorScheme cs) {
-    final color = _rankColor(rank);
+  Widget _buildRankBadge(BuildContext context, int rank) {
+    final color = _rankColor(context, rank);
     return CircleAvatar(
-      backgroundColor: color.withValues(alpha: 0.2),
+      radius: AppScale.s(20),
+      backgroundColor: color.withValues(alpha: 0.18),
       child: rank <= 3
           ? Icon(
               Icons.emoji_events,
               color: color,
+              size: AppScale.icon(20, min: 18, max: 28),
             )
           : Text(
               '$rank',
-              style: TextStyle(
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: color,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
               ),
             ),
     );
   }
 
-  Widget _buildAvatar(LeaderboardItem item, ColorScheme cs) {
+  Widget _buildAvatar(BuildContext context, LeaderboardItem item) {
+    final cs = Theme.of(context).colorScheme;
     return CircleAvatar(
+      radius: AppScale.s(20),
       backgroundImage: item.avatarUrl != null
           ? NetworkImage(item.avatarUrl!)
           : null,
       child: item.avatarUrl == null
           ? Text(
               item.displayName[0].toUpperCase(),
-              style: TextStyle(
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: cs.onSurface,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
               ),
             )
           : null,
     );
   }
 
-  Color _rankColor(int rank) {
+  Color _rankColor(BuildContext context, int rank) {
+    final leaderboard = context.leaderboardTheme;
     switch (rank) {
       case 1:
-        return Colors.amber;
+        return leaderboard.gold;
       case 2:
-        return Colors.grey;
+        return leaderboard.silver;
       case 3:
-        return const Color(0xFFCD7F32); // Bronze color
+        return leaderboard.bronze;
       default:
-        return Colors.blueGrey;
+        return Theme.of(context).colorScheme.primary;
     }
   }
 }
 
 class _SchoolTile extends StatelessWidget {
-  final SchoolAggregateItem item;
-
   const _SchoolTile({required this.item});
+
+  final SchoolAggregateItem item;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final colors = context.colors;
+    final spacing = context.spacing;
     final rankDelta = item.rankDelta;
     final rankDeltaText = rankDelta == null || rankDelta == 0
         ? null
         : rankDelta > 0
         ? '+$rankDelta'
         : '$rankDelta';
+
     return Semantics(
       label: 'School rank ${item.rank}, ${item.schoolName}, score ${item.score}',
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 6),
+      child: AppCard(
+        margin: EdgeInsets.symmetric(vertical: spacing.xs + spacing.xs / 2),
         child: ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: CircleAvatar(
+            radius: AppScale.s(20),
             backgroundColor: cs.secondaryContainer,
             child: Text('${item.rank}'),
           ),
@@ -176,7 +195,7 @@ class _SchoolTile extends StatelessWidget {
             children: [
               Text(
                 '${item.score}',
-                style: TextStyle(
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   color: cs.secondary,
                   fontWeight: FontWeight.w700,
                 ),
@@ -185,7 +204,7 @@ class _SchoolTile extends StatelessWidget {
                 Text(
                   rankDeltaText,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: rankDelta! > 0 ? Colors.green : cs.error,
+                    color: rankDelta! > 0 ? context.status.success : cs.error,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -193,7 +212,7 @@ class _SchoolTile extends StatelessWidget {
                 Text(
                   item.leagueTier!,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: cs.primary,
+                    color: colors.textSecondary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -205,11 +224,10 @@ class _SchoolTile extends StatelessWidget {
   }
 }
 
-/// Public tile for displaying school aggregate items in the school leaderboard.
 class SchoolLeaderboardTile extends StatelessWidget {
-  final SchoolAggregateItem item;
-
   const SchoolLeaderboardTile({super.key, required this.item});
+
+  final SchoolAggregateItem item;
 
   @override
   Widget build(BuildContext context) {
@@ -218,10 +236,6 @@ class SchoolLeaderboardTile extends StatelessWidget {
 }
 
 class AnimatedLeaderboardItem extends StatefulWidget {
-  final LeaderboardItem item;
-  final bool isCurrentUser;
-  final int previousRank;
-
   const AnimatedLeaderboardItem({
     super.key,
     required this.item,
@@ -229,24 +243,28 @@ class AnimatedLeaderboardItem extends StatefulWidget {
     required this.previousRank,
   });
 
+  final LeaderboardItem item;
+  final bool isCurrentUser;
+  final int previousRank;
+
   @override
   State<AnimatedLeaderboardItem> createState() => _AnimatedLeaderboardItemState();
 }
 
 class _AnimatedLeaderboardItemState extends State<AnimatedLeaderboardItem>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: AppMotion.slow,
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1)
-        .chain(CurveTween(curve: Curves.easeOut))
+        .chain(CurveTween(curve: AppMotion.decelerate))
         .animate(_controller);
 
     if (widget.item.rank < widget.previousRank) {

@@ -18,7 +18,7 @@ void main() {
       return MaterialApp(
         home: ChangeNotifierProvider<LeaderboardProvider>.value(
           value: provider,
-          child: const LeaderboardScreen(),
+          child: const LeaderboardScreen(autoLoad: false),
         ),
       );
     }

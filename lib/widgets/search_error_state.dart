@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../theme/theme_extensions/theme_context.dart';
+import '../ui/components/app_button.dart';
+
 class SearchErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -13,15 +16,16 @@ class SearchErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final spacing = context.spacing;
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: EdgeInsets.all(spacing.m),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(spacing.s + spacing.xs),
         decoration: BoxDecoration(
           color: colorScheme.errorContainer,
           border: Border.all(color: colorScheme.error),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(context.radius.small),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -30,10 +34,11 @@ class SearchErrorState extends StatelessWidget {
               message,
               style: TextStyle(color: colorScheme.onErrorContainer),
             ),
-            const SizedBox(height: 8),
-            TextButton(
+            SizedBox(height: spacing.s),
+            AppButton(
+              label: 'Pokusaj ponovo',
               onPressed: onRetry,
-              child: const Text('Pokusaj ponovo'),
+              variant: AppButtonVariant.ghost,
             ),
           ],
         ),

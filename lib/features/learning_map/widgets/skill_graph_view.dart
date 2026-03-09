@@ -5,6 +5,8 @@ import 'package:mathlearning/features/learning_map/models/adaptive_learning_path
 import 'package:mathlearning/features/learning_map/models/skill_node_state.dart';
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
 import 'package:mathlearning/features/learning_map/widgets/skill_node_bubble.dart';
+import 'package:mathlearning/theme/app_scale.dart';
+import 'package:mathlearning/theme/theme_extensions/theme_context.dart';
 
 class SkillGraphView extends StatelessWidget {
   const SkillGraphView({
@@ -21,14 +23,25 @@ class SkillGraphView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (nodes.isEmpty) {
-      return const Center(
-        child: Text('Complete a few quizzes to generate your learning map'),
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(context.spacing.m),
+          child: Text(
+            'Complete a few quizzes to generate your learning map',
+            textAlign: TextAlign.center,
+          ),
+        ),
       );
     }
 
     return ListView.builder(
       key: const Key('learning_map_graph_list'),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 180),
+      padding: EdgeInsets.fromLTRB(
+        context.spacing.m,
+        context.spacing.s + context.spacing.xs,
+        context.spacing.m,
+        AppScale.s(180),
+      ),
       itemCount: nodes.length * 2 - 1,
       itemBuilder: (context, index) {
         if (index.isOdd) {
@@ -107,9 +120,10 @@ class _ConnectorSegment extends StatelessWidget {
     final color = Theme.of(context).colorScheme.outlineVariant;
     final fromX = ((fromAlignment.x + 1) / 2) * 0.7 + 0.15;
     final toX = ((toAlignment.x + 1) / 2) * 0.7 + 0.15;
+    final height = AppScale.s(42);
 
     return SizedBox(
-      height: 42,
+      height: height,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -118,7 +132,7 @@ class _ConnectorSegment extends StatelessWidget {
           return CustomPaint(
             painter: _ConnectorPainter(
               start: Offset(x1, 0),
-              end: Offset(x2, 42),
+              end: Offset(x2, height),
               color: color,
             ),
           );
@@ -144,7 +158,7 @@ class _ConnectorPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
+      ..strokeWidth = AppScale.s(3)
       ..strokeCap = StrokeCap.round;
     final path = Path()
       ..moveTo(start.dx, start.dy)

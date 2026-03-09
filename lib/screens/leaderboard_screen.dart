@@ -3,7 +3,9 @@ import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:provider/provider.dart';
 
 import '../state/leaderboard_provider.dart';
+import '../theme/app_scale.dart';
 import '../theme/astrax_theme.dart';
+import '../theme/tokens/spacing_tokens.dart';
 import '../widgets/animated_leaderboard_item.dart';
 import '../widgets/leaderboard_header.dart';
 import '../widgets/leaderboard_search_bar.dart';
@@ -11,7 +13,9 @@ import '../widgets/period_selector.dart';
 import 'user_profile_screen.dart';
 
 class LeaderboardScreen extends StatefulWidget {
-  const LeaderboardScreen({super.key});
+  final bool autoLoad;
+
+  const LeaderboardScreen({super.key, this.autoLoad = true});
 
   @override
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
@@ -29,11 +33,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   void initState() {
     super.initState();
 
-    Future.microtask(() {
-      if (!mounted) return;
-      final provider = Provider.of<LeaderboardProvider>(context, listen: false);
-      provider.loadGlobal(range);
-    });
+    if (widget.autoLoad) {
+      Future.microtask(() {
+        if (!mounted) return;
+        final provider = Provider.of<LeaderboardProvider>(
+          context,
+          listen: false,
+        );
+        provider.loadGlobal(range);
+      });
+    }
 
     _scroll.addListener(() {
       if (!_scroll.hasClients || isLoadingMore) return;
@@ -58,11 +67,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   Widget _buildShimmerLoading() {
-    return ListView.builder(
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return const ListTileShimmer(isRectBox: true, isDisabledAvatar: false);
-      },
+    return Center(
+      child: ConstrainedBox(
+        constraints: AppScale.centeredContentConstraints(),
+        child: ListView.builder(
+          itemCount: 5,
+          itemBuilder: (context, index) {
+            return const ListTileShimmer(
+              isRectBox: true,
+              isDisabledAvatar: false,
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -84,55 +101,78 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         children: [
           Column(
             children: [
-              LeaderboardSearchBar(
-                onSearch: (query) {
-                  Provider.of<LeaderboardProvider>(
-                    context,
-                    listen: false,
-                  ).searchLeaderboard(query, scope, range);
-                },
+              Center(
+                child: ConstrainedBox(
+                  constraints: AppScale.centeredContentConstraints(),
+                  child: Column(
+                    children: [
+                      SizedBox(height: AppSpacing.xs),
+                      LeaderboardSearchBar(
+                        onSearch: (query) {
+                          Provider.of<LeaderboardProvider>(
+                            context,
+                            listen: false,
+                          ).searchLeaderboard(query, scope, range);
+                        },
+                      ),
+                      const PeriodSelector(),
+                    ],
+                  ),
+                ),
               ),
-              const PeriodSelector(),
               Expanded(
                 child: isLoading && items.isEmpty
                     ? _buildShimmerLoading()
-                    : ListView.builder(
-                        controller: _scroll,
-                        itemCount: items.length + (isLoadingMore ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (index < items.length) {
-                            final item = items[index];
-                            final previousRank =
-                                previousRanks[item.userId] ?? item.rank;
-                            previousRanks[item.userId] = item.rank;
+                    : Center(
+                        child: ConstrainedBox(
+                          constraints: AppScale.centeredContentConstraints(),
+                          child: ListView.builder(
+                            controller: _scroll,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppSpacing.base,
+                              vertical: AppSpacing.sm,
+                            ),
+                            itemCount: items.length + (isLoadingMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index < items.length) {
+                                final item = items[index];
+                                final previousRank =
+                                    previousRanks[item.userId] ?? item.rank;
+                                previousRanks[item.userId] = item.rank;
 
-                            return RepaintBoundary(
-                              child: GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => UserProfileScreen(
-                                        userId: item.userId,
-                                      ),
+                                return RepaintBoundary(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              UserProfileScreen(
+                                            userId: item.userId,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: AnimatedLeaderboardItem(
+                                      item: item,
+                                      isCurrentUser:
+                                          item.userId == provider.currentUserId,
+                                      previousRank: previousRank,
+                                      title: 'Rank ${item.rank}',
+                                      subtitle: '${item.score} XP',
                                     ),
-                                  );
-                                },
-                                child: AnimatedLeaderboardItem(
-                                  item: item,
-                                  isCurrentUser:
-                                      item.userId == provider.currentUserId,
-                                  previousRank: previousRank,
-                                  title: 'Rank ${item.rank}',
-                                  subtitle: '${item.score} XP',
+                                  ),
+                                );
+                              }
+                              return Padding(
+                                padding: EdgeInsets.all(AppSpacing.base),
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
                                 ),
-                              ),
-                            );
-                          }
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        },
+                              );
+                            },
+                          ),
+                        ),
                       ),
               ),
             ],

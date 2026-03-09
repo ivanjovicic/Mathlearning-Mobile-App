@@ -1,20 +1,25 @@
-/// Standardized spacing scale — always use these constants
-/// instead of magic numbers.
+import '../app_scale.dart';
+
 class AppSpacing {
   const AppSpacing._();
 
-  static const double xs = 4;
-  static const double sm = 8;
-  static const double md = 12;
-  static const double base = 16;
-  static const double lg = 24;
-  static const double xl = 32;
-  static const double xxl = 48;
+  static double get xs => AppScale.s(4);
+  static double get sm => AppScale.s(8);
+  static double get md => AppScale.s(12);
+  static double get base => AppScale.s(16);
+  static double get lg => AppScale.s(24);
+  static double get xl => AppScale.s(32);
+  static double get xxl => AppScale.s(48);
 
-  // Semantic shorthands
-  static const double screenHPadding = base;
-  static const double screenVPadding = base;
-  static const double cardPadding = md;
-  static const double sectionSpacing = lg;
-  static const double itemSpacing = sm;
+  static double get spacingXS => xs;
+  static double get spacingS => sm;
+  static double get spacingM => base;
+  static double get spacingL => lg;
+  static double get spacingXL => xl;
+
+  static double get screenHPadding => base;
+  static double get screenVPadding => base;
+  static double get cardPadding => md;
+  static double get sectionSpacing => lg;
+  static double get itemSpacing => sm;
 }

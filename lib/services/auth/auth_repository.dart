@@ -11,9 +11,10 @@ class AuthRepository {
 
   Future<ApiResult<bool>> login(String username, String password) async {
     try {
-      final response = await _dio.post('/auth/login', data: {
-        'username': username,
-        'password': password,
+      // Dev API expects /api/auth/login and capitalized body keys
+      final response = await _dio.post('/api/auth/login', data: {
+        'Username': username,
+        'Password': password,
       });
 
       final tokenPair = TokenPair.fromJson(response.data);

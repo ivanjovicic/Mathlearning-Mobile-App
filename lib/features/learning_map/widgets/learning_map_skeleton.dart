@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import 'package:mathlearning/theme/app_scale.dart';
+import 'package:mathlearning/theme/theme_extensions/theme_context.dart';
+
 class LearningMapSkeleton extends StatelessWidget {
   const LearningMapSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final spacing = context.spacing;
     return ListView.builder(
       key: const Key('learning_map_skeleton'),
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
+      padding: EdgeInsets.fromLTRB(
+        spacing.m,
+        spacing.m + spacing.xs,
+        spacing.m,
+        AppScale.s(120),
+      ),
       itemCount: 6,
       itemBuilder: (context, index) {
         final alignment = switch (index % 3) {
@@ -23,20 +32,20 @@ class LearningMapSkeleton extends StatelessWidget {
                 Align(
                   alignment: alignment,
                   child: Container(
-                    width: 120,
-                    height: 120,
+                    width: AppScale.s(120),
+                    height: AppScale.s(120),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerHighest,
                       shape: BoxShape.circle,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: spacing.m),
               ],
             )
             .animate(onPlay: (controller) => controller.repeat())
             .shimmer(
-              duration: const Duration(milliseconds: 1100),
+              duration: context.motion.slow + context.motion.fast,
               color: colorScheme.surface.withValues(alpha: 0.4),
             );
       },

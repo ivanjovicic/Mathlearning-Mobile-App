@@ -107,7 +107,7 @@ class CosmeticVisuals {
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFFD700).withOpacity(0.6),
+              color: const Color(0xFFFFD700).withValues(alpha: 0.6),
               blurRadius: 12,
               spreadRadius: 2,
             ),
@@ -125,7 +125,7 @@ class CosmeticVisuals {
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFE91E63).withOpacity(0.5),
+              color: const Color(0xFFE91E63).withValues(alpha: 0.5),
               blurRadius: 16,
               spreadRadius: 3,
             ),
@@ -140,7 +140,7 @@ class CosmeticVisuals {
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF2196F3).withOpacity(0.4),
+              color: const Color(0xFF2196F3).withValues(alpha: 0.4),
               blurRadius: 10,
               spreadRadius: 1,
             ),
@@ -155,7 +155,7 @@ class CosmeticVisuals {
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFF5722).withOpacity(0.5),
+              color: const Color(0xFFFF5722).withValues(alpha: 0.5),
               blurRadius: 12,
               spreadRadius: 2,
             ),
@@ -204,7 +204,7 @@ class CosmeticVisuals {
         return BoxDecoration(
           borderRadius: borderRadius,
           gradient: LinearGradient(
-            colors: [const Color(0xFF0A0A0A), const Color(0xFF00E5FF).withOpacity(0.2)],
+            colors: [const Color(0xFF0A0A0A), const Color(0xFF00E5FF).withValues(alpha: 0.2)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

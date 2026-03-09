@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/progress_overview.dart';
 import '../services/api_service.dart';
+import '../theme/app_scale.dart';
+import '../theme/tokens/spacing_tokens.dart';
 import '../widgets/ui/app_section.dart';
 import '../widgets/ui/state_scaffold.dart';
 
@@ -59,24 +61,31 @@ class _ProgressScreenState extends State<ProgressScreen> {
         emptyTitle: 'No quizzes completed yet',
         emptySubtitle: 'Start your first practice!',
         emptyIcon: Icons.insights_outlined,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                _OverviewHero(progress: progress!),
-                const SizedBox(height: 16),
-                AppSection(
-                  title: 'Ključne metrike',
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _StatsGrid(progress: progress),
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: AppScale.centeredContentConstraints(),
+              child: Padding(
+                padding: EdgeInsets.all(AppSpacing.base),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _OverviewHero(progress: progress!),
+                      SizedBox(height: AppSpacing.base),
+                      AppSection(
+                        title: 'Kljucne metrike',
+                        padding: EdgeInsets.only(bottom: AppSpacing.base),
+                        child: _StatsGrid(progress: progress),
+                      ),
+                      AppSection(
+                        title: 'Zavrsetak',
+                        padding: EdgeInsets.zero,
+                        child: _CompletionSection(progress: progress),
+                      ),
+                    ],
+                  ),
                 ),
-                AppSection(
-                  title: 'Završetak',
-                  padding: EdgeInsets.zero,
-                  child: _CompletionSection(progress: progress),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -99,9 +108,9 @@ class _OverviewHero extends StatelessWidget {
         : 0.0;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(AppScale.radius(28)),
         gradient: LinearGradient(
           colors: [
             cs.primary.withValues(alpha: 0.15),
@@ -113,24 +122,24 @@ class _OverviewHero extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Ukupan napredak",
+            'Ukupan napredak',
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: AppSpacing.md),
           TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: completion),
             duration: const Duration(milliseconds: 800),
             builder: (context, value, _) {
               return LinearProgressIndicator(
                 value: value,
-                minHeight: 12,
-                borderRadius: BorderRadius.circular(20),
+                minHeight: AppScale.s(12),
+                borderRadius: BorderRadius.circular(AppScale.radius(20)),
               );
             },
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: AppSpacing.sm),
           Text(
-            "${progress.completedQuizzes}/${progress.totalQuizzes} završeno",
+            '${progress.completedQuizzes}/${progress.totalQuizzes} zavrseno',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
@@ -148,45 +157,41 @@ class _StatsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isTablet = constraints.maxWidth > 600;
-
-        return GridView.count(
-          crossAxisCount: isTablet ? 4 : 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.1,
-          children: [
-            AppStatCard(
-              label: "Ukupno kvizova",
-              value: progress.totalQuizzes.toString(),
-              icon: Icons.quiz_rounded,
-              color: cs.primary,
-            ),
-            AppStatCard(
-              label: "Završeno",
-              value: progress.completedQuizzes.toString(),
-              icon: Icons.check_circle_rounded,
-              color: cs.tertiary,
-            ),
-            AppStatCard(
-              label: "Prosek",
-              value: "${(progress.averageScore * 100).toStringAsFixed(1)}%",
-              icon: Icons.analytics_rounded,
-              color: cs.secondary,
-            ),
-            AppStatCard(
-              label: "Najbolji",
-              value: "${(progress.bestScore * 100).toStringAsFixed(1)}%",
-              icon: Icons.star_rounded,
-              color: Colors.amber,
-            ),
-          ],
-        );
-      },
+    return GridView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: AppScale.s(180).clamp(160.0, 220.0).toDouble(),
+        crossAxisSpacing: AppSpacing.base,
+        mainAxisSpacing: AppSpacing.base,
+        childAspectRatio: 1.08,
+      ),
+      children: [
+        AppStatCard(
+          label: 'Ukupno kvizova',
+          value: progress.totalQuizzes.toString(),
+          icon: Icons.quiz_rounded,
+          color: cs.primary,
+        ),
+        AppStatCard(
+          label: 'Zavrseno',
+          value: progress.completedQuizzes.toString(),
+          icon: Icons.check_circle_rounded,
+          color: cs.tertiary,
+        ),
+        AppStatCard(
+          label: 'Prosek',
+          value: '${(progress.averageScore * 100).toStringAsFixed(1)}%',
+          icon: Icons.analytics_rounded,
+          color: cs.secondary,
+        ),
+        AppStatCard(
+          label: 'Najbolji',
+          value: '${(progress.bestScore * 100).toStringAsFixed(1)}%',
+          icon: Icons.star_rounded,
+          color: Colors.amber,
+        ),
+      ],
     );
   }
 }
@@ -211,22 +216,22 @@ class AppStatCard extends StatelessWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(AppScale.s(18)),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppScale.radius(24)),
         color: cs.surfaceContainerHighest,
         boxShadow: [
           BoxShadow(
             color: cs.shadow.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            blurRadius: AppScale.s(20),
+            offset: Offset(0, AppScale.s(10)),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color),
+          Icon(icon, color: color, size: AppScale.icon(24, min: 22, max: 32)),
           const Spacer(),
           Text(
             value,
@@ -234,7 +239,7 @@ class AppStatCard extends StatelessWidget {
               context,
             ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: AppSpacing.xs),
           Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -259,14 +264,14 @@ class _CompletionSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Završeni zadaci', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
+        Text('Zavrseni zadaci', style: Theme.of(context).textTheme.titleMedium),
+        SizedBox(height: AppSpacing.md),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(AppScale.s(14)),
           decoration: BoxDecoration(
             color: cs.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppScale.radius(14)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,12 +280,12 @@ class _CompletionSection extends StatelessWidget {
                 '${progress.completedQuizzes} / ${progress.totalQuizzes} kvizova',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: AppSpacing.sm),
               LinearProgressIndicator(
                 value: progress.totalQuizzes > 0
                     ? progress.completedQuizzes / progress.totalQuizzes
                     : 0,
-                minHeight: 8,
+                minHeight: AppScale.s(8),
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../utils/config.dart';
 import '../auth/token_storage.dart';
@@ -15,6 +16,21 @@ class DioFactory {
         sendTimeout: const Duration(seconds: 20),
       ),
     );
+
+    // Log requests/responses in debug mode to help during development.
+    if (kDebugMode) {
+      dio.interceptors.add(
+        LogInterceptor(
+          request: true,
+          requestHeader: false, // avoid logging Authorization header
+          requestBody: true,
+          responseHeader: false,
+          responseBody: true,
+          error: true,
+          logPrint: (obj) => debugPrint(obj.toString()),
+        ),
+      );
+    }
 
     if (withAuth) {
       attachAuthHeaderInterceptor(dio);

@@ -14,7 +14,6 @@ import '../helpers/test_app.dart';
 import '../helpers/test_bootstrap.dart';
 import '../helpers/test_fakes.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'gamified_quiz_feedback_test.mocks.dart';

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_scale.dart';
+import '../../theme/tokens/spacing_tokens.dart';
+
 class StateScaffold extends StatelessWidget {
   final bool isLoading;
   final bool isEmpty;
@@ -31,22 +34,22 @@ class StateScaffold extends StatelessWidget {
     if (error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(AppSpacing.lg),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.error_outline,
-                size: 42,
+                size: AppScale.icon(42, min: 36, max: 56),
                 color: Theme.of(context).colorScheme.error,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: AppSpacing.md),
               Text(
                 error!,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: AppSpacing.base),
               FilledButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
@@ -61,18 +64,18 @@ class StateScaffold extends StatelessWidget {
     if (isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(AppSpacing.lg),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(emptyIcon, size: 48),
-              const SizedBox(height: 12),
+              Icon(emptyIcon, size: AppScale.icon(48, min: 40, max: 64)),
+              SizedBox(height: AppSpacing.md),
               Text(
                 emptyTitle,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: AppSpacing.sm),
               Text(
                 emptySubtitle,
                 textAlign: TextAlign.center,

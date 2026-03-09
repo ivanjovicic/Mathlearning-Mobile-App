@@ -15,6 +15,8 @@ import '../state/learning_path_provider.dart';
 import '../state/progress_provider.dart';
 import '../state/quiz_provider.dart';
 import '../state/streak_freeze_provider.dart';
+import '../theme/app_scale.dart';
+import '../theme/tokens/spacing_tokens.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/offline_status_widget.dart';
@@ -285,16 +287,19 @@ class _HomeScreenState extends State<HomeScreen>
         emptySubtitle: "Osvezi ekran ili pokusaj ponovo kasnije.",
         emptyIcon: Icons.auto_stories_outlined,
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: AppScale.centeredContentConstraints(),
+              child: Padding(
+                padding: EdgeInsets.all(AppSpacing.base),
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Align(
                   alignment: Alignment.topRight,
                   child: OfflineStatusWidget(),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: AppSpacing.sm),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -309,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen>
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: colorScheme.onSurface,
-                          fontSize: 22,
+                          fontSize: AppScale.font(22, min: 20, max: 30),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -318,13 +323,19 @@ class _HomeScreenState extends State<HomeScreen>
                       children: [
                         IconButton(
                           onPressed: () => context.go('/badges'),
-                          icon: const Icon(Icons.workspace_premium_outlined),
+                          icon: Icon(
+                            Icons.workspace_premium_outlined,
+                            size: AppScale.icon(24, min: 22, max: 30),
+                          ),
                           color: colorScheme.onSurface,
                           tooltip: context.safeTooltip(t.badges),
                         ),
                         IconButton(
                           onPressed: () => context.go('/heatmap'),
-                          icon: const Icon(Icons.calendar_month),
+                          icon: Icon(
+                            Icons.calendar_month,
+                            size: AppScale.icon(24, min: 22, max: 30),
+                          ),
                           color: colorScheme.onSurface,
                           tooltip: context.safeTooltip(t.activity),
                         ),
@@ -332,10 +343,10 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: AppSpacing.md),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.md,
                   children: [
                     _buildStatChip(
                       icon: Icons.local_fire_department,
@@ -357,47 +368,50 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: AppSpacing.sectionSpacing),
                 if (hasStreakFreezeProvider) const StreakBadgePresenter(),
-                const SizedBox(height: 16),
+                SizedBox(height: AppSpacing.base),
                 Text(
                   t.level(progress.level),
                   style: TextStyle(
                     color: colorScheme.onSurface,
-                    fontSize: 26,
+                    fontSize: AppScale.font(26, min: 24, max: 34),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: AppSpacing.xs + AppSpacing.sm / 2),
                 Text(
                   "${progress.xp} / ${progress.xpToNextLevel} XP",
-                  style: TextStyle(color: colorScheme.onSurface, fontSize: 16),
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontSize: AppScale.font(16, min: 14, max: 22),
+                  ),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: AppSpacing.md),
                 AnimatedXpBar(
                   currentXp: progress.xp,
                   maxXp: progress.xpToNextLevel,
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: AppSpacing.sm),
                 AstraXPBar(
                   progress: progress.xpToNextLevel == 0
                       ? 0
                       : progress.xp / progress.xpToNextLevel,
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: AppSpacing.xs + AppSpacing.sm / 2),
                 Text(
                   t.nextLevelHint,
                   style: TextStyle(
                     color: colorScheme.onSurface.withValues(alpha: 0.75),
-                    fontSize: 12,
+                    fontSize: AppScale.font(12, min: 11, max: 16),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: AppSpacing.base),
                 AppSection(
                   title: recommendedTopic != null
                       ? t.continueLearning
                       : t.readyForNewRound,
-                  padding: const EdgeInsets.only(bottom: 16),
+                  padding: EdgeInsets.only(bottom: AppSpacing.base),
                   child: _buildContinueCard(
                     title: recommendedTopic != null
                         ? t.continueLearning
@@ -412,10 +426,10 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 _LearningPathBanner(),
-                const SizedBox(height: 12),
+                SizedBox(height: AppSpacing.md),
                 AppSection(
                   title: "Daily Review",
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: EdgeInsets.only(bottom: AppSpacing.md),
                   child: FutureBuilder<int>(
                     future: _dailyReviewCountFuture,
                     builder: (context, snapshot) {
@@ -488,33 +502,36 @@ class _HomeScreenState extends State<HomeScreen>
                   t.dailyGoal(_dailyGoalTarget),
                   style: TextStyle(
                     color: colorScheme.onSurface,
-                    fontSize: 20,
+                    fontSize: AppScale.font(20, min: 18, max: 28),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: AppSpacing.md),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppScale.radius(12)),
                   child: LinearProgressIndicator(
                     value: dailyDone / _dailyGoalTarget,
                     backgroundColor: colorScheme.onSurface.withValues(
                       alpha: 0.12,
                     ),
                     valueColor: AlwaysStoppedAnimation(colorScheme.primary),
-                    minHeight: 12,
+                    minHeight: AppScale.s(12),
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: AppSpacing.sm),
                 Text(
                   t.todayProgress(dailyDone, _dailyGoalTarget),
-                  style: TextStyle(color: colorScheme.onSurface, fontSize: 13),
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontSize: AppScale.font(13, min: 12, max: 18),
+                  ),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: AppScale.s(14)),
                 ThemeAccessibilityMiniPreview(
                   title: t.homeAccessibilityPreview,
                   compact: true,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: AppSpacing.base),
                 AppSection(
                   title: t.learningTopics,
                   padding: EdgeInsets.zero,
@@ -532,27 +549,31 @@ class _HomeScreenState extends State<HomeScreen>
                       return Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(
+                            AppScale.radius(16),
+                          ),
                           onTap: locked
                               ? null
                               : () {
                                   context.push('/quiz', extra: topic.topicId);
                                 },
                           child: Container(
-                            margin: const EdgeInsets.only(bottom: 14),
-                            padding: const EdgeInsets.all(16),
+                            margin: EdgeInsets.only(bottom: AppScale.s(14)),
+                            padding: EdgeInsets.all(AppSpacing.base),
                             decoration: BoxDecoration(
                               color: locked
                                   ? colorScheme.surface.withValues(alpha: 0.55)
                                   : colorScheme.primaryContainer.withValues(
                                       alpha: 0.35,
                                     ),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(
+                                AppScale.radius(16),
+                              ),
                               border: Border.all(
                                 color: locked
                                     ? colorScheme.outline.withValues(alpha: 0.5)
                                     : colorScheme.primary,
-                                width: 2,
+                                width: AppScale.s(2),
                               ),
                             ),
                             child: Row(
@@ -562,9 +583,9 @@ class _HomeScreenState extends State<HomeScreen>
                                   color: locked
                                       ? colorScheme.onSurface
                                       : colorScheme.primary,
-                                  size: 34,
+                                  size: AppScale.icon(34, min: 28, max: 44),
                                 ),
-                                const SizedBox(width: 14),
+                                SizedBox(width: AppScale.s(14)),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -576,11 +597,15 @@ class _HomeScreenState extends State<HomeScreen>
                                           color: locked
                                               ? colorScheme.onSurface
                                               : colorScheme.onSurface,
-                                          fontSize: 18,
+                                          fontSize: AppScale.font(
+                                            18,
+                                            min: 16,
+                                            max: 24,
+                                          ),
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      SizedBox(height: AppSpacing.xs),
                                       Text(
                                         locked
                                             ? t.unlockAtLevel(
@@ -589,7 +614,11 @@ class _HomeScreenState extends State<HomeScreen>
                                             : t.readyForQuiz,
                                         style: TextStyle(
                                           color: colorScheme.onSurface,
-                                          fontSize: 14,
+                                          fontSize: AppScale.font(
+                                            14,
+                                            min: 13,
+                                            max: 20,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -604,6 +633,8 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
               ],
+                ),
+              ),
             ),
           ),
         ),
@@ -623,7 +654,7 @@ class _HomeScreenState extends State<HomeScreen>
     final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(AppScale.radius(18)),
       child: Ink(
         width: double.infinity,
         decoration: BoxDecoration(
@@ -634,20 +665,23 @@ class _HomeScreenState extends State<HomeScreen>
           boxShadow: [
             BoxShadow(
               color: colorScheme.primary.withValues(alpha: 0.25),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              blurRadius: AppScale.s(16),
+              offset: Offset(0, AppScale.s(6)),
             ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppScale.s(18),
+          vertical: AppScale.s(16),
+        ),
         child: Row(
           children: [
             Icon(
               Icons.play_circle_fill,
               color: colorScheme.onPrimary,
-              size: 30,
+              size: AppScale.icon(30, min: 26, max: 40),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,24 +691,28 @@ class _HomeScreenState extends State<HomeScreen>
                     style: TextStyle(
                       color: colorScheme.onPrimary,
                       fontWeight: FontWeight.w800,
-                      fontSize: 18,
+                      fontSize: AppScale.font(18, min: 16, max: 24),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: AppSpacing.xs / 2),
                   Text(
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: colorScheme.onPrimary.withValues(alpha: 0.9),
-                      fontSize: 13,
+                      fontSize: AppScale.font(13, min: 12, max: 18),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(Icons.arrow_forward, color: colorScheme.onPrimary),
+            SizedBox(width: AppSpacing.sm),
+            Icon(
+              Icons.arrow_forward,
+              color: colorScheme.onPrimary,
+              size: AppScale.icon(22, min: 20, max: 28),
+            ),
           ],
         ),
       ),
@@ -699,30 +737,33 @@ class _HomeScreenState extends State<HomeScreen>
         opacity: enabled ? 1.0 : 0.6,
         child: InkWell(
           onTap: enabled ? onTap : onDisabledTap,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppScale.radius(18)),
           child: Ink(
             width: double.infinity,
             decoration: BoxDecoration(
               color: colorScheme.secondaryContainer.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppScale.radius(18)),
               border: Border.all(
                 color: colorScheme.secondary.withValues(alpha: 0.7),
-                width: 1.5,
+                width: AppScale.s(1.5),
               ),
               boxShadow: [
                 BoxShadow(
                   color: colorScheme.secondary.withValues(alpha: 0.2),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
+                  blurRadius: AppScale.s(14),
+                  offset: Offset(0, AppScale.s(6)),
                 ),
               ],
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.base,
+              vertical: AppScale.s(14),
+            ),
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: AppScale.s(44),
+                  height: AppScale.s(44),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: colorScheme.secondary.withValues(alpha: 0.15),
@@ -730,10 +771,10 @@ class _HomeScreenState extends State<HomeScreen>
                   child: Icon(
                     Icons.auto_awesome,
                     color: colorScheme.secondary,
-                    size: 24,
+                    size: AppScale.icon(24, min: 22, max: 32),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -743,10 +784,10 @@ class _HomeScreenState extends State<HomeScreen>
                         style: TextStyle(
                           color: colorScheme.onSurface,
                           fontWeight: FontWeight.w800,
-                          fontSize: 16,
+                          fontSize: AppScale.font(16, min: 14, max: 22),
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      SizedBox(height: AppSpacing.xs / 2),
                       Text(
                             subtitle,
                             maxLines: 1,
@@ -755,7 +796,7 @@ class _HomeScreenState extends State<HomeScreen>
                               color: colorScheme.onSurface.withValues(
                                 alpha: enabled ? 0.7 : 0.45,
                               ),
-                              fontSize: 13,
+                              fontSize: AppScale.font(13, min: 12, max: 18),
                             ),
                           )
                           .animate(
@@ -768,7 +809,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: AppSpacing.sm),
                 if (onRefresh != null)
                   Semantics(
                     button: true,
@@ -778,10 +819,10 @@ class _HomeScreenState extends State<HomeScreen>
                         _safeSelectionHaptic();
                         onRefresh();
                       },
-                      radius: 22,
+                      radius: AppScale.s(22),
                       child: Container(
-                        width: 34,
-                        height: 34,
+                        width: AppScale.s(34),
+                        height: AppScale.s(34),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: colorScheme.secondary.withValues(alpha: 0.12),
@@ -797,7 +838,7 @@ class _HomeScreenState extends State<HomeScreen>
                               ? Icon(
                                   Icons.check,
                                   key: const ValueKey('refresh_check'),
-                                  size: 18,
+                                  size: AppScale.icon(18, min: 16, max: 24),
                                   color: colorScheme.secondary,
                                 ).animate().scale(
                                   duration: 200.ms,
@@ -809,7 +850,11 @@ class _HomeScreenState extends State<HomeScreen>
                                   child:
                                       Icon(
                                             Icons.refresh,
-                                            size: 18,
+                                            size: AppScale.icon(
+                                              18,
+                                              min: 16,
+                                              max: 24,
+                                            ),
                                             color: colorScheme.secondary,
                                           )
                                           .animate(
@@ -837,8 +882,12 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ),
                   ),
-                const SizedBox(width: 8),
-                Icon(Icons.arrow_forward, color: colorScheme.onSurface),
+                SizedBox(width: AppSpacing.sm),
+                Icon(
+                  Icons.arrow_forward,
+                  color: colorScheme.onSurface,
+                  size: AppScale.icon(22, min: 20, max: 28),
+                ),
               ],
             ),
           ),
@@ -854,22 +903,29 @@ class _HomeScreenState extends State<HomeScreen>
     required Color foregroundColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppScale.s(12),
+        vertical: AppScale.s(8),
+      ),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppScale.radius(12)),
         border: Border.all(color: foregroundColor.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: foregroundColor),
-          const SizedBox(width: 6),
+          Icon(
+            icon,
+            size: AppScale.icon(18, min: 16, max: 24),
+            color: foregroundColor,
+          ),
+          SizedBox(width: AppSpacing.xs + AppSpacing.sm / 4),
           Text(
             value,
             style: TextStyle(
               color: foregroundColor,
-              fontSize: 14,
+              fontSize: AppScale.font(14, min: 12, max: 18),
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -901,28 +957,35 @@ class _LearningPathBanner extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.go(route),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        margin: EdgeInsets.symmetric(horizontal: AppScale.s(4)),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppSpacing.base,
+          vertical: AppScale.s(14),
+        ),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [cs.primaryContainer, cs.secondaryContainer],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppScale.radius(16)),
           border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(AppScale.s(10)),
               decoration: BoxDecoration(
                 color: cs.primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.route_rounded, color: cs.primary, size: 24),
+              child: Icon(
+                Icons.route_rounded,
+                color: cs.primary,
+                size: AppScale.icon(24, min: 22, max: 32),
+              ),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: AppScale.s(14)),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -935,7 +998,7 @@ class _LearningPathBanner extends StatelessWidget {
                       letterSpacing: 0.3,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: AppSpacing.xs / 2),
                   Text(
                     title,
                     style: tt.titleSmall?.copyWith(

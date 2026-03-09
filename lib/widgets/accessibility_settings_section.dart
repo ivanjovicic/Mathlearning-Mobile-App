@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
-class AccessibilitySettingsSection extends StatelessWidget {
-  final bool reduceMotion;
-  final bool highContrast;
-  final ValueChanged<bool> onReduceMotionChanged;
-  final ValueChanged<bool> onHighContrastChanged;
+import '../theme/theme_extensions/theme_context.dart';
+import '../ui/components/app_card.dart';
 
+class AccessibilitySettingsSection extends StatelessWidget {
   const AccessibilitySettingsSection({
     super.key,
     required this.reduceMotion,
@@ -14,22 +12,36 @@ class AccessibilitySettingsSection extends StatelessWidget {
     required this.onHighContrastChanged,
   });
 
+  final bool reduceMotion;
+  final bool highContrast;
+  final ValueChanged<bool> onReduceMotionChanged;
+  final ValueChanged<bool> onHighContrastChanged;
+
   @override
   Widget build(BuildContext context) {
+    final spacing = context.spacing;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SwitchListTile(
-          value: reduceMotion,
-          onChanged: onReduceMotionChanged,
-          title: const Text("Reduce motion"),
-          subtitle: const Text("Smanjuje animacije i tranzicije"),
+        AppCard(
+          margin: EdgeInsets.only(bottom: spacing.s),
+          child: SwitchListTile(
+            value: reduceMotion,
+            onChanged: onReduceMotionChanged,
+            title: const Text('Reduce motion'),
+            subtitle: const Text('Smanjuje animacije i tranzicije'),
+            contentPadding: EdgeInsets.zero,
+          ),
         ),
-        SwitchListTile(
-          value: highContrast,
-          onChanged: onHighContrastChanged,
-          title: const Text("High contrast"),
-          subtitle: const Text("Pojacava citljivost teksta i UI elemenata"),
+        AppCard(
+          child: SwitchListTile(
+            value: highContrast,
+            onChanged: onHighContrastChanged,
+            title: const Text('High contrast'),
+            subtitle: const Text('Pojacava citljivost teksta i UI elemenata'),
+            contentPadding: EdgeInsets.zero,
+          ),
         ),
       ],
     );

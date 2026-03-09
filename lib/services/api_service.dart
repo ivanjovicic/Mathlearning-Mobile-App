@@ -80,9 +80,10 @@ class AuthApi {
 
   Future<ApiResult<bool>> authenticate(String username, String password) async {
     try {
+      // Use /api/auth/login and capitalized keys to match dev backend
       final response = await _dio.post(
-        '/auth/login',
-        data: {'username': username, 'password': password},
+        '/api/auth/login',
+        data: {'Username': username, 'Password': password},
       );
       return ApiResult(data: response.data['accessToken'] != null);
     } on DioException catch (e) {

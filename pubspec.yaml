@@ -40,6 +40,8 @@ dependencies:
   http: ^1.1.0
   shared_preferences: ^2.2.3
   sqflite: ^2.3.3
+  drift: ^2.17.0
+  sqlite3_flutter_libs: ^0.5.24
   connectivity_plus: ^7.0.0
   flutter_secure_storage: ^10.0.0
   dio: ^5.4.1
@@ -61,6 +63,7 @@ dev_dependencies:
     sdk: flutter
   mockito: ^5.0.17
   build_runner: ^2.4.6
+  drift_dev: ^2.17.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

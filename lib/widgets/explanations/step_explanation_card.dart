@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../models/step_explanation.dart';
+import '../../theme/app_scale.dart';
+import '../../theme/theme_extensions/theme_context.dart';
+import '../math_content_text.dart';
 import 'hint_widget.dart';
 import 'math_formula_view.dart';
 
@@ -25,6 +28,10 @@ class StepExplanationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final colors = context.colors;
+    final spacing = context.spacing;
+    final radius = context.radius;
+    final motion = context.motion;
     final showHintButton = (step.hint?.trim().isNotEmpty ?? false);
     final isFormulaStep = _looksLikeFormula(step.text);
 
@@ -33,27 +40,21 @@ class StepExplanationCard extends StatelessWidget {
         container: true,
         label: '$semanticPrefix: Step $stepNumber of $totalSteps. ${step.text}',
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.all(16),
+          duration: motion.normal,
+          curve: motion.standard,
+          padding: EdgeInsets.all(spacing.m),
           decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: BorderRadius.circular(18),
+            color: colors.cardBackground,
+            borderRadius: BorderRadius.circular(radius.card),
             border: Border.all(
               color: step.highlight
                   ? cs.tertiary.withValues(alpha: 0.85)
-                  : cs.outline.withValues(alpha: 0.4),
-              width: step.highlight ? 1.8 : 1.1,
+                  : colors.border.withValues(alpha: 0.7),
+              width: step.highlight ? AppScale.s(1.8) : AppScale.s(1.1),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: step.highlight
-                    ? cs.tertiary.withValues(alpha: 0.22)
-                    : Colors.black.withValues(alpha: 0.06),
-                blurRadius: step.highlight ? 18 : 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: step.highlight
+                ? context.shadows.focusShadow(cs.tertiary)
+                : context.shadows.cardShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,8 +62,8 @@ class StepExplanationCard extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    width: 34,
-                    height: 34,
+                    width: AppScale.s(34),
+                    height: AppScale.s(34),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
@@ -76,7 +77,7 @@ class StepExplanationCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: spacing.s),
                   Expanded(
                     child: Text(
                       'Step $stepNumber',
@@ -87,23 +88,25 @@ class StepExplanationCard extends StatelessWidget {
                   ),
                   if (step.highlight)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppScale.s(10),
+                        vertical: AppScale.s(6),
                       ),
                       decoration: BoxDecoration(
                         color: cs.tertiaryContainer.withValues(alpha: 0.65),
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.circular(
+                          AppScale.radius(999),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.auto_awesome,
-                            size: 15,
+                            size: AppScale.icon(15, min: 14, max: 22),
                             color: cs.onTertiaryContainer,
                           ),
-                          const SizedBox(width: 4),
+                          SizedBox(width: spacing.xs),
                           Text(
                             'Important',
                             style: Theme.of(context).textTheme.labelSmall
@@ -117,29 +120,29 @@ class StepExplanationCard extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 14),
-              Text(
-                step.text,
+              SizedBox(height: spacing.s + spacing.xs),
+              MathContentText(
+                value: step.text,
                 style: Theme.of(
                   context,
                 ).textTheme.bodyLarge?.copyWith(height: 1.45),
               ),
               if (isFormulaStep) ...[
-                const SizedBox(height: 14),
+                SizedBox(height: spacing.s + spacing.xs),
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
+                  duration: motion.fast,
                   child: Container(
                     key: ValueKey<bool>(step.highlight),
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacing.m,
+                      vertical: spacing.s + spacing.xs / 2,
                     ),
                     decoration: BoxDecoration(
                       color: step.highlight
                           ? cs.primaryContainer.withValues(alpha: 0.6)
                           : cs.surfaceContainerHighest.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(radius.medium),
                     ),
                     child: MathFormulaView(
                       expression: step.text,
@@ -155,7 +158,7 @@ class StepExplanationCard extends StatelessWidget {
                 ),
               ],
               if (showHintButton) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: spacing.s),
                 HintWidget(
                   hintText: step.hint!.trim(),
                   isVisible: isHintVisible,

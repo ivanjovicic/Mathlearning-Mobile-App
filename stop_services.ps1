@@ -5,6 +5,28 @@ $stateDir = Join-Path $rootDir '.run'
 
 Write-Host 'Stopping services...'
 
+# Try to stop any running MathLearning.Api processes (by process name or command line)
+Write-Host '[INFO] Checking for MathLearning.Api processes to stop...'
+try {
+  $apiByName = Get-Process -Name 'MathLearning.Api' -ErrorAction SilentlyContinue
+  if ($apiByName) {
+    foreach ($p in $apiByName) {
+      try { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; Write-Host "[OK] Stopped MathLearning.Api (PID $($p.Id))." } catch { Write-Host "[WARN] Failed to stop MathLearning.Api (PID $($p.Id))." }
+    }
+  }
+
+  # Also check processes whose command line contains the project name (covers 'dotnet' host)
+  $apiByCmd = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and ($_.CommandLine -match 'MathLearning.Api') }
+  if ($apiByCmd) {
+    foreach ($proc in $apiByCmd) {
+      try { Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue; Write-Host "[OK] Stopped process (PID $($proc.ProcessId)) matching command line." } catch { Write-Host "[WARN] Failed to stop process (PID $($proc.ProcessId))." }
+    }
+  }
+} catch {
+  Write-Host '[WARN] Error while attempting to stop MathLearning.Api processes.'
+}
+
+
 $targets = @(
   @{ Name = 'Backend'; PidFile = (Join-Path $stateDir 'backend.pid') },
   @{ Name = 'Flutter'; PidFile = (Join-Path $stateDir 'flutter.pid') }
