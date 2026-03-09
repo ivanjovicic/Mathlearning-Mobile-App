@@ -48,8 +48,32 @@ class NotificationService {
 
     tz.initializeTimeZones();
     try {
-      final localTimezone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(localTimezone));
+      final dynamic localTimezone = await FlutterTimezone.getLocalTimezone();
+      String localTimezoneName = '';
+      if (localTimezone is String) {
+        localTimezoneName = localTimezone;
+      } else if (localTimezone != null) {
+        final dyn = localTimezone as dynamic;
+        try {
+          final candidate = dyn.name ??
+              dyn.timeZoneName ??
+              dyn.timeZoneId ??
+              dyn.id ??
+              dyn.value ??
+              dyn.location ??
+              dyn.tz ??
+              dyn.toString();
+          localTimezoneName = candidate?.toString() ?? '';
+        } catch (_) {
+          localTimezoneName = localTimezone.toString();
+        }
+      }
+
+      if (localTimezoneName.isNotEmpty) {
+        tz.setLocalLocation(tz.getLocation(localTimezoneName));
+      } else {
+        tz.setLocalLocation(tz.UTC);
+      }
     } catch (e) {
       debugPrint('Notification timezone fallback: $e');
       tz.setLocalLocation(tz.UTC);

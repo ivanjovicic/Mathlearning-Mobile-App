@@ -6,7 +6,7 @@ rem   set BACKEND_PROJECT=C:\path\to\YourApi.csproj
 rem   set BACKEND_PROJECT=C:\path\to\BackendFolder
 rem   set FLUTTER_WEB_PORT=5050
 if "%FLUTTER_WEB_PORT%"=="" set FLUTTER_WEB_PORT=5050
-if "%BACKEND_PROJECT%"=="" set "BACKEND_PROJECT=C:\Users\Ivan\source\repos\MathLearning\src\MathLearning.Api"
+if "%BACKEND_PROJECT%"=="" set "BACKEND_PROJECT=C:\Users\Alex\source\repos\MathLearning\src\MathLearning.Api"
 
 set "ROOT_DIR=%~dp0"
 set "STATE_DIR=%ROOT_DIR%.run"
