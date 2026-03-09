@@ -31,7 +31,6 @@ import '../theme_selector_page.dart';
 import '../ui/app_shell.dart';
 import 'app_routes.dart';
 import 'route_guards.dart';
-import 'route_parser_helpers.dart';
 
 abstract class AppRouteWidgetFactory {
   const AppRouteWidgetFactory();
@@ -321,49 +320,6 @@ class AppRouter {
       ),
       redirect: (_, state) => guards.redirect(state),
       routes: <RouteBase>[
-        GoRoute(
-          path: '/login',
-          redirect: (_, state) => LoginRoute(
-            redirectTo: RouteParserHelpers.decodeContinuation(
-              state.queryParameters['continue'],
-            ),
-          ).location,
-        ),
-        GoRoute(
-          path: '/profile',
-          redirect: (_, state) => const MyProfileRoute().location,
-        ),
-        GoRoute(
-          path: '/profile/settings',
-          redirect: (_, state) => const SettingsRoute().location,
-        ),
-        GoRoute(
-          path: '/profile/themes',
-          redirect: (_, state) => const ThemesRoute().location,
-        ),
-        GoRoute(
-          path: '/leaderboard',
-          redirect: (_, state) => const LeaderboardRoute().location,
-        ),
-        GoRoute(
-          path: '/ranks',
-          redirect: (_, state) => const LeaderboardRoute().location,
-        ),
-        GoRoute(
-          path: '/learn',
-          redirect: (_, state) => LearnMapRoute(
-            focusNodeId: state.queryParameters['focus'],
-          ).location,
-        ),
-        GoRoute(
-          path: '/quiz',
-          redirect: (_, state) => QuizRoute(
-            topicId: int.tryParse(state.queryParameters['topicId'] ?? ''),
-            skipDailyReviewRedirect:
-                state.queryParameters['skipDailyReview'] == '1',
-            source: state.queryParameters['source'],
-          ).location,
-        ),
         GoRoute(
           path: AppRoutePaths.splash,
           name: SplashRoute.routeName,
