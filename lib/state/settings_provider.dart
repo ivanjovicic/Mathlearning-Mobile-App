@@ -94,6 +94,9 @@ class SettingsProvider extends ChangeNotifier {
   bool get feedbackConfigured => _feedbackConfigured;
   bool get lastReminderPermissionDenied => _lastReminderPermissionDenied;
 
+  /// The user ID this provider is currently scoped to (null = not authenticated).
+  String? get currentUserId => _userId;
+
   void clearReminderPermissionStatus() {
     if (!_lastReminderPermissionDenied) return;
     _lastReminderPermissionDenied = false;
@@ -122,7 +125,7 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   /// Set user ID for syncing settings with backend
-  void setUserId(String userId) {
+  void setUserId(String? userId) {
     _userId = userId;
   }
 

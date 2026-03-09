@@ -199,6 +199,8 @@ class TestQuizProvider extends QuizProvider {
     } else {
       currentQuestion = null;
     }
+    // Defer notification to avoid setState() during build
+    await Future<void>.delayed(Duration.zero);
     notifyListeners();
   }
 
@@ -240,6 +242,8 @@ class TestQuizProvider extends QuizProvider {
         ],
       );
     }
+    // Defer notification to avoid setState() during build
+    await Future<void>.delayed(Duration.zero);
     notifyListeners();
     return true;
   }

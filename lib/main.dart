@@ -149,7 +149,20 @@ class MathLearningApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => SchoolLeaderboardProvider()),
-        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, SettingsProvider>(
+          create: (_) => SettingsProvider(),
+          update: (_, auth, previous) {
+            final provider = previous ?? SettingsProvider();
+            final uid = auth.isAuthenticated ? auth.userId : null;
+            if (uid != null && provider.currentUserId != uid) {
+              provider.setUserId(uid);
+              provider.syncFromBackend(uid);
+            } else if (!auth.isAuthenticated) {
+              provider.setUserId(null);
+            }
+            return provider;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
         ChangeNotifierProvider(
           create: (_) => LearningMapProvider(

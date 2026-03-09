@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -5,6 +6,7 @@ import 'package:mathlearning/models/question.dart';
 import 'package:mathlearning/models/option.dart';
 import 'package:mathlearning/screens/home/gamified_quiz_screen.dart';
 import 'package:mathlearning/state/progress_provider.dart';
+import 'package:mathlearning/state/quiz_provider.dart';
 import 'package:mathlearning/state/settings_provider.dart';
 import 'package:mathlearning/widgets/game_button.dart';
 import 'package:mathlearning/widgets/mastery_burst.dart';
@@ -74,18 +76,24 @@ void main() {
         buildTestApp(
           home: buildScreen(),
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
             ChangeNotifierProvider.value(value: progress),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
           ],
         ),
       );
 
-      expect(find.text('Majstorstvo'), findsOneWidget);
+      expect(find.text('Savladanost'), findsOneWidget);
       expect(find.text('0%'), findsOneWidget);
     });
 
     testWidgets('correct answer shows XP pop + streak flame and mastery updates', (tester) async {
+      // Force portrait layout so options render in single-column (easier to tap)
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final quiz = TestQuizProvider();
       final progress = ProgressProvider()..streak = 3;
 
@@ -93,7 +101,7 @@ void main() {
         buildTestApp(
           home: buildScreen(),
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
             ChangeNotifierProvider.value(value: progress),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
           ],
@@ -103,12 +111,22 @@ void main() {
       await tester.tap(gameButtonByText('4'));
       await tester.pump();
 
-      expect(find.text('+20 XP'), findsOneWidget);
+      // xpReward(20) + no-hint bonus(5) = 25 XP on first correct answer
+      expect(find.text('+25 XP'), findsOneWidget);
       expect(find.byType(StreakFlame), findsOneWidget);
       expect(find.text('12%'), findsOneWidget);
+
+      // Drain overlay auto-remove timers (max 900 ms)
+      await tester.pump(const Duration(seconds: 1));
     });
 
     testWidgets('wrong answer shows localized try-again XP pop', (tester) async {
+      // Force portrait layout so options render in single-column (easier to tap)
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final quiz = TestQuizProvider();
       final progress = ProgressProvider()..streak = 3;
 
@@ -116,7 +134,7 @@ void main() {
         buildTestApp(
           home: buildScreen(),
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
             ChangeNotifierProvider.value(value: progress),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
           ],
@@ -126,10 +144,19 @@ void main() {
       await tester.tap(gameButtonByText('3'));
       await tester.pump();
 
-      expect(find.text('Pokusaj opet'), findsOneWidget);
+      expect(find.text('Pokusaj ponovo'), findsOneWidget);
+
+      // Drain overlay auto-remove timers (max 900 ms)
+      await tester.pump(const Duration(seconds: 1));
     });
 
     testWidgets('shows mastery burst when crossing 50%', (tester) async {
+      // Force portrait layout so options render in single-column (easier to tap)
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final quiz = TestQuizProvider();
       final progress = ProgressProvider()..streak = 3;
 
@@ -142,7 +169,7 @@ void main() {
         buildTestApp(
           home: buildScreen(),
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
             ChangeNotifierProvider.value(value: progress),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
           ],
@@ -153,10 +180,19 @@ void main() {
       await tester.pump();
 
       expect(find.byType(MasteryBurst), findsOneWidget);
-      expect(find.text('Majstorstvo 50%'), findsOneWidget);
+      expect(find.text('Savladanost 50% dostignuta'), findsOneWidget);
+
+      // Drain overlay auto-remove timers (max 900 ms)
+      await tester.pump(const Duration(seconds: 1));
     });
 
     testWidgets('shows mastery MAX burst when reaching 100%', (tester) async {
+      // Force portrait layout so options render in single-column (easier to tap)
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final quiz = TestQuizProvider();
       final progress = ProgressProvider()..streak = 3;
 
@@ -169,7 +205,7 @@ void main() {
         buildTestApp(
           home: buildScreen(),
           providers: [
-            ChangeNotifierProvider.value(value: quiz),
+            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
             ChangeNotifierProvider.value(value: progress),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
           ],
@@ -180,7 +216,10 @@ void main() {
       await tester.pump();
 
       expect(find.byType(MasteryBurst), findsOneWidget);
-      expect(find.text('Majstorstvo MAX!'), findsOneWidget);
+      expect(find.text('Savladanost kompletirana'), findsOneWidget);
+
+      // Drain overlay auto-remove timers (max 900 ms)
+      await tester.pump(const Duration(seconds: 1));
     });
   });
 }
