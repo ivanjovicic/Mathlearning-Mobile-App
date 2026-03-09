@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mathlearning/features/adaptive_practice/providers/adaptive_practice_provider.dart';
@@ -19,6 +18,7 @@ import 'package:mathlearning/features/adaptive_practice/widgets/practice_summary
 import 'package:mathlearning/features/adaptive_practice/widgets/practice_top_bar.dart';
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
+import 'package:mathlearning/navigation/navigation_extensions.dart';
 import 'package:mathlearning/services/api_service.dart';
 
 class AdaptivePracticeScreen extends StatelessWidget {
@@ -404,7 +404,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
           onBackToMap: () {
             Navigator.of(context).pop();
             if (mounted) {
-              context.go('/learning-map?focus=${widget.plan.nodeId}');
+              context.goLearnMap(focusNodeId: widget.plan.nodeId);
             }
           },
           onPracticeNext: nextNodeId == null
@@ -412,7 +412,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
               : () {
                   Navigator.of(context).pop();
                   if (mounted) {
-                    context.go('/learning-map?focus=$nextNodeId');
+                    context.goLearnMap(focusNodeId: nextNodeId);
                   }
                 },
         );

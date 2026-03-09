@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/navigation_extensions.dart';
 import '../state/coin_provider.dart';
 import '../state/progress_provider.dart';
 import '../widgets/level_up_animation.dart';
@@ -62,7 +62,7 @@ class _RewardScreenState extends State<RewardScreen> {
         child: LevelUpAnimation(
           level: level,
           onFinished: () {
-            context.go('/home');
+            context.goHome();
           },
         ),
       ),

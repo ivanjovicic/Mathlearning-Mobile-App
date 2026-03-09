@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/navigation_extensions.dart';
 import '../state/adaptive_provider.dart';
 import '../widgets/adaptive_practice_card.dart';
 import '../widgets/weak_topic_card.dart';
@@ -119,7 +119,10 @@ class _AdaptivePracticeScreenState extends State<AdaptivePracticeScreen> {
                   ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
-                  onPressed: () => context.go('/quiz', extra: practiceData.topicId ?? 1),
+                  onPressed: () => context.openQuiz(
+                    topicId: practiceData.topicId ?? 1,
+                    source: 'adaptive_hub',
+                  ),
                   icon: const Icon(Icons.play_arrow_rounded),
                   label: const Text('Start adaptive practice'),
                 ),

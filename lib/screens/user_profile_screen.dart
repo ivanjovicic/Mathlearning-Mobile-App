@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class UserProfileScreen extends StatelessWidget {
-  final int userId;
+  final String userId;
 
   const UserProfileScreen({
     super.key,

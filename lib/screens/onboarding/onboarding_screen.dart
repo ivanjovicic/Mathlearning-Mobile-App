@@ -2,10 +2,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_i18n.dart';
+import '../../navigation/navigation_extensions.dart';
 import '../../state/onboarding_provider.dart';
 import '../../state/settings_provider.dart';
 import 'onboarding_page.dart';
@@ -49,7 +49,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await ob.completeOnboarding();
 
     if (!mounted) return;
-    context.go('/home');
+    context.goAfterOnboardingCompletion();
   }
 
   @override

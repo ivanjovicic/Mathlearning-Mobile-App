@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
+import '../navigation/app_routes.dart';
+import '../navigation/navigation_extensions.dart';
 import '../state/auth_provider.dart';
 import '../state/leaderboard_provider.dart';
 import '../state/progress_provider.dart';
 import '../state/quiz_provider.dart';
-import 'mobile_registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
       leaderboardProvider.token = authProvider.token;
       quizProvider.token = authProvider.token;
 
-      context.go('/home');
+      context.goAfterAuthSuccess();
     } else if (mounted) {
       ScaffoldMessenger.of(
         context,
@@ -220,12 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 TextButton(
                                   onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const MobileRegistrationScreen(),
-                                      ),
-                                    );
+                                    const RegisterRoute().push(context);
                                   },
                                   child: Text(
                                     t.register,

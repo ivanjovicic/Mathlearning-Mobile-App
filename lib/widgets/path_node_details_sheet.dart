@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../navigation/navigation_extensions.dart';
 import '../models/path_node.dart';
 import '../state/learning_path_provider.dart';
 import 'adaptive_difficulty_badge.dart';
@@ -202,7 +202,7 @@ class PathNodeDetailsSheet extends StatelessWidget {
       ..logEvent('node_started', {'nodeId': node.id, 'type': node.type.name});
 
     Navigator.of(context).pop(); // close sheet
-    context.go('/quiz', extra: node.topicId);
+    context.openQuiz(topicId: node.topicId);
   }
 
   IconData _iconFor(PathNodeType type) => switch (type) {

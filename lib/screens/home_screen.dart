@@ -3,12 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mathlearning/widgets/animated_xp_bar.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
 import '../models/topic_item.dart';
+import '../navigation/app_routes.dart';
+import '../navigation/navigation_extensions.dart';
 import '../state/auth_provider.dart';
 import '../state/coin_provider.dart';
 import '../state/learning_path_provider.dart';
@@ -64,14 +65,6 @@ class _HomeScreenState extends State<HomeScreen>
     _refreshSpinController.dispose();
     _refreshSuccessTimer?.cancel();
     super.dispose();
-  }
-
-  Future<T?> _pushRoute<T extends Object?>(String route, {Object? extra}) {
-    final router = GoRouter.maybeOf(context);
-    if (router != null) {
-      return router.push<T>(route, extra: extra);
-    }
-    return Navigator.of(context).pushNamed<T>(route, arguments: extra);
   }
 
   Future<void> _safeSelectionHaptic() async {
@@ -250,13 +243,13 @@ class _HomeScreenState extends State<HomeScreen>
       case 0:
         return;
       case 1:
-        context.push('/quiz', extra: _resolveQuizTopicId(progress));
+        context.pushQuiz(topicId: _resolveQuizTopicId(progress));
         return;
       case 2:
-        context.go('/leaderboard');
+        context.openLeaderboard();
         return;
       case 3:
-        context.go('/profile');
+        context.openMyProfile();
         return;
       default:
         return;
@@ -322,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen>
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () => context.go('/badges'),
+                          onPressed: context.openBadges,
                           icon: Icon(
                             Icons.workspace_premium_outlined,
                             size: AppScale.icon(24, min: 22, max: 30),
@@ -331,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen>
                           tooltip: context.safeTooltip(t.badges),
                         ),
                         IconButton(
-                          onPressed: () => context.go('/heatmap'),
+                          onPressed: context.goHeatmap,
                           icon: Icon(
                             Icons.calendar_month,
                             size: AppScale.icon(24, min: 22, max: 30),
@@ -418,10 +411,7 @@ class _HomeScreenState extends State<HomeScreen>
                         : t.readyForNewRound,
                     subtitle: recommendedTopic?.name ?? t.pickTopicAndStart,
                     onTap: () {
-                      context.push(
-                        '/quiz',
-                        extra: _resolveQuizTopicId(progress),
-                      );
+                      context.pushQuiz(topicId: _resolveQuizTopicId(progress));
                     },
                   ),
                 ),
@@ -449,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen>
                         onTap: isEnabled
                             ? () async {
                                 _safeSelectionHaptic();
-                                await _pushRoute('/daily-review');
+                                await const DailyReviewRoute().push(context);
                                 if (!mounted) return;
                                 _refreshDailyReviewCount();
                               }
@@ -555,7 +545,7 @@ class _HomeScreenState extends State<HomeScreen>
                           onTap: locked
                               ? null
                               : () {
-                                  context.push('/quiz', extra: topic.topicId);
+                                  context.pushQuiz(topicId: topic.topicId);
                                 },
                           child: Container(
                             margin: EdgeInsets.only(bottom: AppScale.s(14)),
@@ -950,12 +940,8 @@ class _LearningPathBanner extends StatelessWidget {
     final String subtitle = recommended != null
         ? (recommended.recommendationReason ?? 'Continue where you left off')
         : 'Build skills step by step';
-    final String route = recommended != null
-        ? '/learning-map?focus=${recommended.id}'
-        : '/learning-map';
-
     return GestureDetector(
-      onTap: () => context.go(route),
+      onTap: () => context.goLearnMap(focusNodeId: recommended?.id),
       child: Container(
         margin: EdgeInsets.symmetric(horizontal: AppScale.s(4)),
         padding: EdgeInsets.symmetric(

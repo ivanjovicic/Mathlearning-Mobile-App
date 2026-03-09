@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/navigation_extensions.dart';
 import '../services/auth_service.dart';
 import '../state/auth_provider.dart';
 
@@ -76,7 +76,7 @@ class _MobileRegistrationScreenState extends State<MobileRegistrationScreen> {
               ),
             ),
           );
-          context.go('/home');
+          context.goAfterAuthSuccess();
         }
       } else {
         setState(() {

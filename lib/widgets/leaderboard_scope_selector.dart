@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
+import '../navigation/navigation_extensions.dart';
 import '../theme/astrax_theme.dart';
 
 class LeaderboardScopeSelector extends StatelessWidget {
@@ -154,7 +154,7 @@ class LeaderboardScopeSelector extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(sheetContext);
-                    context.go('/profile');
+                    context.openMyProfile();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),

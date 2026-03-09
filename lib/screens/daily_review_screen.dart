@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../l10n/app_i18n.dart';
+import '../navigation/navigation_extensions.dart';
 import '../state/quiz_provider.dart';
 import '../state/progress_provider.dart';
 import '../theme/app_scale.dart';
@@ -80,7 +80,7 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                     alignment: Alignment.centerRight,
                     child: IconButton(
                       onPressed: () {
-                        context.go('/home');
+                        context.goHome();
                       },
                       icon: Icon(
                         Icons.home_outlined,
@@ -307,7 +307,10 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                         text: 'Start Review',
                         onTap: () {
                           qp.skipDailyReviewOnce();
-                          context.go('/quiz');
+                          context.openQuiz(
+                            skipDailyReviewRedirect: true,
+                            source: 'daily_review',
+                          );
                         },
                       ),
                     ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mathlearning/features/learning_map/models/skill_node_state.dart';
+import 'package:mathlearning/navigation/navigation_extensions.dart';
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
 import 'package:mathlearning/features/learning_map/widgets/daily_missions_carousel.dart';
 import 'package:mathlearning/features/learning_map/widgets/learning_map_skeleton.dart';
@@ -242,7 +242,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
       return;
     }
     final plan = provider.buildLaunchPlanForNode(node);
-    context.push('/learning-map/practice', extra: plan);
+    context.startAdaptivePractice(plan);
   }
 }
 

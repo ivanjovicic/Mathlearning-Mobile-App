@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/app_routes.dart';
+import '../navigation/navigation_extensions.dart';
 import '../services/user_service.dart';
 import '../state/auth_provider.dart';
 import '../state/badge_provider.dart';
@@ -11,7 +12,6 @@ import '../widgets/animated_xp_bar.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
 import '../widgets/ui/app_section.dart';
-import 'user_search_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -124,7 +124,7 @@ class ProfileScreen extends StatelessWidget {
                       title: const Text('My Feedback'),
                       subtitle: const Text('Pregled poslatog UX/UI feedback-a'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.go('/profile/feedback'),
+                      onTap: context.openFeedback,
                     ),
                   ),
                 ],
@@ -159,26 +159,24 @@ class ProfileScreen extends StatelessWidget {
   ) async {
     switch (value) {
       case _ProfileMenuAction.settings:
-        context.go('/profile/settings');
+        context.openSettings();
         return;
       case _ProfileMenuAction.themes:
-        context.go('/profile/themes');
+        context.openThemes();
         return;
       case _ProfileMenuAction.userSearch:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => const UserSearchScreen()),
-        );
+        context.openUserSearch();
         return;
       case _ProfileMenuAction.editProfile:
         _showEditProfileDialog(context);
         return;
       case _ProfileMenuAction.customizeAvatar:
-        context.push('/profile/avatar');
+        context.openAvatarCustomization();
         return;
       case _ProfileMenuAction.logout:
         await auth.logout();
         if (!context.mounted) return;
-        context.go('/login');
+        const LoginRoute().go(context);
         return;
     }
   }
@@ -443,7 +441,7 @@ class _ProfileHeader extends StatelessWidget {
     return Column(
       children: [
         GestureDetector(
-          onTap: () => context.push('/profile/avatar'),
+          onTap: context.openAvatarCustomization,
           child: Stack(
             alignment: Alignment.center,
             children: [

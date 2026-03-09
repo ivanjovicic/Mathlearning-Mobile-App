@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_i18n.dart';
 import '../../models/topic_item.dart';
+import '../../navigation/navigation_extensions.dart';
 import '../../state/auth_provider.dart';
 import '../../state/coin_provider.dart';
 import '../../state/learning_path_provider.dart';
@@ -156,13 +156,13 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
       case 0:
         return;
       case 1:
-        context.push('/quiz', extra: _resolveQuizTopicId(progress));
+        context.pushQuiz(topicId: _resolveQuizTopicId(progress));
         return;
       case 2:
-        context.go('/leaderboard');
+        context.openLeaderboard();
         return;
       case 3:
-        context.go('/profile');
+        context.openMyProfile();
         return;
       default:
         return;
@@ -273,7 +273,7 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                   topicName:
                       recommendedTopic?.name ?? t.chooseTopicAndContinueQuiz,
                   onStart: () {
-                    context.push('/quiz', extra: _resolveQuizTopicId(progress));
+                    context.pushQuiz(topicId: _resolveQuizTopicId(progress));
                   },
                 ),
               ),
@@ -360,7 +360,7 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
                           onPressed: locked
                               ? null
                               : () {
-                                  context.push('/quiz', extra: topic.topicId);
+                                  context.pushQuiz(topicId: topic.topicId);
                                 },
                           child: Text(t.play),
                         ),
@@ -516,7 +516,7 @@ class _LearningPathBanner extends StatelessWidget {
         : 'Build skills step by step';
 
     return GestureDetector(
-      onTap: () => context.go('/learning-path'),
+      onTap: () => context.goLearnMap(focusNodeId: recommended?.id),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding:

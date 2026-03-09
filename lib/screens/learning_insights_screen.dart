@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../models/path_node.dart';
+import '../navigation/navigation_extensions.dart';
 import '../state/adaptive_provider.dart';
 import '../state/learning_path_provider.dart';
 import '../widgets/adaptive_difficulty_badge.dart';
@@ -84,7 +84,7 @@ class _LearningInsightsScreenState extends State<LearningInsightsScreen>
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/learn'),
+        onPressed: context.goLearnMap,
         icon: const Icon(Icons.route_rounded),
         label: const Text('Open Map'),
         backgroundColor: cs.primaryContainer,

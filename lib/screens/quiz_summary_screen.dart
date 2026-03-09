@@ -3,25 +3,25 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
-import 'package:go_router/go_router.dart';
 
 import '../l10n/app_i18n.dart';
+import '../navigation/navigation_extensions.dart';
 import '../widgets/mastery_progress_bar.dart';
 
 class QuizSummaryScreen extends StatefulWidget {
-  const QuizSummaryScreen({super.key});
+  const QuizSummaryScreen({
+    super.key,
+    this.sessionId,
+    this.source,
+    this.initialStats,
+  });
 
-  factory QuizSummaryScreen.withStats(QuizSessionStats stats) {
-    return _QuizSummaryWithStats(stats: stats);
-  }
+  final String? sessionId;
+  final String? source;
+  final QuizSessionStats? initialStats;
 
   @override
   State<QuizSummaryScreen> createState() => _QuizSummaryScreenState();
-}
-
-class _QuizSummaryWithStats extends QuizSummaryScreen {
-  final QuizSessionStats stats;
-  const _QuizSummaryWithStats({required this.stats});
 }
 
 class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
@@ -33,15 +33,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
     super.didChangeDependencies();
 
     if (_stats != null) return;
-
-    if (widget is _QuizSummaryWithStats) {
-      _stats = (widget as _QuizSummaryWithStats).stats;
-    } else {
-      final args = ModalRoute.of(context)?.settings.arguments;
-      if (args is QuizSessionStats) {
-        _stats = args;
-      }
-    }
+    _stats = widget.initialStats;
 
     if (_stats != null && _stats!.accuracyPercent >= 70) {
       Future.delayed(350.ms, () {
@@ -72,7 +64,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
               Text('No stats available', style: theme.textTheme.bodyLarge),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: () => context.go('/home'),
+                onPressed: context.goHome,
                 icon: const Icon(Icons.home_rounded),
                 label: Text(t.qsBackHome),
               ),
@@ -511,6 +503,22 @@ class WrongQuestion {
     required this.userAnswer,
     required this.correctAnswer,
   });
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'questionId': questionId,
+    'questionText': questionText,
+    'userAnswer': userAnswer,
+    'correctAnswer': correctAnswer,
+  };
+
+  factory WrongQuestion.fromJson(Map<String, dynamic> json) {
+    return WrongQuestion(
+      questionId: (json['questionId'] as num?)?.toInt() ?? 0,
+      questionText: (json['questionText'] ?? '').toString(),
+      userAnswer: (json['userAnswer'] ?? '').toString(),
+      correctAnswer: (json['correctAnswer'] ?? '').toString(),
+    );
+  }
 }
 
 /// Complete stats for a finished quiz session.
@@ -532,6 +540,40 @@ class QuizSessionStats {
   });
 
   int get accuracyPercent => total > 0 ? (correct / total * 100).round() : 0;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'correct': correct,
+    'total': total,
+    'xpEarned': xpEarned,
+    'streak': streak,
+    'masteryProgress': masteryProgress,
+    'wrongQuestions': wrongQuestions.map((item) => item.toJson()).toList(),
+  };
+
+  factory QuizSessionStats.fromJson(Map<String, dynamic> json) {
+    final parsedWrongQuestions = <WrongQuestion>[];
+    final rawWrongQuestions = json['wrongQuestions'];
+    if (rawWrongQuestions is List) {
+      for (final item in rawWrongQuestions) {
+        if (item is Map<String, dynamic>) {
+          parsedWrongQuestions.add(WrongQuestion.fromJson(item));
+        } else if (item is Map) {
+          parsedWrongQuestions.add(
+            WrongQuestion.fromJson(Map<String, dynamic>.from(item)),
+          );
+        }
+      }
+    }
+
+    return QuizSessionStats(
+      correct: (json['correct'] as num?)?.toInt() ?? 0,
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      xpEarned: (json['xpEarned'] as num?)?.toInt() ?? 0,
+      streak: (json['streak'] as num?)?.toInt() ?? 0,
+      masteryProgress: (json['masteryProgress'] as num?)?.toDouble() ?? 0,
+      wrongQuestions: parsedWrongQuestions,
+    );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -657,14 +699,14 @@ class SummaryActions extends StatelessWidget {
       children: [
         Expanded(
           child: FilledButton(
-            onPressed: () => context.go('/quiz'),
+            onPressed: () => context.openQuiz(),
             child: const Text('Retry'),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: OutlinedButton(
-            onPressed: () => context.go('/home'),
+            onPressed: context.goHome,
             child: Text(t.qsBackHome),
           ),
         ),

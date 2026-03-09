@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import '../navigation/navigation_extensions.dart';
 
 /// Displayed when GoRouter encounters an unknown route or navigation error.
 class ErrorScreen extends StatelessWidget {
@@ -44,7 +44,7 @@ class ErrorScreen extends StatelessWidget {
                 ),
               const SizedBox(height: 32),
               FilledButton.icon(
-                onPressed: () => context.go('/home'),
+                onPressed: context.goHome,
                 icon: const Icon(Icons.home_rounded),
                 label: const Text('Go home'),
               ),

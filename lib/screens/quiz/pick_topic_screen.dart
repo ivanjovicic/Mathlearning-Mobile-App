@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../models/topic_item.dart';
+import '../../navigation/navigation_extensions.dart';
 
 class PickTopicScreen extends StatelessWidget {
   final List<TopicItem> topics;
@@ -45,7 +45,7 @@ class PickTopicScreen extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: t.locked ? null : () => context.push('/quiz', extra: t.id),
+        onTap: t.locked ? null : () => context.pushQuiz(topicId: t.id),
         child: Opacity(
           opacity: t.locked ? 0.45 : 1,
           child: Container(

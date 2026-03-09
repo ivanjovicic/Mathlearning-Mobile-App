@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/navigation_extensions.dart';
 import '../state/leaderboard_provider.dart';
 import '../theme/app_scale.dart';
 import '../theme/astrax_theme.dart';
@@ -10,7 +11,6 @@ import '../widgets/animated_leaderboard_item.dart';
 import '../widgets/leaderboard_header.dart';
 import '../widgets/leaderboard_search_bar.dart';
 import '../widgets/period_selector.dart';
-import 'user_profile_screen.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   final bool autoLoad;
@@ -142,17 +142,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
                                 return RepaintBoundary(
                                   child: GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              UserProfileScreen(
-                                            userId: item.userId,
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                    onTap: () => context.openUserProfile(
+                                      item.userId.toString(),
+                                    ),
                                     child: AnimatedLeaderboardItem(
                                       item: item,
                                       isCurrentUser:

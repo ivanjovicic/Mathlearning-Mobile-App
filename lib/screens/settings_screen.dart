@@ -2,10 +2,10 @@
 // Extracted reusable components and optimized state management
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
+import '../navigation/navigation_extensions.dart';
 import '../state/auth_provider.dart';
 import '../state/progress_provider.dart';
 import '../state/settings_provider.dart';
@@ -35,7 +35,7 @@ class SettingsScreen extends StatelessWidget {
         actions: [
           IconButton(
             onPressed: () {
-              context.go('/home');
+              context.goHome();
             },
             icon: Icon(
               Icons.home_outlined,
@@ -186,7 +186,7 @@ class SettingsScreen extends StatelessWidget {
         onTap: () async {
           await settings.markProfileConfigured();
           if (context.mounted) {
-            context.go('/profile');
+            context.openMyProfile();
           }
         },
       ),
@@ -320,7 +320,7 @@ class SettingsScreen extends StatelessWidget {
         onTap: () async {
           await settings.markThemeConfigured();
           if (context.mounted) {
-            context.go('/profile/themes');
+            context.openThemes();
           }
         },
       ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/offline_manager.dart';
@@ -8,6 +7,7 @@ import '../models/question.dart';
 import '../models/option.dart';
 import '../models/hint_models.dart';
 import '../models/step_explanation.dart';
+import '../navigation/navigation_extensions.dart';
 import '../screens/quiz_summary_screen.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/achievement_popup.dart';
@@ -700,7 +700,11 @@ class QuizProvider extends ChangeNotifier {
                   await _showAccuracyAchievement(context, progress.accuracy);
                 }
                 if (!context.mounted) return;
-                context.push('/quiz-summary', extra: stats);
+                context.openResults(
+                  quizId ?? 'session',
+                  source: _isSrsMode ? 'daily_review' : 'quiz',
+                  stats: stats,
+                );
               }();
             },
           ),
@@ -711,7 +715,11 @@ class QuizProvider extends ChangeNotifier {
         await _showAccuracyAchievement(context, progress.accuracy);
       }
       if (!context.mounted) return;
-      context.push('/quiz-summary', extra: stats);
+      context.openResults(
+        quizId ?? 'session',
+        source: _isSrsMode ? 'daily_review' : 'quiz',
+        stats: stats,
+      );
     }
 
     // Reset quiz state
@@ -1092,7 +1100,7 @@ class QuizProvider extends ChangeNotifier {
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              parentContext.go('/profile/settings');
+              parentContext.openSettings();
             },
             child: const Text('Podesavanja'),
           ),

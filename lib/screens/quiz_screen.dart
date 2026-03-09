@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../navigation/navigation_extensions.dart';
 import '../models/option.dart';
 import '../models/question.dart';
 import '../state/quiz_provider.dart';
@@ -12,8 +12,13 @@ import '../widgets/ui/state_scaffold.dart';
 
 class QuizScreen extends StatefulWidget {
   final int? topicId;
+  final bool skipDailyReviewRedirect;
 
-  const QuizScreen({super.key, this.topicId});
+  const QuizScreen({
+    super.key,
+    this.topicId,
+    this.skipDailyReviewRedirect = false,
+  });
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -25,6 +30,8 @@ class _QuizScreenState extends State<QuizScreen>
   bool _initialized = false;
   int _subtopicId = 1;
   String? _error;
+  String? _lastAnswerId; // tracks selected answer for feedback colors
+  bool _isAnswering = false; // prevents double-tap while cooldown animation runs
 
   @override
   void didChangeDependencies() {
@@ -41,10 +48,13 @@ class _QuizScreenState extends State<QuizScreen>
     try {
       final quiz = context.read<QuizProvider>();
 
-      if (!quiz.consumeSkipDailyReviewOnce()) {
+      final shouldSkipDailyReview =
+          widget.skipDailyReviewRedirect || quiz.consumeSkipDailyReviewOnce();
+
+      if (!shouldSkipDailyReview) {
         final daily = await quiz.getDailySrsCount();
         if (daily > 0 && mounted) {
-          context.go('/home/daily-review');
+          context.goDailyReview();
           return;
         }
       }
@@ -73,6 +83,23 @@ class _QuizScreenState extends State<QuizScreen>
     _initializeQuiz();
   }
 
+  Future<void> _handleAnswer(String id, QuizProvider quiz) async {
+    if (_isAnswering) return;
+    setState(() {
+      _lastAnswerId = id;
+      _isAnswering = true;
+    });
+    await quiz.answer(id, context);
+    // Show correct/wrong feedback for 1.2s before advancing
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
+    setState(() {
+      _lastAnswerId = null;
+      _isAnswering = false;
+    });
+    await quiz.goToNextQuestion();
+  }
+
   @override
   Widget build(BuildContext context) {
     final quiz = context.watch<QuizProvider>();
@@ -97,7 +124,9 @@ class _QuizScreenState extends State<QuizScreen>
                       question: currentQuestion,
                       questionNumber: quiz.currentQuestionNumber,
                       totalQuestions: quiz.totalQuestions,
-                      onAnswer: (id) => quiz.answer(id, context),
+                      lastAnswerId: _lastAnswerId,
+                      isAnswering: _isAnswering,
+                      onAnswer: (id) => _handleAnswer(id, quiz),
                     ),
             ),
           ),
@@ -111,12 +140,16 @@ class _QuizScaffold extends StatelessWidget {
   final Question question;
   final int questionNumber;
   final int totalQuestions;
+  final String? lastAnswerId;
+  final bool isAnswering;
   final Function(String) onAnswer;
 
   const _QuizScaffold({
     required this.question,
     required this.questionNumber,
     required this.totalQuestions,
+    required this.lastAnswerId,
+    required this.isAnswering,
     required this.onAnswer,
   });
 
@@ -151,6 +184,8 @@ class _QuizScaffold extends StatelessWidget {
         QuizOptions(
           options: question.options,
           correctId: question.correctAnswerId,
+          lastAnswerId: lastAnswerId,
+          isAnswering: isAnswering,
           onSelected: onAnswer,
         ),
         SizedBox(height: AppSpacing.sectionSpacing),
@@ -199,53 +234,44 @@ class QuizHeader extends StatelessWidget {
   }
 }
 
-class QuizOptions extends StatefulWidget {
+class QuizOptions extends StatelessWidget {
   final List<Option> options;
   final int correctId;
+  final String? lastAnswerId;
+  final bool isAnswering;
   final Function(String) onSelected;
 
   const QuizOptions({
     super.key,
     required this.options,
     required this.correctId,
+    required this.lastAnswerId,
+    required this.isAnswering,
     required this.onSelected,
   });
-
-  @override
-  State<QuizOptions> createState() => _QuizOptionsState();
-}
-
-class _QuizOptionsState extends State<QuizOptions> {
-  String? selectedId;
-  bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.spacingM),
       child: Column(
-        children: widget.options.map((option) {
+        children: options.map((option) {
           final id = option.id.toString();
-          final selected = id == selectedId;
+          final selected = id == lastAnswerId;
+          final showFeedback = isAnswering && lastAnswerId != null;
+          final isCorrectOption = option.id == correctId;
+          final isWrong = showFeedback && selected && !isCorrectOption;
+          final isCorrect = showFeedback && isCorrectOption;
 
           return Padding(
             padding: EdgeInsets.only(bottom: AppSpacing.itemSpacing),
             child: AnswerOptionCard(
               text: option.text,
               selected: selected,
-              enabled: !_isSubmitting,
-              onTap: () {
-                if (_isSubmitting) return;
-                setState(() {
-                  selectedId = id;
-                  _isSubmitting = true;
-                });
-                widget.onSelected(id);
-                Future.delayed(const Duration(milliseconds: 250), () {
-                  if (!mounted) return;
-                  setState(() => _isSubmitting = false);
-                });
-              },
+              correct: isCorrect,
+              wrong: isWrong,
+              enabled: !isAnswering,
+              onTap: isAnswering ? null : () => onSelected(id),
             ),
           );
         }).toList(),

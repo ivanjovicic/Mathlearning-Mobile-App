@@ -34,7 +34,8 @@ import 'services/notification_service.dart';
 import 'services/offline_manager.dart';
 import 'services/srs_service.dart';
 import 'services/adaptive_learning_service.dart';
-import 'app_router.dart';
+import 'navigation/app_router.dart';
+import 'navigation/route_guards.dart';
 import 'theme/app_scale.dart';
 import 'theme/app_theme.dart';
 
@@ -206,6 +207,7 @@ class _AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<_AppRoot> {
   late final GoRouter _router;
+  late final ProviderNavigationState _navigationState;
   bool _routerInitialized = false;
 
   @override
@@ -224,13 +226,18 @@ class _AppRootState extends State<_AppRoot> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_routerInitialized) return;
-    _router = AppRouter.createRouter(context.read<AuthProvider>());
+    _navigationState = ProviderNavigationState(
+      authProvider: context.read<AuthProvider>(),
+      onboardingProvider: context.read<OnboardingProvider>(),
+    );
+    _router = AppRouter.createRouter(navigationState: _navigationState);
     _routerInitialized = true;
   }
 
   @override
   void dispose() {
     _router.dispose();
+    _navigationState.dispose();
     super.dispose();
   }
 
