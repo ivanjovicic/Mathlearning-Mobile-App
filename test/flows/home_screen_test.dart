@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mathlearning/screens/home_screen.dart';
@@ -183,13 +184,17 @@ void main() {
       final quiz = TestQuizProvider(onGetDailySrsCount: () async => 2);
 
       await tester.pumpWidget(
-        buildTestApp(
-          home: const HomeScreen(),
-          routes: {
-            '/daily-review': (_) => const Scaffold(
-                  body: Center(child: Text('Daily Review Screen')),
-                ),
-          },
+        buildGoRouterTestApp(
+          initialLocation: '/',
+          routes: [
+            GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
+            GoRoute(
+              path: '/home/daily-review',
+              builder: (_, __) => const Scaffold(
+                body: Center(child: Text('Daily Review Screen')),
+              ),
+            ),
+          ],
           providers: [
             ChangeNotifierProvider(create: (_) => ThemeController()),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),

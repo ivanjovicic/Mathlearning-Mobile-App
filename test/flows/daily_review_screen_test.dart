@@ -177,7 +177,7 @@ void main() {
             ),
           ],
           routes: {
-            '/quiz': (_) => const Scaffold(body: Text('Quiz Screen')),
+            '/quiz/:quizSessionId': (_) => const Scaffold(body: Text('Quiz Screen')),
           },
         ),
       );

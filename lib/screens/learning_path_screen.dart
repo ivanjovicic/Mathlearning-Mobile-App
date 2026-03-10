@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../models/path_node.dart';
 import '../state/learning_path_provider.dart';
@@ -343,24 +342,52 @@ class _EmptyView extends StatelessWidget {
 }
 
 /// Simple skeleton placeholder list while data is loading.
-class _SkeletonList extends StatelessWidget {
+class _SkeletonList extends StatefulWidget {
+  @override
+  State<_SkeletonList> createState() => _SkeletonListState();
+}
+
+class _SkeletonListState extends State<_SkeletonList>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmer = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 5,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, i) => Container(
-        height: 80,
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-        ),
-      )
-          .animate(onPlay: (c) => c.repeat())
-          .shimmer(duration: 900.ms, color: cs.surface.withValues(alpha: 0.4)),
+    return AnimatedBuilder(
+      animation: _shimmer,
+      builder: (context, _) {
+        final shimmerOpacity = 0.15 + _shimmer.value * 0.25;
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 5,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (context, i) => Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHigh
+                  .withValues(alpha: shimmerOpacity + 0.6),
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        );
+      },
     );
   }
 }

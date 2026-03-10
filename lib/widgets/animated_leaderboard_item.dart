@@ -21,10 +21,10 @@ class AnimatedLeaderboardItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      leading: CircleAvatar(child: Text('${item.rank}')),
       title: Text(title ?? item.displayName),
       subtitle: Text(subtitle ?? 'Score: ${item.score}'),
-      leading: CircleAvatar(child: Text('${item.rank}')),
-      trailing: Text('${item.score} XP'),
+      trailing: isCurrentUser ? const Text('Ti') : null,
     );
   }
 }

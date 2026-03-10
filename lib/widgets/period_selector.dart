@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 
 class PeriodSelector extends StatelessWidget {
-  const PeriodSelector({super.key});
+  const PeriodSelector({super.key, this.value = 'weekly', this.onChanged});
+
+  final String value;
+  final ValueChanged<String?>? onChanged;
 
   @override
   Widget build(BuildContext context) {
     return DropdownButton<String>(
+      value: value,
       items: const [
-        DropdownMenuItem(value: 'daily', child: Text('Daily')),
-        DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-        DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+        DropdownMenuItem(value: 'weekly', child: Text('Nedeljno')),
+        DropdownMenuItem(value: 'allTime', child: Text('Ukupno')),
       ],
-      onChanged: (value) {},
+      onChanged: onChanged,
     );
   }
 }

@@ -45,7 +45,7 @@ void main() {
       provider.paging.items.clear();
       await tester.pumpWidget(createTestWidget());
 
-      expect(find.text('No leaderboard data available.'), findsOneWidget);
+      expect(find.text('Nema podataka.'), findsOneWidget);
     });
 
     testWidgets('displays leaderboard items when data is available', (WidgetTester tester) async {

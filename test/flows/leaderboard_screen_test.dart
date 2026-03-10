@@ -49,12 +49,16 @@ void main() {
         (tester) async {
       final leaderboard = _NoopLeaderboardProvider();
       leaderboard.pagingFor(LeaderboardScope.global).isLoading = false;
+      final auth = TestAuthProvider();
 
       await tester.pumpWidget(
         MaterialApp(
           home: ChangeNotifierProvider<LeaderboardProvider>.value(
             value: leaderboard,
-            child: const LeaderboardScreen(),
+            child: ChangeNotifierProvider<AuthProvider>.value(
+              value: auth,
+              child: const LeaderboardScreen(),
+            ),
           ),
         ),
       );

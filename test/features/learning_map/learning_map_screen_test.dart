@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
-import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
+import 'package:mathlearning/navigation/app_routes.dart';
 import 'package:mathlearning/features/learning_map/models/practice_recommendation.dart';
 import 'package:mathlearning/features/learning_map/models/skill_mastery.dart';
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
@@ -187,9 +187,9 @@ void main() {
               const LearningMapScreen(userId: 'user-1'),
         ),
         GoRoute(
-          path: '/learning-map/practice',
+          path: '/practice/adaptive',
           builder: (_, state) {
-            final plan = state.extra as PracticeLaunchPlan;
+            final plan = AdaptivePracticeRoute.fromState(state).plan;
             return AdaptivePracticeScreen(plan: plan);
           },
         ),

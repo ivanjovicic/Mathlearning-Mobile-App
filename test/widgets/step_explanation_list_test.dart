@@ -46,7 +46,11 @@ void main() {
       ),
     );
 
-    await tester.drag(find.byType(StepExplanationList), const Offset(-300, 0));
+    await tester.fling(
+      find.byType(StepExplanationList),
+      const Offset(-300, 0),
+      1500,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Divide both sides by 2 to isolate x.'), findsOneWidget);
