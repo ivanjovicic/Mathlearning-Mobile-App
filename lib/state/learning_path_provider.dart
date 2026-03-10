@@ -30,6 +30,7 @@ class LearningPathProvider extends ChangeNotifier {
   bool _isCached = false;
   bool _isRetrying = false;
   int _userLevel = 1;
+  DateTime? _lastAutoLoad;
 
   /// Cached topics from the last [ProgressProvider] update — used by
   /// [loadPath] so the provider doesn't need to hold a hard reference to
@@ -85,6 +86,16 @@ class LearningPathProvider extends ChangeNotifier {
     _cachedTopics = incoming;
 
     if (_nodes.isEmpty || changed) {
+      // Throttle auto-reloads: after a failed attempt that left nodes empty,
+      // repeated ProgressProvider updates would restart the 3-retry cycle in
+      // an infinite loop.  Allow at most one auto-reload every 30 seconds;
+      // pull-to-refresh (forceRefresh: true) always bypasses this guard.
+      final now = DateTime.now();
+      if (_lastAutoLoad != null &&
+          now.difference(_lastAutoLoad!) < const Duration(seconds: 30)) {
+        return;
+      }
+      _lastAutoLoad = now;
       // Don't await — fire-and-forget so proxy update stays synchronous
       loadPath();
     }

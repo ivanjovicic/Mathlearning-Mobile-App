@@ -769,7 +769,7 @@ class ApiService {
 
   Future<ApiResult<Map<String, dynamic>>> getAdaptivePathResult() {
     return _requestResult<Map<String, dynamic>>(
-      () => _dio.get('/adaptive/path'),
+      () => _dio.get('/api/adaptive/path'),
       (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
     );
   }

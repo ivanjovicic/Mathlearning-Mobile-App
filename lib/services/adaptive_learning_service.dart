@@ -297,6 +297,13 @@ class AdaptiveLearningService {
               'Rate limited. Retry after ${result.retryAfter}',
             );
           }
+          // 4xx errors are permanent client errors — retrying will not help.
+          final statusCode = result.statusCode ?? 0;
+          if (statusCode >= 400 && statusCode < 500) {
+            throw Exception(
+              'HTTP $statusCode from /adaptive/path — not retrying',
+            );
+          }
           final payload = result.data;
           if (payload == null) {
             throw StateError('Adaptive path endpoint returned no data');
