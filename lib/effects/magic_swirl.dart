@@ -33,6 +33,11 @@ class _MagicSwirlState extends State<MagicSwirl>
 
   @override
   Widget build(BuildContext context) {
+    // Respect reduced-motion preference — render nothing.
+    if (MediaQuery.of(context).disableAnimations) {
+      return const SizedBox.shrink();
+    }
+
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _controller,

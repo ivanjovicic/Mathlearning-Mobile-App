@@ -11,18 +11,21 @@ import 'package:mathlearning/screens/quiz_summary_screen.dart';
 
 void main() {
   group('Typed route serialization', () {
-    test('AdaptivePracticeRoute serializes and deserializes PracticeLaunchPlan', () {
-      final route = AdaptivePracticeRoute(plan: _samplePlan());
-      final uri = Uri.parse(route.location);
-      final decoded = PracticeLaunchPlan.fromJson(
-        RouteParserHelpers.decodeJsonPayload(uri.queryParameters['plan'])!,
-      );
+    test(
+      'AdaptivePracticeRoute serializes and deserializes PracticeLaunchPlan',
+      () {
+        final route = AdaptivePracticeRoute(plan: _samplePlan());
+        final uri = Uri.parse(route.location);
+        final decoded = PracticeLaunchPlan.fromJson(
+          RouteParserHelpers.decodeJsonPayload(uri.queryParameters['plan'])!,
+        );
 
-      expect(decoded.nodeId, 'node-42');
-      expect(decoded.skillTitle, 'Fractions');
-      expect(decoded.topicId, 4);
-      expect(decoded.subtopicId, 12);
-    });
+        expect(decoded.nodeId, 'node-42');
+        expect(decoded.skillTitle, 'Fractions');
+        expect(decoded.topicId, 4);
+        expect(decoded.subtopicId, 12);
+      },
+    );
 
     test('QuizResultsRoute serializes stats payload safely', () {
       final stats = QuizSessionStats(
@@ -103,7 +106,10 @@ void main() {
       await tester.pumpWidget(_RouterHost(router: router));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('login:/learn/map?focus=node-7'), findsOneWidget);
+      expect(
+        find.textContaining('login:/learn/map?focus=node-7'),
+        findsOneWidget,
+      );
 
       navState.authenticate();
       await tester.pumpAndSettle();
@@ -137,6 +143,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('learn-map:-'), findsOneWidget);
 
+      await tester.tap(find.text('Practice'));
+      await tester.pumpAndSettle();
+      expect(find.text('practice-hub'), findsOneWidget);
+
       await tester.tap(find.text('Leaderboard'));
       await tester.pumpAndSettle();
       expect(find.text('leaderboard'), findsOneWidget);
@@ -144,10 +154,6 @@ void main() {
       await tester.tap(find.text('Profile'));
       await tester.pumpAndSettle();
       expect(find.text('my-profile'), findsOneWidget);
-
-      await tester.tap(find.text('Settings'));
-      await tester.pumpAndSettle();
-      expect(find.text('settings'), findsOneWidget);
     });
 
     testWidgets('adaptive practice deep link passes typed launch plan', (
@@ -289,18 +295,18 @@ class _TestWidgetFactory extends AppRouteWidgetFactory {
       Scaffold(body: Center(child: Text('lesson:${route.lessonId}')));
 
   @override
-  Widget buildLogin(BuildContext context, LoginRoute route) => Scaffold(
-    body: Center(child: Text('login:${route.redirectTo ?? '-'}')),
-  );
+  Widget buildLogin(BuildContext context, LoginRoute route) =>
+      Scaffold(body: Center(child: Text('login:${route.redirectTo ?? '-'}')));
 
   @override
   Widget buildMyProfile(BuildContext context, MyProfileRoute route) =>
       const Scaffold(body: Center(child: Text('my-profile')));
 
   @override
-  Widget buildOnboarding(BuildContext context, OnboardingRoute route) => Scaffold(
-    body: Center(child: Text('onboarding:${route.redirectTo ?? '-'}')),
-  );
+  Widget buildOnboarding(BuildContext context, OnboardingRoute route) =>
+      Scaffold(
+        body: Center(child: Text('onboarding:${route.redirectTo ?? '-'}')),
+      );
 
   @override
   Widget buildParentDashboard(
@@ -322,18 +328,21 @@ class _TestWidgetFactory extends AppRouteWidgetFactory {
   );
 
   @override
-  Widget buildQuizResults(BuildContext context, QuizResultsRoute route) =>
-      Scaffold(
-        body: Center(
-          child: Text(
-            'results:${route.sessionId}:${route.source ?? '-'}:${route.stats?.correct ?? -1}',
-          ),
-        ),
-      );
+  Widget buildQuizResults(
+    BuildContext context,
+    QuizResultsRoute route,
+  ) => Scaffold(
+    body: Center(
+      child: Text(
+        'results:${route.sessionId}:${route.source ?? '-'}:${route.stats?.correct ?? -1}',
+      ),
+    ),
+  );
 
   @override
-  Widget buildRegister(BuildContext context, RegisterRoute route) =>
-      Scaffold(body: Center(child: Text('register:${route.redirectTo ?? '-'}')));
+  Widget buildRegister(BuildContext context, RegisterRoute route) => Scaffold(
+    body: Center(child: Text('register:${route.redirectTo ?? '-'}')),
+  );
 
   @override
   Widget buildSchoolLeaderboard(
@@ -346,9 +355,8 @@ class _TestWidgetFactory extends AppRouteWidgetFactory {
       const Scaffold(body: Center(child: Text('settings')));
 
   @override
-  Widget buildSplash(BuildContext context, SplashRoute route) => Scaffold(
-    body: Center(child: Text('splash:${route.redirectTo ?? '-'}')),
-  );
+  Widget buildSplash(BuildContext context, SplashRoute route) =>
+      Scaffold(body: Center(child: Text('splash:${route.redirectTo ?? '-'}')));
 
   @override
   Widget buildThemes(BuildContext context, ThemesRoute route) =>
@@ -372,12 +380,12 @@ Widget _buildTestShell(BuildContext context, StatefulNavigationShell shell) {
       destinations: const <NavigationDestination>[
         NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
         NavigationDestination(icon: Icon(Icons.map), label: 'Learn'),
+        NavigationDestination(icon: Icon(Icons.bolt), label: 'Practice'),
         NavigationDestination(
           icon: Icon(Icons.emoji_events),
           label: 'Leaderboard',
         ),
         NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
-        NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
       ],
     ),
   );

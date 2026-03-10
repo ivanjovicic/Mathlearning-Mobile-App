@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'theme_preferences_service.dart';
-import 'astrax_theme.dart';
 import '../widgets/game_theme_transition.dart';
+import 'themes/astra_theme.dart';
 import 'themes/fantasy_theme.dart';
 import 'themes/pastel_theme.dart';
 import 'themes/minimal_theme.dart';
@@ -125,7 +125,7 @@ class ThemeController extends ChangeNotifier {
       case AppThemeType.retro:
         return RetroTheme.data;
       case AppThemeType.astra:
-        return AstraXTheme.buildDarkTheme();
+        return AstraTheme.data;
       default:
         return SciFiTheme.data;
     }

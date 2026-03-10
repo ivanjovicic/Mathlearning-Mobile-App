@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../services/adaptive_learning_service.dart';
 import '../theme/theme_extensions/theme_context.dart';
-import '../ui/components/app_badge.dart';
-import '../ui/components/app_card.dart';
-import '../ui/components/app_progress_bar.dart';
+import 'ui/app_badge.dart';
+import 'ui/app_card.dart';
+import 'ui/app_progress_bar.dart';
 
 class WeakTopicCard extends StatelessWidget {
   const WeakTopicCard({super.key, required this.weakTopic});

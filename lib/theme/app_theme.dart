@@ -1,31 +1,25 @@
 import 'package:flutter/material.dart';
 
-import 'app_theme_dark.dart';
-import 'app_theme_light.dart';
+import 'app_scale.dart';
 import 'theme_extensions/leaderboard_theme_extension.dart';
 import 'theme_extensions/learning_theme_extension.dart';
 import 'theme_extensions/semantic_colors_extension.dart';
 import 'theme_extensions/status_theme_extension.dart';
-import 'tokens/app_typography.dart';
 
+/// Adds ThemeExtensions (SemanticColors, Status, Leaderboard, Learning)
+/// and responsive font scaling to a base theme from [ThemeController].
+///
+/// High-contrast and typography are handled upstream:
+/// - HC: [ThemeController._buildHighContrastTheme]
+/// - Typography: [theme_factory.dart] via [TypographyConfig]
+/// - Responsive scaling: [AppScale.scaleTextTheme] (preserves per-theme fonts)
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData light({bool highContrast = false}) {
-    return AppThemeLight.build(highContrast: highContrast);
-  }
-
-  static ThemeData dark({bool highContrast = false}) {
-    return AppThemeDark.build(highContrast: highContrast);
-  }
-
-  static ThemeData enhance(
-    ThemeData baseTheme, {
-    bool highContrast = false,
-  }) {
-    final colorScheme = highContrast
-        ? _withHighContrast(baseTheme.colorScheme)
-        : baseTheme.colorScheme;
+  /// Adds semantic theme extensions and applies responsive font scaling.
+  /// Per-theme font families are preserved; only sizes are scaled via [AppScale].
+  static ThemeData enhance(ThemeData baseTheme) {
+    final colorScheme = baseTheme.colorScheme;
     final semanticColors = AppSemanticColors.fromColorScheme(colorScheme);
     final extensions = <ThemeExtension>[
       semanticColors,
@@ -34,38 +28,12 @@ class AppTheme {
       LearningThemeExtension.fromColors(semanticColors),
     ];
 
+    final scaledTextTheme = AppScale.scaleTextTheme(baseTheme.textTheme);
+
     return baseTheme.copyWith(
-      colorScheme: colorScheme,
+      textTheme: scaledTextTheme,
       scaffoldBackgroundColor: semanticColors.screenBackground,
-      textTheme: AppTypography.scaleTheme(baseTheme.textTheme, colorScheme),
-      primaryTextTheme: AppTypography.scaleTheme(
-        baseTheme.primaryTextTheme,
-        colorScheme,
-      ),
       extensions: extensions.cast<ThemeExtension<dynamic>>(),
-    );
-  }
-
-  static ColorScheme _withHighContrast(ColorScheme scheme) {
-    Color contrastFor(Color color) {
-      return ThemeData.estimateBrightnessForColor(color) == Brightness.dark
-          ? Colors.white
-          : Colors.black;
-    }
-
-    return scheme.copyWith(
-      onPrimary: contrastFor(scheme.primary),
-      onSecondary: contrastFor(scheme.secondary),
-      onTertiary: contrastFor(scheme.tertiary),
-      onSurface: contrastFor(scheme.surface),
-      onError: contrastFor(scheme.error),
-      onPrimaryContainer: contrastFor(scheme.primaryContainer),
-      onSecondaryContainer: contrastFor(scheme.secondaryContainer),
-      onTertiaryContainer: contrastFor(scheme.tertiaryContainer),
-      onErrorContainer: contrastFor(scheme.errorContainer),
-      onSurfaceVariant: contrastFor(scheme.surfaceContainerHighest),
-      outline: contrastFor(scheme.surface).withValues(alpha: 0.72),
-      outlineVariant: contrastFor(scheme.surface).withValues(alpha: 0.44),
     );
   }
 }

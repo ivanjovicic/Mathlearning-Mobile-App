@@ -19,7 +19,7 @@ import '../state/streak_freeze_provider.dart';
 import '../theme/app_scale.dart';
 import '../theme/theme_extensions/theme_context.dart';
 import '../theme/tokens/spacing_tokens.dart';
-import '../ui/components/app_card.dart';
+import '../widgets/ui/app_card.dart';
 import '../ui/motion_scope.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/animated_xp_bar.dart';
@@ -91,15 +91,17 @@ class _DashboardScreenState extends State<DashboardScreen>
       final progress = Provider.of<ProgressProvider>(context, listen: false);
       final auth = Provider.of<AuthProvider>(context, listen: false);
       final coinProvider = Provider.of<CoinProvider>(context, listen: false);
-      final leaderboard =
-          Provider.of<LeaderboardProvider>(context, listen: false);
+      final leaderboard = Provider.of<LeaderboardProvider>(
+        context,
+        listen: false,
+      );
 
       progress.token = auth.token;
       leaderboard.onTokenUpdated(auth.token);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         coinProvider.loadCoinsAndHints();
-        leaderboard.loadGlobal('weekly');
+        leaderboard.loadGlobal();
       });
 
       progress.onLevelUp = () {
@@ -183,9 +185,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _openTopicPicker(ProgressProvider progress) {
     if (progress.topics.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.t.noTopicsAvailable())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.t.noTopicsAvailable())));
       return;
     }
 
@@ -203,14 +205,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     for (var i = 0; i < progress.topics.length; i++) {
       final topic = progress.topics[i];
       final locked = !topic.unlocked || progress.level < topic.requiredLevel;
-      mapped.add(TopicItem(
-        id: topic.topicId,
-        name: topic.name,
-        accuracy: locked ? 0 : 100,
-        locked: locked,
-        icon: Icons.auto_stories,
-        color: topicPalette[i % topicPalette.length],
-      ));
+      mapped.add(
+        TopicItem(
+          id: topic.topicId,
+          name: topic.name,
+          accuracy: locked ? 0 : 100,
+          locked: locked,
+          icon: Icons.auto_stories,
+          color: topicPalette[i % topicPalette.length],
+        ),
+      );
     }
 
     Navigator.push(
@@ -237,7 +241,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     final colors = context.colors;
     final progress = context.watch<ProgressProvider>();
     final auth = context.watch<AuthProvider>();
-    final reduce = MotionScope.maybeOf(context)?.reduce ??
+    final reduce =
+        MotionScope.maybeOf(context)?.reduce ??
         MediaQuery.of(context).disableAnimations;
     final username = auth.username?.trim();
     final recommendedTopic = _findRecommendedTopic(progress);
@@ -316,8 +321,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       title: recommendedTopic != null
                           ? t.continueLearning
                           : t.readyForNewRound,
-                      subtitle:
-                          recommendedTopic?.name ?? t.pickTopicAndStart,
+                      subtitle: recommendedTopic?.name ?? t.pickTopicAndStart,
                       onTap: () => context.pushQuiz(
                         topicId: _resolveQuizTopicId(progress),
                       ),
@@ -357,8 +361,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               if (progress.topics.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: AppSpacing.base),
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.base),
                     child: _QuickPracticeSection(
                       topics: progress.topics,
                       level: progress.level,
@@ -409,11 +412,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                               : null,
                           onDisabledTap: !isEnabled
                               ? () {
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(const SnackBar(
-                                    content:
-                                        Text('Nema pitanja za danas.'),
-                                  ));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Nema pitanja za danas.'),
+                                    ),
+                                  );
                                 }
                               : null,
                           onRefresh: _isRefreshingDailyReview
@@ -452,8 +455,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               if (progress.topics.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: AppSpacing.base),
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.base),
                     child: _LearningProgressGrid(
                       topics: progress.topics,
                       level: progress.level,
@@ -465,9 +467,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
 
               // ── Bottom padding ────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: SizedBox(height: AppSpacing.xxl),
-              ),
+              SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
             ],
           ),
         ),
@@ -475,7 +475,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 }
-
 
 // ── Private sub-widgets / delegates ──────────────────────────────────────────
 
@@ -528,7 +527,10 @@ class _DashboardHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final colors = context.colors;
@@ -551,19 +553,22 @@ class _DashboardHeaderDelegate extends SliverPersistentHeaderDelegate {
                 padding: EdgeInsets.only(bottom: AppSpacing.xs),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(
-                        AppScale.radius(6)),
+                    borderRadius: BorderRadius.circular(AppScale.radius(6)),
                     border: Border.all(color: colorScheme.primary),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.info_outline,
-                          color: colorScheme.onPrimaryContainer,
-                          size: 13),
+                      Icon(
+                        Icons.info_outline,
+                        color: colorScheme.onPrimaryContainer,
+                        size: 13,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Demo režim',
@@ -597,22 +602,30 @@ class _DashboardHeaderDelegate extends SliverPersistentHeaderDelegate {
                   children: [
                     IconButton(
                       onPressed: onBadgesTap,
-                      icon: Icon(Icons.workspace_premium_outlined,
-                          size: AppScale.icon(24, min: 22, max: 30)),
+                      icon: Icon(
+                        Icons.workspace_premium_outlined,
+                        size: AppScale.icon(24, min: 22, max: 30),
+                      ),
                       color: colors.textPrimary,
                       tooltip: context.safeTooltip(t.badges),
-                      constraints:
-                          const BoxConstraints(minWidth: 40, minHeight: 40),
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                     IconButton(
                       onPressed: onHeatmapTap,
-                      icon: Icon(Icons.calendar_month,
-                          size: AppScale.icon(24, min: 22, max: 30)),
+                      icon: Icon(
+                        Icons.calendar_month,
+                        size: AppScale.icon(24, min: 22, max: 30),
+                      ),
                       color: colors.textPrimary,
                       tooltip: context.safeTooltip(t.activity),
-                      constraints:
-                          const BoxConstraints(minWidth: 40, minHeight: 40),
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                   ],
@@ -630,22 +643,25 @@ class _DashboardHeaderDelegate extends SliverPersistentHeaderDelegate {
                   _StatChip(
                     icon: Icons.local_fire_department,
                     label: t.streakDays(streak),
-                    backgroundColor: colorScheme.secondaryContainer
-                        .withValues(alpha: 0.55),
+                    backgroundColor: colorScheme.secondaryContainer.withValues(
+                      alpha: 0.55,
+                    ),
                     foregroundColor: colorScheme.onSecondaryContainer,
                   ),
                   _StatChip(
                     icon: Icons.monetization_on,
                     label: t.coins(coins.coins),
-                    backgroundColor: colorScheme.tertiaryContainer
-                        .withValues(alpha: 0.55),
+                    backgroundColor: colorScheme.tertiaryContainer.withValues(
+                      alpha: 0.55,
+                    ),
                     foregroundColor: colorScheme.onTertiaryContainer,
                   ),
                   _StatChip(
                     icon: Icons.flag_circle_outlined,
                     label: t.dailyGoalShort(dailyDone, dailyGoalTarget),
-                    backgroundColor: colorScheme.primaryContainer
-                        .withValues(alpha: 0.55),
+                    backgroundColor: colorScheme.primaryContainer.withValues(
+                      alpha: 0.55,
+                    ),
                     foregroundColor: colorScheme.onPrimaryContainer,
                   ),
                 ],
@@ -667,7 +683,8 @@ class _DashboardHeaderDelegate extends SliverPersistentHeaderDelegate {
                 Text(
                   '$xp / $xpToNextLevel XP',
                   style: theme.textTheme.labelSmall?.copyWith(
-                      color: colors.textSecondary),
+                    color: colors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -712,10 +729,8 @@ class _DailyMissionsSection extends StatelessWidget {
   });
 
   List<_DailyMission> _buildMissions() {
-    final goalProgress =
-        (dailyDone / dailyGoalTarget).clamp(0.0, 1.0);
-    final streakProgress =
-        progress.isStreakDoneToday ? 1.0 : goalProgress;
+    final goalProgress = (dailyDone / dailyGoalTarget).clamp(0.0, 1.0);
+    final streakProgress = progress.isStreakDoneToday ? 1.0 : goalProgress;
     final accuracyProgress = (progress.accuracy / 100.0).clamp(0.0, 1.0);
 
     return [
@@ -768,10 +783,7 @@ class _DailyMissionCard extends StatelessWidget {
   final _DailyMission mission;
   final bool reduce;
 
-  const _DailyMissionCard({
-    required this.mission,
-    required this.reduce,
-  });
+  const _DailyMissionCard({required this.mission, required this.reduce});
 
   @override
   Widget build(BuildContext context) {
@@ -782,7 +794,8 @@ class _DailyMissionCard extends StatelessWidget {
     final isDone = mission.progress >= 1.0;
 
     return Semantics(
-      label: '${mission.title}, ${(mission.progress * 100).toInt()}% complete, +${mission.xpReward} XP',
+      label:
+          '${mission.title}, ${(mission.progress * 100).toInt()}% complete, +${mission.xpReward} XP',
       child: Container(
         width: AppScale.s(140),
         padding: EdgeInsets.all(spacing.m),
@@ -810,11 +823,12 @@ class _DailyMissionCard extends StatelessWidget {
                 const Spacer(),
                 Container(
                   padding: EdgeInsets.symmetric(
-                      horizontal: spacing.xs, vertical: 2),
+                    horizontal: spacing.xs,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.masteryStrong.withValues(alpha: 0.15),
-                    borderRadius:
-                        BorderRadius.circular(radius.pill),
+                    borderRadius: BorderRadius.circular(radius.pill),
                   ),
                   child: Text(
                     '+${mission.xpReward} XP',
@@ -922,12 +936,15 @@ class _TopicCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Semantics(
-      label: '${topic.name}, ${locked ? t.unlockAtLevel(topic.requiredLevel) : t.readyToPlay}',
+      label:
+          '${topic.name}, ${locked ? t.unlockAtLevel(topic.requiredLevel) : t.readyToPlay}',
       button: !locked,
       child: AppCard(
         onTap: onTap,
-        padding:
-            EdgeInsets.symmetric(horizontal: spacing.m, vertical: spacing.m),
+        padding: EdgeInsets.symmetric(
+          horizontal: spacing.m,
+          vertical: spacing.m,
+        ),
         backgroundColor: locked
             ? colors.cardBackground.withValues(alpha: 0.6)
             : colors.cardBackground,
@@ -955,9 +972,7 @@ class _TopicCard extends StatelessWidget {
                   Text(
                     topic.name,
                     style: theme.textTheme.titleMedium?.copyWith(
-                      color: locked
-                          ? colors.textSecondary
-                          : colors.textPrimary,
+                      color: locked ? colors.textSecondary : colors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -966,18 +981,16 @@ class _TopicCard extends StatelessWidget {
                     locked
                         ? t.unlockAtLevel(topic.requiredLevel)
                         : t.readyToPlay,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: colors.textSecondary),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
             SizedBox(width: spacing.s),
             if (!locked)
-              FilledButton.tonal(
-                onPressed: onTap,
-                child: Text(t.play),
-              )
+              FilledButton.tonal(onPressed: onTap, child: Text(t.play))
             else
               const SizedBox(width: 48),
           ],
@@ -993,16 +1006,15 @@ class _LeaderboardPreviewSection extends StatelessWidget {
   final VoidCallback onSeeAll;
   final AppI18n t;
 
-  const _LeaderboardPreviewSection({
-    required this.onSeeAll,
-    required this.t,
-  });
+  const _LeaderboardPreviewSection({required this.onSeeAll, required this.t});
 
   @override
   Widget build(BuildContext context) {
     final leaderboard = context.watch<LeaderboardProvider>();
-    final items =
-        leaderboard.itemsFor(LeaderboardScope.global).take(3).toList();
+    final items = leaderboard
+        .itemsFor(LeaderboardScope.global)
+        .take(3)
+        .toList();
     final me = leaderboard.meFor(LeaderboardScope.global);
     final colors = context.colors;
     final spacing = context.spacing;
@@ -1010,10 +1022,7 @@ class _LeaderboardPreviewSection extends StatelessWidget {
 
     return AppSection(
       title: 'Rang lista',
-      trailing: TextButton(
-        onPressed: onSeeAll,
-        child: const Text('Sve'),
-      ),
+      trailing: TextButton(onPressed: onSeeAll, child: const Text('Sve')),
       padding: EdgeInsets.only(bottom: spacing.m),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1024,19 +1033,22 @@ class _LeaderboardPreviewSection extends StatelessWidget {
               label: 'Moj rang: #${me.rank}, Top ${me.percentile}%',
               child: Container(
                 padding: EdgeInsets.symmetric(
-                    horizontal: spacing.m, vertical: spacing.s),
+                  horizontal: spacing.m,
+                  vertical: spacing.s,
+                ),
                 decoration: BoxDecoration(
                   color: context.leaderboardTheme.currentUserHighlight,
-                  borderRadius:
-                      BorderRadius.circular(context.radius.medium),
+                  borderRadius: BorderRadius.circular(context.radius.medium),
                   border: Border.all(color: colors.leaderboardGold),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.emoji_events,
-                        color: colors.leaderboardGold,
-                        size: AppScale.icon(18, min: 16, max: 24)),
+                    Icon(
+                      Icons.emoji_events,
+                      color: colors.leaderboardGold,
+                      size: AppScale.icon(18, min: 16, max: 24),
+                    ),
                     SizedBox(width: spacing.s),
                     Text(
                       'Moj rang: #${me.rank}',
@@ -1048,8 +1060,9 @@ class _LeaderboardPreviewSection extends StatelessWidget {
                     SizedBox(width: spacing.m),
                     Text(
                       'Top ${me.percentile}%',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: colors.textSecondary),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -1070,8 +1083,9 @@ class _LeaderboardPreviewSection extends StatelessWidget {
               child: Center(
                 child: Text(
                   'Nema podataka',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: colors.textSecondary),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ),
             )
@@ -1106,10 +1120,7 @@ class _AchievementsSection extends StatelessWidget {
   final VoidCallback onSeeAll;
   final AppI18n t;
 
-  const _AchievementsSection({
-    required this.onSeeAll,
-    required this.t,
-  });
+  const _AchievementsSection({required this.onSeeAll, required this.t});
 
   @override
   Widget build(BuildContext context) {
@@ -1118,10 +1129,7 @@ class _AchievementsSection extends StatelessWidget {
 
     return AppSection(
       title: t.badges,
-      trailing: TextButton(
-        onPressed: onSeeAll,
-        child: const Text('Sve'),
-      ),
+      trailing: TextButton(onPressed: onSeeAll, child: const Text('Sve')),
       padding: EdgeInsets.only(bottom: spacing.m),
       child: RepaintBoundary(
         child: SizedBox(
@@ -1172,8 +1180,7 @@ class _BadgeChip extends StatelessWidget {
             children: [
               Text(
                 badge.icon,
-                style: TextStyle(
-                    fontSize: AppScale.font(26, min: 22, max: 34)),
+                style: TextStyle(fontSize: AppScale.font(26, min: 22, max: 34)),
               ),
               const SizedBox(height: 4),
               Text(
@@ -1239,8 +1246,7 @@ class _LearningProgressGrid extends StatelessWidget {
           itemCount: topics.length,
           itemBuilder: (context, index) {
             final topic = topics[index];
-            final locked =
-                !topic.unlocked || level < topic.requiredLevel;
+            final locked = !topic.unlocked || level < topic.requiredLevel;
             final progress = locked ? 0.0 : masteryValue;
 
             return Semantics(
@@ -1268,9 +1274,7 @@ class _LearningProgressGrid extends StatelessWidget {
                       trackColor: colors.border,
                       animate: !reduce,
                       child: Icon(
-                        locked
-                            ? Icons.lock_outline
-                            : Icons.auto_stories,
+                        locked ? Icons.lock_outline : Icons.auto_stories,
                         size: AppScale.icon(18, min: 16, max: 24),
                         color: locked
                             ? colors.textSecondary
@@ -1330,7 +1334,11 @@ class _StatChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: foregroundColor, size: AppScale.icon(18, min: 16, max: 24)),
+          Icon(
+            icon,
+            color: foregroundColor,
+            size: AppScale.icon(18, min: 16, max: 24),
+          ),
           SizedBox(width: AppSpacing.xs),
           Text(
             label,
@@ -1563,15 +1571,14 @@ class _LearningPathBanner extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final provider = context.watch<LearningPathProvider?>();
     final recommended = provider?.recommended;
-    final String title =
-        recommended != null ? recommended.topicName : 'Start your path';
+    final String title = recommended != null
+        ? recommended.topicName
+        : 'Start your path';
     final String subtitle = recommended != null
         ? (recommended.recommendationReason ?? 'Continue where you left off')
         : 'Build skills step by step';
     return GestureDetector(
-      onTap: () => context.goLearnMap(
-        focusNodeId: recommended?.id,
-      ),
+      onTap: () => context.goLearnMap(focusNodeId: recommended?.id),
       child: Container(
         margin: EdgeInsets.symmetric(horizontal: AppScale.s(4)),
         padding: EdgeInsets.symmetric(

@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../theme/astrax_theme.dart';
 
 class AstraGlassButton extends StatelessWidget {
   final String text;
@@ -14,6 +13,7 @@ class AstraGlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
@@ -23,12 +23,12 @@ class AstraGlassButton extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
             decoration: BoxDecoration(
-              color: AstraXTheme.glass,
+              color: cs.surface.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: AstraXTheme.neonBlue.withValues(alpha: 0.6)),
+              border: Border.all(color: cs.primary.withValues(alpha: 0.6)),
               boxShadow: [
                 BoxShadow(
-                  color: AstraXTheme.neonBlue.withValues(alpha: 0.35),
+                  color: cs.primary.withValues(alpha: 0.35),
                   blurRadius: 22,
                   spreadRadius: -2,
                 ),
@@ -62,6 +62,7 @@ class AstraNeonButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -70,8 +71,8 @@ class AstraNeonButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AstraXTheme.neonPurple.withValues(alpha: 0.95),
-              AstraXTheme.neonBlue.withValues(alpha: 0.95),
+              cs.secondary.withValues(alpha: 0.95),
+              cs.primary.withValues(alpha: 0.95),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -79,7 +80,7 @@ class AstraNeonButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: AstraXTheme.neonPurple.withValues(alpha: 0.5),
+              color: cs.secondary.withValues(alpha: 0.5),
               blurRadius: 26,
               offset: const Offset(0, 0),
             ),
@@ -112,12 +113,13 @@ class AstraSoftButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 22),
         decoration: BoxDecoration(
-          color: AstraXTheme.panel,
+          color: cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
@@ -136,7 +138,7 @@ class AstraSoftButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, color: AstraXTheme.neonBlue, size: 20),
+              Icon(icon, color: cs.primary, size: 20),
               const SizedBox(width: 8),
             ],
             Text(

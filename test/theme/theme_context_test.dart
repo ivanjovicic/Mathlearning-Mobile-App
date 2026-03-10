@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mathlearning/theme/app_scale.dart';
 import 'package:mathlearning/theme/app_theme.dart';
 import 'package:mathlearning/theme/theme_extensions/theme_context.dart';
+import 'package:mathlearning/theme/themes/scifi_theme.dart';
 
 void main() {
   testWidgets('theme context exposes semantic tokens', (tester) async {
@@ -11,16 +12,22 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.light(),
+        theme: SciFiTheme.data,
         builder: (context, child) {
           AppScale.init(context);
-          snapshot = AppSemanticColorsSnapshot(
-            spacingM: context.spacing.m,
-            radiusCard: context.radius.card,
-            textPrimary: context.colors.textPrimary,
-            motionFast: context.motion.fast,
+          final enhanced = AppTheme.enhance(Theme.of(context));
+          return Theme(
+            data: enhanced,
+            child: Builder(builder: (innerContext) {
+              snapshot = AppSemanticColorsSnapshot(
+                spacingM: innerContext.spacing.m,
+                radiusCard: innerContext.radius.card,
+                textPrimary: innerContext.colors.textPrimary,
+                motionFast: innerContext.motion.fast,
+              );
+              return child ?? const SizedBox.shrink();
+            }),
           );
-          return child ?? const SizedBox.shrink();
         },
         home: const Scaffold(body: SizedBox()),
       ),

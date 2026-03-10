@@ -5,8 +5,8 @@ import '../models/school_leaderboard_models.dart' show SchoolAggregateItem;
 import '../theme/app_scale.dart';
 import '../theme/theme_extensions/theme_context.dart';
 import '../theme/tokens/app_motion.dart';
-import '../ui/components/app_badge.dart';
-import '../ui/components/app_card.dart';
+import 'ui/app_badge.dart';
+import 'ui/app_card.dart';
 
 class LeaderboardItemWidget extends StatelessWidget {
   const LeaderboardItemWidget({

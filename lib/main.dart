@@ -14,7 +14,6 @@ import 'state/quiz_provider.dart';
 import 'state/progress_provider.dart';
 import 'state/heatmap_provider.dart';
 import 'state/coin_provider.dart';
-import 'state/school_leaderboard_provider.dart';
 import 'state/settings_provider.dart';
 import 'state/onboarding_provider.dart';
 import 'state/streak_freeze_provider.dart';
@@ -148,7 +147,6 @@ class MathLearningApp extends StatelessWidget {
             return provider;
           },
         ),
-        ChangeNotifierProvider(create: (_) => SchoolLeaderboardProvider()),
         ChangeNotifierProxyProvider<AuthProvider, SettingsProvider>(
           create: (_) => SettingsProvider(),
           update: (_, auth, previous) {
@@ -170,9 +168,8 @@ class MathLearningApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProxyProvider<ProgressProvider, AdaptiveProvider>(
-          create: (_) => AdaptiveProvider(
-            adaptiveService: _adaptiveLearningService,
-          ),
+          create: (_) =>
+              AdaptiveProvider(adaptiveService: _adaptiveLearningService),
           update: (_, progress, previous) {
             final provider =
                 previous ??
@@ -196,7 +193,8 @@ class MathLearningApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProxyProvider<ProgressProvider, LearningPathProvider>(
-          create: (_) => LearningPathProvider(service: _adaptiveLearningService),
+          create: (_) =>
+              LearningPathProvider(service: _adaptiveLearningService),
           update: (_, progress, previous) {
             final provider =
                 previous ??
@@ -285,7 +283,6 @@ class _AppRootState extends State<_AppRoot> {
         AppScale.init(context);
         final scaledTheme = AppTheme.enhance(
           Theme.of(context),
-          highContrast: highContrast,
         );
         return MediaQuery(
           data: mediaQuery.copyWith(

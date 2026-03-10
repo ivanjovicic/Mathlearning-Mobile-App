@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme/astrax_theme.dart';
 
 /// Astra-quality toggle switch with neon glow, animated knob,
 /// optional label, and haptic feedback.
 class AstraToggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
-  final Color activeColor;
+  final Color? activeColor;
   final String? label;
   final bool enabled;
 
@@ -15,7 +14,7 @@ class AstraToggle extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
-    this.activeColor = AstraXTheme.neonBlue,
+    this.activeColor,
     this.label,
     this.enabled = true,
   });
@@ -28,6 +27,8 @@ class AstraToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final effectiveColor = activeColor ?? cs.primary;
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final duration = reduceMotion
@@ -51,18 +52,18 @@ class AstraToggle extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(30),
               color: value
-                  ? activeColor.withValues(alpha: 0.3)
-                  : AstraXTheme.panel,
+                  ? effectiveColor.withValues(alpha: 0.3)
+                  : cs.surfaceContainerHighest,
               border: Border.all(
                 color: value
-                    ? activeColor.withValues(alpha: 0.6)
+                    ? effectiveColor.withValues(alpha: 0.6)
                     : Colors.white.withValues(alpha: 0.12),
                 width: 1.5,
               ),
               boxShadow: [
                 if (value)
                   BoxShadow(
-                    color: activeColor.withValues(alpha: 0.25),
+                    color: effectiveColor.withValues(alpha: 0.25),
                     blurRadius: 14,
                     spreadRadius: -2,
                   ),
@@ -81,12 +82,12 @@ class AstraToggle extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: value
-                      ? activeColor
+                      ? effectiveColor
                       : Colors.white.withValues(alpha: 0.24),
                   boxShadow: [
                     if (value)
                       BoxShadow(
-                        color: activeColor.withValues(alpha: 0.55),
+                        color: effectiveColor.withValues(alpha: 0.55),
                         blurRadius: 16,
                         spreadRadius: 1,
                       ),
@@ -111,7 +112,7 @@ class AstraToggle extends StatelessWidget {
             child: Text(
               label!,
               style: TextStyle(
-                color: AstraXTheme.textPrimary.withValues(alpha: opacity),
+                  color: cs.onSurface.withValues(alpha: opacity),
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
               ),

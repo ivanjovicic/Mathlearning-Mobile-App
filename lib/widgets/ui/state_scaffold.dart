@@ -31,6 +31,8 @@ class StateScaffold extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final theme = Theme.of(context);
+
     if (error != null) {
       return Center(
         child: Padding(
@@ -41,13 +43,13 @@ class StateScaffold extends StatelessWidget {
               Icon(
                 Icons.error_outline,
                 size: AppScale.icon(42, min: 36, max: 56),
-                color: Theme.of(context).colorScheme.error,
+                color: theme.colorScheme.error,
               ),
               SizedBox(height: AppSpacing.md),
               Text(
                 error!,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium,
               ),
               SizedBox(height: AppSpacing.base),
               FilledButton.icon(
@@ -73,13 +75,13 @@ class StateScaffold extends StatelessWidget {
               Text(
                 emptyTitle,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: theme.textTheme.titleMedium,
               ),
               SizedBox(height: AppSpacing.sm),
               Text(
                 emptySubtitle,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium,
               ),
             ],
           ),

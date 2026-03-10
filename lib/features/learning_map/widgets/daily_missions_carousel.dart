@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:mathlearning/features/learning_map/models/daily_mission.dart';
 import 'package:mathlearning/theme/app_scale.dart';
 import 'package:mathlearning/theme/theme_extensions/theme_context.dart';
-import 'package:mathlearning/ui/components/app_card.dart';
-import 'package:mathlearning/ui/components/app_progress_bar.dart';
+import 'package:mathlearning/widgets/ui/app_card.dart';
+import 'package:mathlearning/widgets/ui/app_progress_bar.dart';
 
 class DailyMissionsCarousel extends StatelessWidget {
   const DailyMissionsCarousel({super.key, required this.missions});

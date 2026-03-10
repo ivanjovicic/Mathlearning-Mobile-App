@@ -253,6 +253,8 @@ class TestLeaderboardProvider extends LeaderboardProvider {
   TestLeaderboardProvider({
     this.globalItems = const [],
     this.friendsItems = const [],
+    this.schoolItems = const [],
+    this.rivalsItems = const [],
     this.globalMe,
     this.friendsMe,
   }) {
@@ -268,20 +270,27 @@ class TestLeaderboardProvider extends LeaderboardProvider {
       me: friendsMe,
       hasMore: false,
     );
+    _setSchools();
+    _setRivals();
   }
 
   final List<LeaderboardItem> globalItems;
   final List<LeaderboardItem> friendsItems;
+  @override
+  final List<SchoolLeaderboardEntry> schoolItems;
+  final List<RivalLeaderboardEntry> rivalsItems;
   final LeaderboardMe? globalMe;
   final LeaderboardMe? friendsMe;
 
   int loadGlobalCalls = 0;
   int loadFriendsCalls = 0;
   int reloadScopeCalls = 0;
+  int reloadSchoolsCalls = 0;
+  int fetchRivalsCalls = 0;
   LeaderboardScope? lastReloadScope;
-  String? lastReloadRange;
-  String? lastGlobalRange;
-  String? lastFriendsRange;
+  LeaderboardPeriod? lastReloadPeriod;
+  LeaderboardPeriod? lastGlobalPeriod;
+  LeaderboardPeriod? lastFriendsPeriod;
 
   void _setScope(
     LeaderboardScope scope,
@@ -305,9 +314,22 @@ class TestLeaderboardProvider extends LeaderboardProvider {
   LeaderboardMe? meFor(LeaderboardScope scope) => _meOverrides[scope];
 
   @override
-  Future<void> loadGlobal(String range) async {
+  List<RivalLeaderboardEntry> get rivals => List.unmodifiable(rivalsItems);
+
+  @override
+  bool get isLoadingRivals => false;
+
+  @override
+  Object? get rivalsError => null;
+
+  @override
+  SchoolLeaderboardEntry? get currentSchoolEntry =>
+      schoolItems.isEmpty ? null : schoolItems.first;
+
+  @override
+  Future<void> loadGlobal([LeaderboardPeriod? period]) async {
     loadGlobalCalls++;
-    lastGlobalRange = range;
+    lastGlobalPeriod = period ?? currentPeriod;
     _setScope(
       LeaderboardScope.global,
       globalItems,
@@ -318,9 +340,9 @@ class TestLeaderboardProvider extends LeaderboardProvider {
   }
 
   @override
-  Future<void> loadFriends(String range) async {
+  Future<void> loadFriends([LeaderboardPeriod? period]) async {
     loadFriendsCalls++;
-    lastFriendsRange = range;
+    lastFriendsPeriod = period ?? currentPeriod;
     _setScope(
       LeaderboardScope.friends,
       friendsItems,
@@ -331,10 +353,13 @@ class TestLeaderboardProvider extends LeaderboardProvider {
   }
 
   @override
-  Future<void> reloadScope(LeaderboardScope scope, String range) async {
+  Future<void> reloadScope(
+    LeaderboardScope scope, {
+    LeaderboardPeriod? period,
+  }) async {
     reloadScopeCalls++;
     lastReloadScope = scope;
-    lastReloadRange = range;
+    lastReloadPeriod = period ?? currentPeriod;
     switch (scope) {
       case LeaderboardScope.global:
         _setScope(scope, globalItems, me: globalMe, hasMore: false);
@@ -347,5 +372,41 @@ class TestLeaderboardProvider extends LeaderboardProvider {
         break;
     }
     notifyListeners();
+  }
+
+  @override
+  Future<void> ensureUsersLoaded() async {
+    await reloadScope(LeaderboardScope.global, period: currentPeriod);
+    await fetchRivals(period: currentPeriod);
+  }
+
+  @override
+  Future<void> reloadSchoolLeaderboard({LeaderboardPeriod? period}) async {
+    reloadSchoolsCalls++;
+    _setSchools();
+    notifyListeners();
+  }
+
+  @override
+  Future<void> ensureSchoolsLoaded() async {
+    await reloadSchoolLeaderboard(period: currentPeriod);
+  }
+
+  @override
+  Future<void> fetchRivals({LeaderboardPeriod? period}) async {
+    fetchRivalsCalls++;
+    _setRivals();
+    notifyListeners();
+  }
+
+  void _setSchools() {
+    schoolPaging.reset();
+    schoolPaging.items.addAll(schoolItems);
+    schoolPaging.hasLoadedOnce = true;
+    schoolPaging.hasMore = false;
+  }
+
+  void _setRivals() {
+    // Getter override serves rivals data for widget tests.
   }
 }

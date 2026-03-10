@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/theme_extensions/theme_context.dart';
-import '../ui/components/app_button.dart';
+import 'ui/app_button.dart';
 
 class SearchErrorState extends StatelessWidget {
   final String message;

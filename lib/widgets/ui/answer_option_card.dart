@@ -25,7 +25,8 @@ class QuizOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final spacing = context.spacing;
     final radius = context.radius;
     final motion = context.motion;
@@ -72,7 +73,7 @@ class QuizOptionTile extends StatelessWidget {
                 child: MathRenderer(
                   value: text,
                   mode: MathViewMode.answerOption,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: theme.textTheme.bodyLarge,
                 ),
               ),
             ],

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/astrax_theme.dart';
 
 class AstraInput extends StatelessWidget {
   final String label;
@@ -13,6 +12,7 @@ class AstraInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return TextField(
       controller: controller,
       style: const TextStyle(color: Colors.white),
@@ -21,13 +21,13 @@ class AstraInput extends StatelessWidget {
         floatingLabelBehavior: FloatingLabelBehavior.auto,
         labelStyle: const TextStyle(color: Colors.white54),
         filled: true,
-        fillColor: AstraXTheme.panelLight,
+        fillColor: cs.surfaceContainerHighest,
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AstraXTheme.radius),
-          borderSide: const BorderSide(color: AstraXTheme.neonBlue, width: 2),
+          borderRadius: BorderRadius.circular(22),
+          borderSide: BorderSide(color: cs.primary, width: 2),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AstraXTheme.radius),
+          borderRadius: BorderRadius.circular(22),
           borderSide: const BorderSide(color: Colors.white24),
         ),
       ),

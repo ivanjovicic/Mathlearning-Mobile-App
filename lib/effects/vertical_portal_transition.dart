@@ -45,6 +45,11 @@ class _VerticalPortalTransitionState extends State<VerticalPortalTransition>
 
   @override
   Widget build(BuildContext context) {
+    // Respect reduced-motion preference — skip transition entirely.
+    if (MediaQuery.of(context).disableAnimations) {
+      return widget.child;
+    }
+
     // When not animating, just show the child directly – no portal overlays.
     if (!_controller.isAnimating) {
       return widget.child;

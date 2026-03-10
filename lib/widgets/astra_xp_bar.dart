@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/astrax_theme.dart';
 
 class AstraXPBar extends StatelessWidget {
   final double progress;
@@ -8,6 +7,7 @@ class AstraXPBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final normalized = progress.clamp(0.0, 1.0);
     return Container(
       height: 14,
@@ -20,16 +20,16 @@ class AstraXPBar extends StatelessWidget {
         widthFactor: normalized,
         child: Container(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               colors: [
-                AstraXTheme.neonGreen,
-                AstraXTheme.neonBlue,
+                cs.tertiary,
+                cs.primary,
               ],
             ),
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: AstraXTheme.neonBlue.withValues(alpha: 0.4),
+                color: cs.primary.withValues(alpha: 0.4),
                 blurRadius: 14,
               ),
             ],

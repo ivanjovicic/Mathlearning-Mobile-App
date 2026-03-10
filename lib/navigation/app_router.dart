@@ -92,10 +92,7 @@ abstract class AppRouteWidgetFactory {
 
   Widget buildAiTutor(BuildContext context, AiTutorRoute route);
 
-  Widget buildParentDashboard(
-    BuildContext context,
-    ParentDashboardRoute route,
-  );
+  Widget buildParentDashboard(BuildContext context, ParentDashboardRoute route);
 
   Widget buildUserSearch(BuildContext context, UserSearchRoute route);
 }
@@ -294,18 +291,18 @@ class AppRouter {
       GlobalKey<NavigatorState>(debugLabel: 'home-nav');
   static final GlobalKey<NavigatorState> learnNavigatorKey =
       GlobalKey<NavigatorState>(debugLabel: 'learn-nav');
+  static final GlobalKey<NavigatorState> practiceNavigatorKey =
+      GlobalKey<NavigatorState>(debugLabel: 'practice-nav');
   static final GlobalKey<NavigatorState> leaderboardNavigatorKey =
       GlobalKey<NavigatorState>(debugLabel: 'leaderboard-nav');
   static final GlobalKey<NavigatorState> profileNavigatorKey =
       GlobalKey<NavigatorState>(debugLabel: 'profile-nav');
-  static final GlobalKey<NavigatorState> settingsNavigatorKey =
-      GlobalKey<NavigatorState>(debugLabel: 'settings-nav');
 
   static GoRouter createRouter({
     required AppNavigationState navigationState,
     AppRouteWidgetFactory widgetFactory = const DefaultAppRouteWidgetFactory(),
     Widget Function(BuildContext context, StatefulNavigationShell shell)?
-        shellBuilder,
+    shellBuilder,
     String initialLocation = AppRoutePaths.splash,
   }) {
     final guards = AppRouteGuards(navigationState: navigationState);
@@ -314,10 +311,8 @@ class AppRouter {
       navigatorKey: rootNavigatorKey,
       initialLocation: initialLocation,
       refreshListenable: navigationState,
-      errorBuilder: (context, state) => ErrorScreen(
-        location: state.location,
-        error: state.error,
-      ),
+      errorBuilder: (context, state) =>
+          ErrorScreen(location: state.location, error: state.error),
       redirect: (_, state) => guards.redirect(state),
       routes: <RouteBase>[
         GoRoute(
@@ -350,15 +345,6 @@ class AppRouter {
         ),
         GoRoute(
           parentNavigatorKey: rootNavigatorKey,
-          path: AppRoutePaths.practiceHub,
-          name: PracticeHubRoute.routeName,
-          builder: (context, state) => widgetFactory.buildPracticeHub(
-            context,
-            const PracticeHubRoute(),
-          ),
-        ),
-        GoRoute(
-          parentNavigatorKey: rootNavigatorKey,
           path: AppRoutePaths.practiceAdaptive,
           name: AdaptivePracticeRoute.routeName,
           builder: (context, state) => widgetFactory.buildAdaptivePractice(
@@ -386,8 +372,10 @@ class AppRouter {
           parentNavigatorKey: rootNavigatorKey,
           path: AppRoutePaths.aiTutor,
           name: AiTutorRoute.routeName,
-          builder: (context, state) =>
-              widgetFactory.buildAiTutor(context, AiTutorRoute.fromState(state)),
+          builder: (context, state) => widgetFactory.buildAiTutor(
+            context,
+            AiTutorRoute.fromState(state),
+          ),
         ),
         GoRoute(
           parentNavigatorKey: rootNavigatorKey,
@@ -418,10 +406,8 @@ class AppRouter {
                 GoRoute(
                   path: AppRoutePaths.home,
                   name: HomeRoute.routeName,
-                  builder: (context, state) => widgetFactory.buildHome(
-                    context,
-                    const HomeRoute(),
-                  ),
+                  builder: (context, state) =>
+                      widgetFactory.buildHome(context, const HomeRoute()),
                 ),
                 GoRoute(
                   path: AppRoutePaths.dailyReview,
@@ -461,9 +447,23 @@ class AppRouter {
                 GoRoute(
                   path: AppRoutePaths.learnInsights,
                   name: LearningInsightsRoute.routeName,
-                  builder: (context, state) => widgetFactory.buildLearningInsights(
+                  builder: (context, state) =>
+                      widgetFactory.buildLearningInsights(
+                        context,
+                        const LearningInsightsRoute(),
+                      ),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              navigatorKey: practiceNavigatorKey,
+              routes: <GoRoute>[
+                GoRoute(
+                  path: AppRoutePaths.practiceHub,
+                  name: PracticeHubRoute.routeName,
+                  builder: (context, state) => widgetFactory.buildPracticeHub(
                     context,
-                    const LearningInsightsRoute(),
+                    const PracticeHubRoute(),
                   ),
                 ),
               ],
@@ -526,19 +526,18 @@ class AppRouter {
                 GoRoute(
                   path: AppRoutePaths.feedback,
                   name: FeedbackRoute.routeName,
-                  builder: (context, state) =>
-                      widgetFactory.buildFeedback(context, const FeedbackRoute()),
+                  builder: (context, state) => widgetFactory.buildFeedback(
+                    context,
+                    const FeedbackRoute(),
+                  ),
                 ),
-              ],
-            ),
-            StatefulShellBranch(
-              navigatorKey: settingsNavigatorKey,
-              routes: <GoRoute>[
                 GoRoute(
                   path: AppRoutePaths.settings,
                   name: SettingsRoute.routeName,
-                  builder: (context, state) =>
-                      widgetFactory.buildSettings(context, const SettingsRoute()),
+                  builder: (context, state) => widgetFactory.buildSettings(
+                    context,
+                    const SettingsRoute(),
+                  ),
                 ),
                 GoRoute(
                   path: AppRoutePaths.themes,
@@ -573,10 +572,7 @@ class _BootstrapSplashScreen extends StatelessWidget {
           children: <Widget>[
             CircularProgressIndicator(color: colorScheme.primary),
             const SizedBox(height: 16),
-            Text(
-              'Preparing MathLearning…',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('Preparing MathLearning…', style: theme.textTheme.titleMedium),
             if (redirectTo != null) ...<Widget>[
               const SizedBox(height: 8),
               Text(

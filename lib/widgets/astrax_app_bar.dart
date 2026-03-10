@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/astrax_theme.dart';
 
 class AstraAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -16,6 +15,8 @@ class AstraAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return AppBar(
       titleSpacing: 16,
       title: Row(
@@ -23,12 +24,12 @@ class AstraAppBar extends StatelessWidget implements PreferredSizeWidget {
           Container(
             width: 28,
             height: 28,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
                 colors: [
-                  AstraXTheme.neonBlue,
-                  AstraXTheme.neonPurple,
+                  cs.primary,
+                  cs.secondary,
                 ],
               ),
             ),

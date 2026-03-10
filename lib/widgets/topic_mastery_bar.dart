@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_scale.dart';
 import '../theme/theme_extensions/theme_context.dart';
-import '../ui/components/app_card.dart';
-import '../ui/components/app_progress_bar.dart';
+import 'ui/app_card.dart';
+import 'ui/app_progress_bar.dart';
 
 class TopicMasteryBar extends StatelessWidget {
   final String topic;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mathlearning/models/leaderboard_models.dart';
@@ -14,18 +15,22 @@ class _NoopLeaderboardProvider extends LeaderboardProvider {
   _NoopLeaderboardProvider();
 
   @override
-  Future<void> loadGlobal(String range) async {}
+  Future<void> ensureUsersLoaded() async {}
 
   @override
-  Future<void> loadFriends(String range) async {}
+  Future<void> loadGlobal([LeaderboardPeriod? period]) async {}
+
+  @override
+  Future<void> loadFriends([LeaderboardPeriod? period]) async {}
 }
 
 void main() {
   bootstrapTests();
 
   group('LeaderboardScreen', () {
-    testWidgets('shows loading indicator when provider isLoading is true',
-        (tester) async {
+    testWidgets('shows loading indicator when provider isLoading is true', (
+      tester,
+    ) async {
       final leaderboard = _NoopLeaderboardProvider();
       leaderboard.pagingFor(LeaderboardScope.global).isLoading = true;
       final auth = TestAuthProvider();
@@ -42,11 +47,12 @@ void main() {
         ),
       );
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(ListTileShimmer), findsWidgets);
     });
 
-    testWidgets('shows empty state with RefreshIndicator when list is empty',
-        (tester) async {
+    testWidgets('shows empty state with RefreshIndicator when list is empty', (
+      tester,
+    ) async {
       final leaderboard = _NoopLeaderboardProvider();
       leaderboard.pagingFor(LeaderboardScope.global).isLoading = false;
       final auth = TestAuthProvider();
@@ -64,20 +70,21 @@ void main() {
       );
 
       expect(find.byType(RefreshIndicator), findsOneWidget);
-      expect(find.text('Nema podataka.'), findsOneWidget);
+      expect(find.text('No leaderboard data yet.'), findsOneWidget);
     });
 
-    testWidgets('renders rows and highlights current user with "Ti"',
-        (tester) async {
-      final items = [
-        LeaderboardItem(
+    testWidgets('renders rows, highlights current user and shows rivals', (
+      tester,
+    ) async {
+      final items = <LeaderboardItem>[
+        const LeaderboardItem(
           rank: 1,
           userId: 1,
           displayName: 'Top Player',
           score: 300,
           streakDays: 12,
         ),
-        LeaderboardItem(
+        const LeaderboardItem(
           rank: 5,
           userId: 42,
           displayName: 'Alex',
@@ -86,7 +93,34 @@ void main() {
         ),
       ];
 
-      final leaderboard = TestLeaderboardProvider(globalItems: items);
+      final rivals = <RivalLeaderboardEntry>[
+        const RivalLeaderboardEntry(
+          rank: 3,
+          userId: 30,
+          displayName: 'Mia',
+          score: 145,
+          streakDays: 4,
+        ),
+        const RivalLeaderboardEntry(
+          rank: 4,
+          userId: 31,
+          displayName: 'Noah',
+          score: 132,
+          streakDays: 5,
+        ),
+        const RivalLeaderboardEntry(
+          rank: 5,
+          userId: 42,
+          displayName: 'Alex',
+          score: 123,
+          streakDays: 7,
+        ),
+      ];
+
+      final leaderboard = TestLeaderboardProvider(
+        globalItems: items,
+        rivalsItems: rivals,
+      );
       final auth = TestAuthProvider(userId: '42');
 
       await tester.pumpWidget(
@@ -101,40 +135,34 @@ void main() {
         ),
       );
 
-      // Let initState post-frame loads run.
       await tester.pump();
 
-      expect(find.text('Alex'), findsOneWidget);
+      expect(find.text('Alex'), findsNWidgets(2));
       expect(find.text('Ti'), findsOneWidget);
-      expect(find.text('123 XP'), findsOneWidget);
+      expect(find.text('Rivals nearby'), findsOneWidget);
+      expect(find.text('You'), findsOneWidget);
     });
 
-    testWidgets('changing range reloads current scope with new range', (tester) async {
-      final leaderboard = TestLeaderboardProvider(
-        globalItems: const [],
-        friendsItems: const [],
-      );
+    testWidgets('changing period reloads current board and updates provider', (
+      tester,
+    ) async {
+      final leaderboard = TestLeaderboardProvider();
 
       await tester.pumpWidget(
         MaterialApp(
           home: ChangeNotifierProvider<LeaderboardProvider>.value(
             value: leaderboard,
-            child: const LeaderboardScreen(),
+            child: const LeaderboardScreen(autoLoad: false),
           ),
         ),
       );
 
+      await tester.tap(find.text('Month'));
       await tester.pump();
 
-      // Open dropdown and select "Ukupno" (allTime).
-      await tester.tap(find.byType(DropdownButton<String>));
-      await tester.pump();
-      await tester.tap(find.text('Ukupno').last);
-      await tester.pump();
-
+      expect(leaderboard.currentPeriod, LeaderboardPeriod.month);
       expect(leaderboard.lastReloadScope, LeaderboardScope.global);
-      expect(leaderboard.lastReloadRange, 'allTime');
-      expect(leaderboard.reloadScopeCalls, greaterThan(0));
+      expect(leaderboard.lastReloadPeriod, LeaderboardPeriod.month);
     });
   });
 }

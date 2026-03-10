@@ -5,6 +5,8 @@ import '../services/api_service.dart';
 
 enum LeaderboardScope { global, school, faculty, friends }
 
+enum LeaderboardBoard { users, schools }
+
 extension LeaderboardScopeX on LeaderboardScope {
   String get apiValue {
     switch (this) {
@@ -27,20 +29,46 @@ class LeaderboardProvider extends ChangeNotifier {
 
   String? token;
   String? _lastToken;
+  LeaderboardPeriod _currentPeriod = LeaderboardPeriod.week;
 
-  final Map<LeaderboardScope, LeaderboardPagingController> _paging = {
-    for (final s in LeaderboardScope.values) s: LeaderboardPagingController(),
+  final Map<LeaderboardScope, LeaderboardPagingController<LeaderboardItem>>
+  _paging = <LeaderboardScope, LeaderboardPagingController<LeaderboardItem>>{
+    for (final scope in LeaderboardScope.values)
+      scope: LeaderboardPagingController<LeaderboardItem>(),
   };
 
-  final Map<LeaderboardScope, LeaderboardMe?> _me = {
-    for (final s in LeaderboardScope.values) s: null,
+  final Map<LeaderboardScope, LeaderboardMe?> _me =
+      <LeaderboardScope, LeaderboardMe?>{
+        for (final scope in LeaderboardScope.values) scope: null,
+      };
+
+  final Map<LeaderboardScope, Object?> _error = <LeaderboardScope, Object?>{
+    for (final scope in LeaderboardScope.values) scope: null,
   };
 
-  final Map<LeaderboardScope, Object?> _error = {
-    for (final s in LeaderboardScope.values) s: null,
-  };
+  final Map<LeaderboardScope, LeaderboardPeriod?> _loadedUserPeriods =
+      <LeaderboardScope, LeaderboardPeriod?>{
+        for (final scope in LeaderboardScope.values) scope: null,
+      };
 
-  LeaderboardPagingController pagingFor(LeaderboardScope scope) => _paging[scope]!;
+  final LeaderboardPagingController<SchoolLeaderboardEntry> _schoolPaging =
+      LeaderboardPagingController<SchoolLeaderboardEntry>();
+  LeaderboardPeriod? _loadedSchoolPeriod;
+  SchoolLeaderboardEntry? _currentSchool;
+  Object? _schoolError;
+
+  List<RivalLeaderboardEntry> _rivals = const <RivalLeaderboardEntry>[];
+  LeaderboardPeriod? _loadedRivalsPeriod;
+  Object? _rivalsError;
+  bool _isLoadingRivals = false;
+
+  int? currentUserId;
+
+  LeaderboardPeriod get currentPeriod => _currentPeriod;
+
+  LeaderboardPagingController<LeaderboardItem> pagingFor(
+    LeaderboardScope scope,
+  ) => _paging[scope]!;
 
   List<LeaderboardItem> itemsFor(LeaderboardScope scope) =>
       List.unmodifiable(_paging[scope]!.items);
@@ -51,16 +79,42 @@ class LeaderboardProvider extends ChangeNotifier {
 
   bool hasLoaded(LeaderboardScope scope) => _paging[scope]!.hasLoadedOnce;
 
+  LeaderboardPagingController<SchoolLeaderboardEntry> get schoolPaging =>
+      _schoolPaging;
+
+  List<SchoolLeaderboardEntry> get schoolItems =>
+      List.unmodifiable(_schoolPaging.items);
+
+  SchoolLeaderboardEntry? get currentSchoolEntry => _currentSchool;
+
+  Object? get schoolError => _schoolError;
+
+  List<RivalLeaderboardEntry> get rivals => List.unmodifiable(_rivals);
+
+  Object? get rivalsError => _rivalsError;
+
+  bool get isLoadingRivals => _isLoadingRivals;
+
+  bool get isLoadingSchools => _schoolPaging.isLoading;
+
   void resetAll() {
-    for (final s in LeaderboardScope.values) {
-      _paging[s]!.reset();
-      _me[s] = null;
-      _error[s] = null;
+    for (final scope in LeaderboardScope.values) {
+      _paging[scope]!.reset();
+      _me[scope] = null;
+      _error[scope] = null;
+      _loadedUserPeriods[scope] = null;
     }
+    _schoolPaging.reset();
+    _loadedSchoolPeriod = null;
+    _currentSchool = null;
+    _schoolError = null;
+    _rivals = const <RivalLeaderboardEntry>[];
+    _loadedRivalsPeriod = null;
+    _rivalsError = null;
+    _isLoadingRivals = false;
     notifyListeners();
   }
 
-  /// Call when auth token changes, to avoid showing stale data from a previous user.
   void onTokenUpdated(String? newToken) {
     if (_lastToken == newToken) return;
     _lastToken = newToken;
@@ -68,103 +122,257 @@ class LeaderboardProvider extends ChangeNotifier {
     resetAll();
   }
 
-  Future<void> loadGlobal(String range) async {
-    await reloadScope(LeaderboardScope.global, range);
+  void setCurrentUserId(int? userId) {
+    if (currentUserId == userId) {
+      return;
+    }
+    currentUserId = userId;
+    notifyListeners();
   }
 
-  Future<void> loadFriends(String range) async {
-    await reloadScope(LeaderboardScope.friends, range);
+  Future<void> changePeriod(
+    LeaderboardPeriod period, {
+    required LeaderboardBoard board,
+  }) async {
+    final didChange = _currentPeriod != period;
+    _currentPeriod = period;
+    if (didChange) {
+      notifyListeners();
+    }
+
+    if (board == LeaderboardBoard.users) {
+      await Future.wait<void>(<Future<void>>[
+        reloadScope(LeaderboardScope.global, period: period),
+        fetchRivals(period: period),
+      ]);
+      return;
+    }
+
+    await reloadSchoolLeaderboard(period: period);
   }
 
-  Future<void> loadSchool(String range) async {
-    await reloadScope(LeaderboardScope.school, range);
+  Future<void> ensureUsersLoaded() async {
+    final period = _currentPeriod;
+    final shouldReloadUsers =
+        !hasLoaded(LeaderboardScope.global) ||
+        _loadedUserPeriods[LeaderboardScope.global] != period;
+    final shouldReloadRivals = _loadedRivalsPeriod != period;
+
+    final work = <Future<void>>[];
+    if (shouldReloadUsers) {
+      work.add(reloadScope(LeaderboardScope.global, period: period));
+    }
+    if (shouldReloadRivals) {
+      work.add(fetchRivals(period: period));
+    }
+
+    if (work.isEmpty) {
+      return;
+    }
+
+    await Future.wait<void>(work);
   }
 
-  Future<void> loadFaculty(String range) async {
-    await reloadScope(LeaderboardScope.faculty, range);
+  Future<void> ensureSchoolsLoaded() async {
+    if (_schoolPaging.hasLoadedOnce && _loadedSchoolPeriod == _currentPeriod) {
+      return;
+    }
+    await reloadSchoolLeaderboard(period: _currentPeriod);
   }
 
-  Future<void> reloadScope(LeaderboardScope scope, String range) async {
-    final p = _paging[scope]!;
-    p.reset();
+  Future<void> loadGlobal([LeaderboardPeriod? period]) async {
+    await reloadScope(LeaderboardScope.global, period: period);
+  }
+
+  Future<void> loadFriends([LeaderboardPeriod? period]) async {
+    await reloadScope(LeaderboardScope.friends, period: period);
+  }
+
+  Future<void> loadSchool([LeaderboardPeriod? period]) async {
+    await reloadScope(LeaderboardScope.school, period: period);
+  }
+
+  Future<void> loadFaculty([LeaderboardPeriod? period]) async {
+    await reloadScope(LeaderboardScope.faculty, period: period);
+  }
+
+  Future<void> reloadScope(
+    LeaderboardScope scope, {
+    LeaderboardPeriod? period,
+  }) async {
+    final paging = _paging[scope]!;
+    paging.reset();
     _me[scope] = null;
     _error[scope] = null;
+    _loadedUserPeriods[scope] = null;
     notifyListeners();
-    await loadMore(scope, range);
+    await loadMore(scope, period: period);
   }
 
-  String _mapRangeToPeriod(String range) {
-    // Preserve existing UI values, while speaking the backend shape.
-    if (range == 'allTime') return 'all_time';
-    return range; // weekly, etc.
-  }
+  Future<void> loadMore(
+    LeaderboardScope scope, {
+    LeaderboardPeriod? period,
+  }) async {
+    final paging = _paging[scope]!;
+    final resolvedPeriod = period ?? _currentPeriod;
+    if (paging.isLoading || !paging.hasMore) {
+      return;
+    }
 
-  Future<void> loadMore(LeaderboardScope scope, String range) async {
-    final p = _paging[scope]!;
-    if (p.isLoading || !p.hasMore) return;
-
-    p.isLoading = true;
+    paging.isLoading = true;
     _error[scope] = null;
     notifyListeners();
 
     try {
-      // Skip API call if using demo token (backend not ready)
       if (token?.startsWith('demo_') == true) {
-        p.hasLoadedOnce = true;
-        p.isLoading = false;
-        p.hasMore = false;
+        paging.hasLoadedOnce = true;
+        paging.isLoading = false;
+        paging.hasMore = false;
+        _loadedUserPeriods[scope] = resolvedPeriod;
         notifyListeners();
         return;
       }
 
       final data = await api.fetchLeaderboard(
         scope: scope.apiValue,
-        period: _mapRangeToPeriod(range),
+        period: resolvedPeriod.apiValue,
         limit: 50,
-        cursor: p.cursor,
+        cursor: paging.cursor,
       );
 
       if (data == null) {
-        p.hasLoadedOnce = true;
-        p.isLoading = false;
-        p.hasMore = false;
+        paging.hasLoadedOnce = true;
+        paging.isLoading = false;
+        paging.hasMore = false;
+        _loadedUserPeriods[scope] = resolvedPeriod;
         notifyListeners();
         return;
       }
 
-      p.items.addAll(data.items);
-      p.cursor = data.nextCursor;
-      p.hasMore = data.nextCursor != null;
-      p.hasLoadedOnce = true;
+      paging.items.addAll(data.items);
+      paging.cursor = data.nextCursor;
+      paging.hasMore = data.nextCursor != null;
+      paging.hasLoadedOnce = true;
       _me[scope] = data.me ?? _me[scope];
-    } catch (e) {
-      _error[scope] = e;
+      _loadedUserPeriods[scope] = resolvedPeriod;
+    } catch (error) {
+      _error[scope] = error;
     } finally {
-      p.isLoading = false;
+      paging.isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> reloadSchoolLeaderboard({LeaderboardPeriod? period}) async {
+    _schoolPaging.reset();
+    _schoolError = null;
+    _currentSchool = null;
+    _loadedSchoolPeriod = null;
+    notifyListeners();
+    await loadMoreSchools(period: period);
+  }
+
+  Future<void> loadMoreSchools({LeaderboardPeriod? period}) async {
+    final resolvedPeriod = period ?? _currentPeriod;
+    if (_schoolPaging.isLoading || !_schoolPaging.hasMore) {
+      return;
+    }
+
+    _schoolPaging.isLoading = true;
+    _schoolError = null;
+    notifyListeners();
+
+    try {
+      if (token?.startsWith('demo_') == true) {
+        _schoolPaging.hasLoadedOnce = true;
+        _schoolPaging.isLoading = false;
+        _schoolPaging.hasMore = false;
+        _loadedSchoolPeriod = resolvedPeriod;
+        notifyListeners();
+        return;
+      }
+
+      final data = await api.fetchSchoolLeaderboard(
+        period: resolvedPeriod.apiValue,
+        limit: 50,
+        cursor: _schoolPaging.cursor,
+      );
+
+      if (data == null) {
+        _schoolPaging.hasLoadedOnce = true;
+        _schoolPaging.isLoading = false;
+        _schoolPaging.hasMore = false;
+        _loadedSchoolPeriod = resolvedPeriod;
+        notifyListeners();
+        return;
+      }
+
+      _schoolPaging.items.addAll(data.items);
+      _schoolPaging.cursor = data.nextCursor;
+      _schoolPaging.hasMore = data.nextCursor != null;
+      _schoolPaging.hasLoadedOnce = true;
+      _currentSchool = data.currentSchool ?? _currentSchool;
+      _loadedSchoolPeriod = resolvedPeriod;
+    } catch (error) {
+      _schoolError = error;
+    } finally {
+      _schoolPaging.isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchRivals({LeaderboardPeriod? period}) async {
+    final resolvedPeriod = period ?? _currentPeriod;
+    if (_isLoadingRivals) {
+      return;
+    }
+
+    _isLoadingRivals = true;
+    _rivalsError = null;
+    notifyListeners();
+
+    try {
+      if (token?.startsWith('demo_') == true) {
+        _rivals = const <RivalLeaderboardEntry>[];
+        _loadedRivalsPeriod = resolvedPeriod;
+        return;
+      }
+
+      final data = await api.fetchLeaderboardRivals(
+        period: resolvedPeriod.apiValue,
+      );
+
+      _rivals = data ?? const <RivalLeaderboardEntry>[];
+      _loadedRivalsPeriod = resolvedPeriod;
+    } catch (error) {
+      _rivalsError = error;
+    } finally {
+      _isLoadingRivals = false;
       notifyListeners();
     }
   }
 
   LeaderboardMe? get currentUser => _me[LeaderboardScope.global];
-  LeaderboardPagingController get paging => _paging[LeaderboardScope.global]!;
 
-  void searchLeaderboard(String query, LeaderboardScope scope, String range) {
-    // Implement search logic here (scoped)
-  }
+  LeaderboardPagingController<LeaderboardItem> get paging =>
+      _paging[LeaderboardScope.global]!;
 
-  int? currentUserId;
+  void searchLeaderboard(
+    String query,
+    LeaderboardScope scope,
+    LeaderboardPeriod period,
+  ) {}
 
   bool get isLoading => _paging[LeaderboardScope.global]!.isLoading;
 
   bool get hasError => _error[LeaderboardScope.global] != null;
 
-  void setErrorForTesting(Object? e) {
-    _error[LeaderboardScope.global] = e;
+  void setErrorForTesting(Object? error) {
+    _error[LeaderboardScope.global] = error;
     notifyListeners();
   }
 
   void retry() {
-    // Simple retry hook used by UI — reload global for now
-    reloadScope(LeaderboardScope.global, 'weekly');
+    reloadScope(LeaderboardScope.global, period: _currentPeriod);
   }
 }

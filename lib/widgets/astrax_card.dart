@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/astrax_theme.dart';
 
 class AstraCard extends StatelessWidget {
   final Widget child;
@@ -15,10 +14,11 @@ class AstraCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final content = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: AstraXTheme.panel,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(

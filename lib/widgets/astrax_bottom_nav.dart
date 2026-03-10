@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/astrax_theme.dart';
 
 class AstraBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -13,11 +12,12 @@ class AstraBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       decoration: BoxDecoration(
-        color: AstraXTheme.panel.withValues(alpha: 0.95),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
@@ -82,6 +82,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isActive = index == currentIndex;
+    final cs = Theme.of(context).colorScheme;
 
     return GestureDetector(
       onTap: () => onChanged(index),
@@ -97,7 +98,7 @@ class _NavItem extends StatelessWidget {
             Icon(
               icon,
               size: 22,
-              color: isActive ? AstraXTheme.neonBlue : Colors.white54,
+              color: isActive ? cs.primary : Colors.white54,
             ),
             if (isActive) ...[
               const SizedBox(width: 6),

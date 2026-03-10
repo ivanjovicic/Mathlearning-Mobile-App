@@ -8,7 +8,7 @@ import '../ui/overlay_manager.dart';
 import '../widgets/offline_status_widget.dart';
 import '../widgets/global_bug_report_button.dart';
 
-/// The persistent shell wrapping all five main navigation branches.
+/// The persistent shell wrapping the five main navigation branches.
 ///
 /// Responsibilities:
 ///   • Single [NavigationBar] driven by [StatefulNavigationShell.currentIndex]
@@ -97,19 +97,19 @@ class _AppShellState extends State<AppShell> {
                     label: 'Home',
                   ),
                   NavigationDestination(
-                    icon: Icon(Icons.bolt_outlined),
-                    selectedIcon: Icon(Icons.bolt_rounded),
-                    label: 'Practice',
-                  ),
-                  NavigationDestination(
                     icon: Icon(Icons.map_outlined),
                     selectedIcon: Icon(Icons.map_rounded),
                     label: 'Learn',
                   ),
                   NavigationDestination(
+                    icon: Icon(Icons.bolt_outlined),
+                    selectedIcon: Icon(Icons.bolt_rounded),
+                    label: 'Practice',
+                  ),
+                  NavigationDestination(
                     icon: Icon(Icons.emoji_events_outlined),
                     selectedIcon: Icon(Icons.emoji_events_rounded),
-                    label: 'Ranks',
+                    label: 'Leaderboard',
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.person_outline),

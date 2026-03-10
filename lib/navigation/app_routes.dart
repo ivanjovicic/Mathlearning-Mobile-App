@@ -5,7 +5,7 @@ import '../features/learning_map/models/practice_launch_plan.dart';
 import '../screens/quiz_summary_screen.dart';
 import 'route_parser_helpers.dart';
 
-enum AppShellBranch { home, learn, leaderboard, profile, settings }
+enum AppShellBranch { home, learn, practice, leaderboard, profile }
 
 final class AppRoutePaths {
   const AppRoutePaths._();
@@ -55,7 +55,8 @@ abstract class AppRouteInfo {
 
   Map<String, String?> get queryParameters => const <String, String?>{};
 
-  Uri get uri => RouteParserHelpers.buildUri(path, queryParameters: queryParameters);
+  Uri get uri =>
+      RouteParserHelpers.buildUri(path, queryParameters: queryParameters);
 
   String get location => uri.toString();
 
@@ -357,11 +358,7 @@ class AdaptivePracticeRoute extends AppRouteInfo {
 }
 
 class QuizResultsRoute extends AppRouteInfo {
-  const QuizResultsRoute({
-    required this.sessionId,
-    this.source,
-    this.stats,
-  });
+  const QuizResultsRoute({required this.sessionId, this.source, this.stats});
 
   static const routeName = 'quiz-results';
 
@@ -533,9 +530,7 @@ class AiTutorRoute extends AppRouteInfo {
   String get path => AppRoutePaths.aiTutor;
 
   @override
-  Map<String, String?> get queryParameters => <String, String?>{
-    'topic': topic,
-  };
+  Map<String, String?> get queryParameters => <String, String?>{'topic': topic};
 
   factory AiTutorRoute.fromState(GoRouterState state) {
     return AiTutorRoute(topic: RouteParserHelpers.maybeQuery(state, 'topic'));
@@ -581,11 +576,11 @@ class UserSearchRoute extends AppRouteInfo {
   String get path => AppRoutePaths.userSearch;
 
   @override
-  Map<String, String?> get queryParameters => <String, String?>{
-    'query': query,
-  };
+  Map<String, String?> get queryParameters => <String, String?>{'query': query};
 
   factory UserSearchRoute.fromState(GoRouterState state) {
-    return UserSearchRoute(query: RouteParserHelpers.maybeQuery(state, 'query'));
+    return UserSearchRoute(
+      query: RouteParserHelpers.maybeQuery(state, 'query'),
+    );
   }
 }

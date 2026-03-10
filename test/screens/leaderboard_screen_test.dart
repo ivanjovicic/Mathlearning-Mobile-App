@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:provider/provider.dart';
+
+import 'package:mathlearning/models/leaderboard_models.dart';
 import 'package:mathlearning/screens/leaderboard_screen.dart';
 import 'package:mathlearning/state/leaderboard_provider.dart';
-import 'package:mathlearning/models/leaderboard_models.dart';
 import 'package:mathlearning/widgets/animated_leaderboard_item.dart';
 
 void main() {
@@ -23,38 +25,58 @@ void main() {
       );
     }
 
-    testWidgets('displays loading spinner when loading', (WidgetTester tester) async {
+    testWidgets('displays loading spinner when loading', (
+      WidgetTester tester,
+    ) async {
       provider.paging.isLoading = true;
       provider.paging.items.clear();
       await tester.pumpWidget(createTestWidget());
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(ListTileShimmer), findsWidgets);
     });
 
-    testWidgets('displays error message when there is an error', (WidgetTester tester) async {
-      provider.setErrorForTesting(Exception('test')); 
+    testWidgets('displays error message when there is an error', (
+      WidgetTester tester,
+    ) async {
+      provider.setErrorForTesting(Exception('test'));
       await tester.pumpWidget(createTestWidget());
 
       expect(find.text('An error occurred. Please try again.'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
 
-    testWidgets('displays empty state message when no data is available', (WidgetTester tester) async {
+    testWidgets('displays empty state message when no data is available', (
+      WidgetTester tester,
+    ) async {
       provider.paging.isLoading = false;
       provider.setErrorForTesting(null);
       provider.paging.items.clear();
       await tester.pumpWidget(createTestWidget());
 
-      expect(find.text('Nema podataka.'), findsOneWidget);
+      expect(find.text('No leaderboard data yet.'), findsOneWidget);
     });
 
-    testWidgets('displays leaderboard items when data is available', (WidgetTester tester) async {
+    testWidgets('displays leaderboard items when data is available', (
+      WidgetTester tester,
+    ) async {
       provider.paging.isLoading = false;
       provider.setErrorForTesting(null);
       provider.paging.items.clear();
-      provider.paging.items.addAll([
-        LeaderboardItem(rank: 1, userId: 1, displayName: 'Alice', score: 100, streakDays: 10),
-        LeaderboardItem(rank: 2, userId: 2, displayName: 'Bob', score: 90, streakDays: 5),
+      provider.paging.items.addAll(const <LeaderboardItem>[
+        LeaderboardItem(
+          rank: 1,
+          userId: 1,
+          displayName: 'Alice',
+          score: 100,
+          streakDays: 10,
+        ),
+        LeaderboardItem(
+          rank: 2,
+          userId: 2,
+          displayName: 'Bob',
+          score: 90,
+          streakDays: 5,
+        ),
       ]);
       await tester.pumpWidget(createTestWidget());
 

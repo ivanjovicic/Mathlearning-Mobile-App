@@ -459,6 +459,43 @@ class ApiService {
     return null;
   }
 
+  Future<List<RivalLeaderboardEntry>?> fetchLeaderboardRivals({
+    required String period,
+  }) async {
+    try {
+      final resp = await _dio.get(
+        '/api/leaderboard/rivals',
+        queryParameters: <String, dynamic>{'period': period},
+      );
+      if (resp.data is List) {
+        return (resp.data as List)
+            .whereType<Map>()
+            .map(
+              (item) => RivalLeaderboardEntry.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList();
+      }
+      if (resp.data is Map<String, dynamic>) {
+        final payload = resp.data as Map<String, dynamic>;
+        final rawItems = (payload['items'] ?? payload['entries']) as List?;
+        if (rawItems == null) {
+          return const <RivalLeaderboardEntry>[];
+        }
+        return rawItems
+            .whereType<Map>()
+            .map(
+              (item) => RivalLeaderboardEntry.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<String?> fetchClueHint(int questionId) async {
     try {
       final resp = await _dio.get(
@@ -515,6 +552,29 @@ class ApiService {
       );
       if (resp.data is Map<String, dynamic>) {
         return SchoolLeaderboardResponse.fromJson(
+          resp.data as Map<String, dynamic>,
+        );
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<SchoolLeaderboardFeed?> fetchSchoolLeaderboard({
+    required String period,
+    int limit = 50,
+    String? cursor,
+  }) async {
+    try {
+      final query = <String, dynamic>{'period': period, 'limit': limit};
+      if (cursor != null && cursor.isNotEmpty) {
+        query['cursor'] = cursor;
+      }
+      final resp = await _dio.get(
+        '/api/leaderboard/schools',
+        queryParameters: query,
+      );
+      if (resp.data is Map<String, dynamic>) {
+        return SchoolLeaderboardFeed.fromJson(
           resp.data as Map<String, dynamic>,
         );
       }

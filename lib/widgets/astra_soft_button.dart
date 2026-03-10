@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme/astrax_theme.dart';
 
 /// AI-minimal neumorphic button — smooth dark raised/flush surface
 /// with subtle light/shadow edges, press animation, and haptic feedback.
@@ -8,7 +7,7 @@ class AstraSoftButton extends StatefulWidget {
   final String text;
   final VoidCallback onPressed;
   final IconData? icon;
-  final Color accentColor;
+  final Color? accentColor;
   final bool enabled;
   final double? width;
 
@@ -17,7 +16,7 @@ class AstraSoftButton extends StatefulWidget {
     required this.text,
     required this.onPressed,
     this.icon,
-    this.accentColor = AstraXTheme.neonBlue,
+    this.accentColor,
     this.enabled = true,
     this.width,
   });
@@ -77,6 +76,8 @@ class _AstraSoftButtonState extends State<AstraSoftButton>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final effectiveAccent = widget.accentColor ?? cs.primary;
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final opacity = widget.enabled ? 1.0 : 0.4;
@@ -99,12 +100,12 @@ class _AstraSoftButtonState extends State<AstraSoftButton>
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 22),
       decoration: BoxDecoration(
         color: _pressed
-            ? AstraXTheme.panel.withValues(alpha: 0.85)
-            : AstraXTheme.panel,
-        borderRadius: BorderRadius.circular(AstraXTheme.radius),
+            ? cs.surfaceContainerHighest.withValues(alpha: 0.85)
+            : cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: _pressed
-              ? widget.accentColor.withValues(alpha: 0.25)
+              ? effectiveAccent.withValues(alpha: 0.25)
               : Colors.transparent,
           width: 1,
         ),
@@ -116,7 +117,7 @@ class _AstraSoftButtonState extends State<AstraSoftButton>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (widget.icon != null) ...[
-            Icon(widget.icon, color: widget.accentColor, size: 20),
+            Icon(widget.icon, color: effectiveAccent, size: 20),
             const SizedBox(width: 10),
           ],
           Text(

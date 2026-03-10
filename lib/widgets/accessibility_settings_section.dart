@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/theme_extensions/theme_context.dart';
-import '../ui/components/app_card.dart';
+import 'ui/app_card.dart';
 
 class AccessibilitySettingsSection extends StatelessWidget {
   const AccessibilitySettingsSection({

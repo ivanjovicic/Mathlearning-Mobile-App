@@ -1,17 +1,10 @@
-// Refactored SchoolLeaderboardScreen to improve modularity and maintainability
-// Extracted reusable components and optimized state management
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../state/school_leaderboard_provider.dart';
-import '../theme/astrax_theme.dart';
-import '../widgets/leaderboard_item.dart';
-import '../widgets/my_school_card.dart';
-import '../widgets/refreshable_list.dart';
-import '../widgets/school_leaderboard_detail_sheet.dart';
-import '../widgets/ui/app_section.dart';
-import '../widgets/ui/state_scaffold.dart';
+import '../models/leaderboard_models.dart';
+import '../state/leaderboard_provider.dart';
+import '../widgets/leaderboard_tabs.dart';
+import '../widgets/period_selector.dart';
 
 class SchoolLeaderboardScreen extends StatefulWidget {
   const SchoolLeaderboardScreen({super.key});
@@ -22,199 +15,303 @@ class SchoolLeaderboardScreen extends StatefulWidget {
 }
 
 class _SchoolLeaderboardScreenState extends State<SchoolLeaderboardScreen> {
-  final ScrollController _scroll = ScrollController();
-  String range = 'weekly';
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-
-    Future.microtask(() {
-      if (!mounted) return;
-      Provider.of<SchoolLeaderboardProvider>(
-        context,
-        listen: false,
-      ).reload(range);
-    });
-
-    _scroll.addListener(() {
-      if (!_scroll.hasClients) return;
-      final threshold = _scroll.position.maxScrollExtent - 320;
-      if (_scroll.position.pixels > threshold) {
-        Provider.of<SchoolLeaderboardProvider>(
-          context,
-          listen: false,
-        ).loadMore(range);
+    Future.microtask(() async {
+      if (!mounted) {
+        return;
       }
+      await context.read<LeaderboardProvider>().ensureSchoolsLoaded();
     });
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
-    _scroll.dispose();
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+    final threshold = _scrollController.position.maxScrollExtent - 240;
+    if (_scrollController.position.pixels > threshold) {
+      context.read<LeaderboardProvider>().loadMoreSchools();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<SchoolLeaderboardProvider>(context);
-    final items = provider.paging.items;
-    final loading = provider.paging.isLoading;
-    final hasMore = provider.paging.hasMore;
-    final mySchool = provider.mySchool;
-    final error = provider.error;
-    final colorScheme = Theme.of(context).colorScheme;
-    final loadedCount = items.length;
+    final period = context.select<LeaderboardProvider, LeaderboardPeriod>(
+      (value) => value.currentPeriod,
+    );
+    final items = context
+        .select<LeaderboardProvider, List<SchoolLeaderboardEntry>>(
+          (value) => value.schoolItems,
+        );
+    final currentSchool = context
+        .select<LeaderboardProvider, SchoolLeaderboardEntry?>(
+          (value) => value.currentSchoolEntry,
+        );
+    final isLoading = context.select<LeaderboardProvider, bool>(
+      (value) => value.isLoadingSchools,
+    );
+    final error = context.select<LeaderboardProvider, Object?>(
+      (value) => value.schoolError,
+    );
+    final isLoadingMore = context.select<LeaderboardProvider, bool>(
+      (value) => value.schoolPaging.isLoading && value.schoolItems.isNotEmpty,
+    );
 
     return Scaffold(
-      backgroundColor: AstraXTheme.bg,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('School vs School'),
+        elevation: 0,
         centerTitle: true,
-        actions: [
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              dropdownColor: colorScheme.surface,
-              value: range,
-              items: const [
-                DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                DropdownMenuItem(value: 'allTime', child: Text('All time')),
-              ],
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => range = v);
-                provider.reload(v);
-              },
-            ),
-          ),
-        ],
+        title: const Text('School vs School'),
       ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: AppSection(
-                  title: 'Rangiranje skola',
-                  padding: EdgeInsets.zero,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Poredi performanse skola kroz vreme.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _MetricBadge(
-                            icon: Icons.groups_rounded,
-                            label: '$loadedCount schools loaded',
-                          ),
-                          _MetricBadge(
-                            icon: Icons.calendar_view_week_rounded,
-                            label: range == 'weekly'
-                                ? 'Weekly competition'
-                                : 'All-time standings',
-                          ),
-                          if (mySchool != null)
-                            _MetricBadge(
-                              icon: Icons.flag_rounded,
-                              label: 'Your school #${mySchool.rank}',
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
+      body: Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Column(
+              children: <Widget>[
+                const LeaderboardTabs(
+                  selected: LeaderboardTabDestination.schools,
                 ),
-              ),
-              Expanded(
-                child: StateScaffold(
-                  isLoading: loading && items.isEmpty,
-                  isEmpty: !loading && items.isEmpty && error == null,
-                  error: error?.toString(),
-                  onRetry: () => provider.reload(range),
-                  emptyTitle: 'Nema rang liste',
-                  emptySubtitle: 'Povuci nadole da osvezis podatke.',
-                  emptyIcon: Icons.school_outlined,
-                  child: RefreshableList(
-                    controller: _scroll,
-                    items: items,
-                    loading: loading,
-                    hasMore: hasMore,
-                    error: error,
-                    onRefresh: () => provider.reload(range),
-                    onLoadMore: () => provider.loadMore(range),
-                    itemBuilder: (context, index) {
-                      final it = items[index];
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () async {
-                          final detail = await provider.loadDetail(
-                            it.schoolId,
-                            range,
-                          );
-                          final history = detail?.history.isNotEmpty == true
-                              ? detail!.history
-                              : await provider.loadHistory(it.schoolId, range);
-                          if (!context.mounted) return;
-                          await SchoolLeaderboardDetailSheet.show(
-                            context,
-                            school: detail?.school ?? it,
-                            history: history,
-                          );
-                        },
-                        child: SchoolLeaderboardTile(item: it),
-                      );
-                    },
-                  ),
+                const SizedBox(height: 12),
+                PeriodSelector(
+                  value: period,
+                  onChanged: (newPeriod) {
+                    context.read<LeaderboardProvider>().changePeriod(
+                      newPeriod,
+                      board: LeaderboardBoard.schools,
+                    );
+                  },
                 ),
-              ),
-            ],
-          ),
-          if (mySchool != null)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: MySchoolCard(school: mySchool),
+              ],
             ),
+          ),
+          if (currentSchool != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: _SchoolSummaryCard(entry: currentSchool),
+            ),
+          Expanded(
+            child: isLoading && items.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : error != null && items.isEmpty
+                ? _SchoolLeaderboardError(
+                    onRetry: () => context
+                        .read<LeaderboardProvider>()
+                        .reloadSchoolLeaderboard(),
+                  )
+                : items.isEmpty
+                ? RefreshIndicator(
+                    onRefresh: () => context
+                        .read<LeaderboardProvider>()
+                        .reloadSchoolLeaderboard(),
+                    child: ListView(
+                      children: const <Widget>[
+                        SizedBox(height: 120),
+                        Center(child: Text('No schools ranked yet.')),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () => context
+                        .read<LeaderboardProvider>()
+                        .reloadSchoolLeaderboard(),
+                    child: ListView.separated(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      itemCount: items.length + (isLoadingMore ? 1 : 0),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        if (index >= items.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        return _SchoolLeaderboardCard(entry: items[index]);
+                      },
+                    ),
+                  ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _MetricBadge extends StatelessWidget {
-  const _MetricBadge({required this.icon, required this.label});
+class _SchoolSummaryCard extends StatelessWidget {
+  const _SchoolSummaryCard({required this.entry});
 
-  final IconData icon;
-  final String label;
+  final SchoolLeaderboardEntry entry;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: cs.secondaryContainer.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: cs.secondary.withValues(alpha: 0.25)),
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      color: colors.primaryContainer.withValues(alpha: 0.88),
+      child: ListTile(
+        leading: _SchoolBadge(entry: entry),
+        title: Text(
+          'Your school: ${entry.schoolName}',
+          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text('Rank #${entry.rank} • ${entry.totalScore} total score'),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: cs.onSecondaryContainer),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: cs.onSecondaryContainer,
-              fontWeight: FontWeight.w700,
-            ),
+    );
+  }
+}
+
+class _SchoolLeaderboardCard extends StatelessWidget {
+  const _SchoolLeaderboardCard({required this.entry});
+
+  final SchoolLeaderboardEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Semantics(
+      label:
+          'School rank ${entry.rank}, ${entry.schoolName}, total score ${entry.totalScore}',
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: <Widget>[
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: colors.secondaryContainer,
+                child: Text(
+                  '${entry.rank}',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: colors.onSecondaryContainer,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _SchoolBadge(entry: entry),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      entry.schoolName,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${entry.members} members',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    if (entry.badgeLabel != null) ...<Widget>[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.secondaryContainer.withValues(
+                            alpha: 0.7,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          entry.badgeLabel!,
+                          style: textTheme.labelSmall?.copyWith(
+                            color: colors.onSecondaryContainer,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${entry.totalScore}',
+                style: textTheme.titleLarge?.copyWith(
+                  color: colors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SchoolBadge extends StatelessWidget {
+  const _SchoolBadge({required this.entry});
+
+  final SchoolLeaderboardEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return CircleAvatar(
+      radius: 18,
+      backgroundColor: colors.tertiaryContainer,
+      backgroundImage: entry.badgeUrl == null
+          ? null
+          : NetworkImage(entry.badgeUrl!),
+      child: entry.badgeUrl == null
+          ? Text(
+              entry.schoolName.isEmpty
+                  ? '?'
+                  : entry.schoolName[0].toUpperCase(),
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: colors.onTertiaryContainer,
+                fontWeight: FontWeight.w800,
+              ),
+            )
+          : null,
+    );
+  }
+}
+
+class _SchoolLeaderboardError extends StatelessWidget {
+  const _SchoolLeaderboardError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          const Text('Unable to load the school leaderboard.'),
+          const SizedBox(height: 12),
+          ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
     );
