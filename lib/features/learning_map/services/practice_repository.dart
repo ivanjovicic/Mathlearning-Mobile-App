@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/features/learning_map/models/practice_question.dart';
 import 'package:mathlearning/services/api_service.dart';
+import 'package:mathlearning/widgets/math/math_content_parser.dart';
 
 abstract class PracticeRepository {
   Future<List<PracticeQuestion>> loadQuestions(
@@ -46,9 +47,9 @@ class ApiPracticeRepository implements PracticeRepository {
 
   PracticeQuestion? _mapQuestion(Map<String, dynamic> raw, int index) {
     final id = _asInt(raw['id'] ?? raw['questionId']) ?? index + 1;
-    final prompt = (raw['text'] ?? raw['question'] ?? raw['prompt'] ?? '')
-        .toString()
-        .trim();
+    final prompt = MathContentParser.normalizeInput(
+      (raw['text'] ?? raw['question'] ?? raw['prompt'] ?? '').toString(),
+    );
     if (prompt.isEmpty) {
       return null;
     }
@@ -60,11 +61,15 @@ class ApiPracticeRepository implements PracticeRepository {
         final option = optionsRaw[i];
         if (option is Map) {
           final optionId = _asInt(option['id']) ?? (i + 1);
-          final label = (option['text'] ?? option['label'] ?? '').toString();
+          final label = MathContentParser.normalizeInput(
+            (option['text'] ?? option['label'] ?? '').toString(),
+          );
           if (label.trim().isEmpty) continue;
           options.add(PracticeOption(id: optionId, label: label));
         } else if (option is String) {
-          options.add(PracticeOption(id: i + 1, label: option));
+          final label = MathContentParser.normalizeInput(option);
+          if (label.trim().isEmpty) continue;
+          options.add(PracticeOption(id: i + 1, label: label));
         }
       }
     }
@@ -82,7 +87,7 @@ class ApiPracticeRepository implements PracticeRepository {
       prompt: prompt,
       options: options,
       correctOptionId: correctOptionId,
-      hint: raw['hint']?.toString(),
+      hint: _normalizeNullable(raw['hint']),
     );
   }
 
@@ -138,5 +143,10 @@ class ApiPracticeRepository implements PracticeRepository {
     }
     final safe = normalized.replaceAll(RegExp(r'[^a-z0-9]+'), '_');
     return safe.replaceAll(RegExp(r'_+'), '_').replaceAll(RegExp(r'^_|_$'), '');
+  }
+
+  String? _normalizeNullable(dynamic value) {
+    final normalized = MathContentParser.normalizeInput((value ?? '').toString());
+    return normalized.isEmpty ? null : normalized;
   }
 }

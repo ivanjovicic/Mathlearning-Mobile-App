@@ -1,3 +1,5 @@
+import '../widgets/math/math_content_parser.dart';
+
 class StepExplanation {
   final String text;
   final String? hint;
@@ -10,10 +12,15 @@ class StepExplanation {
   });
 
   factory StepExplanation.fromJson(Map<String, dynamic> json) {
-    final text = (json['text'] ?? json['Text'] ?? '').toString();
+    final text = MathContentParser.normalizeInput(
+      (json['text'] ?? json['Text'] ?? '').toString(),
+    );
+    final hint = MathContentParser.normalizeInput(
+      (json['hint'] ?? json['Hint'] ?? '').toString(),
+    );
     return StepExplanation(
       text: text,
-      hint: (json['hint'] ?? json['Hint'])?.toString(),
+      hint: hint.isEmpty ? null : hint,
       highlight:
           json['highlight'] == true ||
           json['Highlight'] == true ||

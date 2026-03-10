@@ -3,6 +3,8 @@ import '../../theme/astrax_theme.dart';
 import '../../widgets/astrax_buttons.dart';
 import '../../widgets/astrax_card.dart';
 import '../../widgets/astrax_xp_bar.dart';
+import '../../widgets/math/math_renderer.dart';
+import '../../widgets/math/math_view_mode.dart';
 
 class QuizQuestionView extends StatelessWidget {
   final String questionText;
@@ -48,8 +50,9 @@ class QuizQuestionView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    questionText,
+                  MathRenderer(
+                    value: questionText,
+                    mode: MathViewMode.questionStem,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
@@ -108,8 +111,9 @@ class QuizQuestionView extends StatelessWidget {
                             const SizedBox(width: 10),
                           ],
                           Expanded(
-                            child: Text(
-                              text,
+                            child: MathRenderer(
+                              value: text,
+                              mode: MathViewMode.answerOption,
                               style: const TextStyle(
                                 fontSize: 16,
                                 color: Colors.white,

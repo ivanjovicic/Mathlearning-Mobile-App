@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../math_content_text.dart';
+import '../math/math_view_mode.dart';
 import 'step_explanation_controller.dart';
 
 class MistakeExplanationCard extends StatelessWidget {
@@ -67,6 +68,7 @@ class MistakeExplanationCard extends StatelessWidget {
             const SizedBox(height: 6),
             MathContentText(
               value: explanation,
+              mode: MathViewMode.review,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: cs.onErrorContainer,
                 height: 1.4,
@@ -76,6 +78,7 @@ class MistakeExplanationCard extends StatelessWidget {
               const SizedBox(height: 8),
               MathContentText(
                 value: 'Common misconception: ${misconception!.trim()}',
+                mode: MathViewMode.review,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: cs.onErrorContainer.withValues(alpha: 0.92),
                   fontWeight: FontWeight.w600,
@@ -118,6 +121,7 @@ class MistakeExplanationCard extends StatelessWidget {
       ),
       child: MathContentText(
         value: label,
+        mode: MathViewMode.review,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: cs.onErrorContainer,
           fontWeight: FontWeight.w700,

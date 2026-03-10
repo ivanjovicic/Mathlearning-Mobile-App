@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_i18n.dart';
@@ -22,6 +21,8 @@ import '../../widgets/xp_pop_animation.dart';
 import '../../widgets/formula_hint_bottom_sheet.dart';
 import '../../widgets/explanations/mistake_explanation_card.dart';
 import '../../widgets/explanations/step_explanation_controller.dart';
+import '../../widgets/math/math_renderer.dart';
+import '../../widgets/math/math_view_mode.dart';
 import '../../widgets/math_content_text.dart';
 
 import '../../models/question.dart';
@@ -677,9 +678,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         SizedBox(width: gap),
         Expanded(
           child: _buildOptionExpression(
-            theme: theme,
             rawValue: option.text,
-            textColor: textColor,
             textStyle: optionTextStyle,
           ),
         ),
@@ -751,133 +750,14 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
   }
 
   Widget _buildOptionExpression({
-    required ThemeData theme,
     required String rawValue,
-    required Color textColor,
     TextStyle? textStyle,
   }) {
-    final value = _normalizeInlineMathDelimiters(rawValue.trim());
-    final effectiveTextStyle =
-        (textStyle ??
-            theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: textColor,
-              height: 1.3,
-            )) ??
-        TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: textColor,
-          height: 1.3,
-        );
-
-    if (_hasInlineMathSegments(value)) {
-      return _buildInlineOptionText(
-        value: value,
-        textStyle: effectiveTextStyle,
-      );
-    }
-
-    if (_optionLooksLikeMathExpression(value)) {
-      return Math.tex(
-        value,
-        textStyle: effectiveTextStyle,
-        mathStyle: MathStyle.text,
-        onErrorFallback: (_) => Text(
-          value,
-          style: effectiveTextStyle,
-          softWrap: true,
-          textWidthBasis: TextWidthBasis.longestLine,
-        ),
-      );
-    }
-
-    return Text(
-      value,
-      style: effectiveTextStyle,
-      softWrap: true,
-      textWidthBasis: TextWidthBasis.longestLine,
+    return MathRenderer(
+      value: rawValue,
+      mode: MathViewMode.answerOption,
+      style: textStyle,
     );
-  }
-
-  Widget _buildInlineOptionText({
-    required String value,
-    required TextStyle textStyle,
-  }) {
-    final pattern = RegExp(r'\$([^$]+)\$');
-    final spans = <InlineSpan>[];
-    var current = 0;
-
-    for (final match in pattern.allMatches(value)) {
-      if (match.start > current) {
-        spans.add(
-          TextSpan(
-            text: value.substring(current, match.start),
-            style: textStyle,
-          ),
-        );
-      }
-
-      final tex = match.group(1);
-      if (tex == null || tex.isEmpty) {
-        spans.add(TextSpan(text: match.group(0), style: textStyle));
-      } else {
-        spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            baseline: TextBaseline.alphabetic,
-            child: Math.tex(
-              tex,
-              mathStyle: MathStyle.text,
-              textStyle: textStyle.copyWith(
-                fontSize: (textStyle.fontSize ?? 18) * 1.05,
-              ),
-              onErrorFallback: (_) => Text('\$$tex\$', style: textStyle),
-            ),
-          ),
-        );
-      }
-
-      current = match.end;
-    }
-
-    if (current < value.length) {
-      spans.add(TextSpan(text: value.substring(current), style: textStyle));
-    }
-
-    return RichText(
-      text: TextSpan(children: spans),
-      softWrap: true,
-      textWidthBasis: TextWidthBasis.longestLine,
-    );
-  }
-
-  String _normalizeInlineMathDelimiters(String value) {
-    return value.replaceAll(r'\$', r'$');
-  }
-
-  bool _hasInlineMathSegments(String value) {
-    return RegExp(r'\$[^$]+\$').hasMatch(value);
-  }
-
-  bool _optionLooksLikeMathExpression(String value) {
-    if (value.isEmpty) return false;
-
-    final hasStrongTex =
-        value.contains(r'$$') ||
-        value.contains(r'\(') ||
-        value.contains(r'\[') ||
-        value.contains('{') ||
-        value.contains('}') ||
-        RegExp(r'\\[a-zA-Z]+').hasMatch(value);
-    if (hasStrongTex) return true;
-
-    // If there are normal words (e.g. "ili", "or"), render as plain text.
-    if (RegExp(r'\b[a-zA-Z]{2,}\b').hasMatch(value)) {
-      return false;
-    }
-
-    return RegExp(r'[+\-*/=^|_]').hasMatch(value);
   }
 
   Future<void> _submitAndContinue() async {
@@ -1320,6 +1200,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
         title: Text(title),
         content: MathContentText(
           value: text,
+          mode: MathViewMode.hint,
           style: Theme.of(dialogContext).textTheme.bodyMedium,
         ),
         actions: [

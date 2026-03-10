@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/math/math_renderer.dart';
+import '../../../widgets/math/math_view_mode.dart';
+
 class PracticeOptionsList extends StatelessWidget {
   const PracticeOptionsList({
     super.key,
@@ -59,8 +62,9 @@ class PracticeOptionsList extends StatelessWidget {
                       ),
                       tapTargetSize: MaterialTapTargetSize.padded,
                     ),
-                    label: Text(
-                      option,
+                    label: MathRenderer(
+                      value: option,
+                      mode: MathViewMode.answerOption,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),

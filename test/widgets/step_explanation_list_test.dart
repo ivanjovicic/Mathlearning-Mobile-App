@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mathlearning/models/step_explanation.dart';
@@ -13,7 +14,7 @@ void main() {
       highlight: true,
     ),
     const StepExplanation(
-      text: 'Divide both sides by 2 to isolate x.',
+      text: r'Divide both sides by $2$ to isolate x.',
       hint: 'Keep equation balanced.',
     ),
     const StepExplanation(text: r'x = \frac{6}{2} = 3', highlight: true),
@@ -31,7 +32,7 @@ void main() {
     await tester.tap(find.text('Next Step'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Divide both sides by 2 to isolate x.'), findsOneWidget);
+    expect(find.byType(Math), findsWidgets);
 
     await tester.tap(find.text('Previous'));
     await tester.pumpAndSettle();
@@ -53,8 +54,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Divide both sides by 2 to isolate x.'), findsOneWidget);
-
     await tester.tap(find.text('Show Hint'));
     await tester.pumpAndSettle();
 
@@ -72,8 +71,8 @@ void main() {
             steps: sampleSteps,
             controller: controller,
             mistakeExplanation:
-                'You likely moved a term across "=" without changing its sign.',
-            misconception: 'Moving terms requires sign inversion.',
+                r'You likely moved $x$ across "=" without changing its sign.',
+            misconception: r'Moving terms requires sign inversion for $x$.',
           ),
         ),
       ),
@@ -81,5 +80,6 @@ void main() {
 
     expect(find.text('Why your answer was incorrect'), findsOneWidget);
     expect(find.textContaining('sign error'), findsOneWidget);
+    expect(find.byType(Math), findsWidgets);
   });
 }

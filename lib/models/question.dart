@@ -1,5 +1,6 @@
 import 'option.dart';
 import 'step_explanation.dart';
+import '../widgets/math/math_content_parser.dart';
 
 class Question {
   final int id;
@@ -56,7 +57,7 @@ class Question {
     final fallbackText = _buildFallbackText(json);
     final rawText =
         json['text'] ?? json['Text'] ?? json['questionText'] ?? json['question'];
-    final parsedText = (rawText ?? '').toString().trim();
+    final parsedText = _sanitizeContent(rawText);
 
     return Question(
       id: _asInt(json['id']) ?? _asInt(json['Id']) ?? 0,
@@ -67,10 +68,12 @@ class Question {
           _asInt(json['correctAnswer']) ??
           _resolveCorrectAnswerId(json, parsedOptions),
       subtopicId: _asInt(json['subtopicId']) ?? _asInt(json['SubtopicId']),
-      hintLight: (json['hintLight'] ?? json['hint_light'])?.toString(),
-      hintMedium: (json['hintMedium'] ?? json['hint_medium'])?.toString(),
-      hintFull: (json['hintFull'] ?? json['hint_full'])?.toString(),
-      explanation: json['explanation']?.toString(),
+      hintLight: _sanitizeNullableContent(json['hintLight'] ?? json['hint_light']),
+      hintMedium: _sanitizeNullableContent(
+        json['hintMedium'] ?? json['hint_medium'],
+      ),
+      hintFull: _sanitizeNullableContent(json['hintFull'] ?? json['hint_full']),
+      explanation: _sanitizeNullableContent(json['explanation']),
       steps: parsedSteps,
     );
   }
@@ -139,5 +142,14 @@ class Question {
       default:
         return '$a ? $b';
     }
+  }
+
+  static String _sanitizeContent(dynamic value) {
+    return MathContentParser.normalizeInput((value ?? '').toString());
+  }
+
+  static String? _sanitizeNullableContent(dynamic value) {
+    final normalized = _sanitizeContent(value);
+    return normalized.isEmpty ? null : normalized;
   }
 }

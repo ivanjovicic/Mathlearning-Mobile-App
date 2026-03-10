@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../models/step_explanation.dart';
 import '../../theme/app_scale.dart';
 import '../../theme/theme_extensions/theme_context.dart';
+import '../math/math_content_parser.dart';
 import '../math_content_text.dart';
+import '../math/math_view_mode.dart';
 import 'hint_widget.dart';
 import 'math_formula_view.dart';
 
@@ -33,7 +35,15 @@ class StepExplanationCard extends StatelessWidget {
     final radius = context.radius;
     final motion = context.motion;
     final showHintButton = (step.hint?.trim().isNotEmpty ?? false);
-    final isFormulaStep = _looksLikeFormula(step.text);
+    final parsedStep = MathContentParser.parse(step.text);
+    final isFormulaStep =
+        parsedStep.hasDisplayMath ||
+        (parsedStep.hasMath &&
+            parsedStep.segments.where((segment) => segment.isMath).length ==
+                1 &&
+            parsedStep.segments
+                .where((segment) => !segment.isMath)
+                .every((segment) => segment.value.trim().isEmpty));
 
     return RepaintBoundary(
       child: Semantics(
@@ -123,6 +133,7 @@ class StepExplanationCard extends StatelessWidget {
               SizedBox(height: spacing.s + spacing.xs),
               MathContentText(
                 value: step.text,
+                mode: MathViewMode.explanationStep,
                 style: Theme.of(
                   context,
                 ).textTheme.bodyLarge?.copyWith(height: 1.45),
@@ -170,18 +181,5 @@ class StepExplanationCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  bool _looksLikeFormula(String input) {
-    final value = input.trim();
-    if (value.isEmpty) return false;
-    if (value.contains(r'\') ||
-        value.contains('=') ||
-        value.contains('√') ||
-        value.contains('^')) {
-      return true;
-    }
-    return RegExp(r'\d').hasMatch(value) &&
-        RegExp(r'[+\-*/()]').hasMatch(value);
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../math_content_text.dart';
+import '../math/math_view_mode.dart';
 
 class HintWidget extends StatelessWidget {
   const HintWidget({
@@ -75,6 +76,7 @@ class HintWidget extends StatelessWidget {
                         Expanded(
                           child: MathContentText(
                             value: hintText,
+                            mode: MathViewMode.hint,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(color: cs.onSecondaryContainer),
                           ),

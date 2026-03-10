@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/math/math_renderer.dart';
+import '../../../widgets/math/math_view_mode.dart';
+
 class PracticeQuestionCard extends StatelessWidget {
   const PracticeQuestionCard({
     super.key,
@@ -37,16 +40,17 @@ class PracticeQuestionCard extends StatelessWidget {
             ),
           );
         },
-        child: Container(
-          key: ValueKey<String>('question_$questionNumber$prompt'),
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
+          child: Container(
+            key: ValueKey<String>('question_$questionNumber$prompt'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(18),
           ),
-          child: Text(
-            prompt,
+          child: MathRenderer(
+            value: prompt,
+            mode: MathViewMode.questionStem,
             style: textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
               height: 1.3,

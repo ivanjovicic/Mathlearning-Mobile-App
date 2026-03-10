@@ -7,6 +7,8 @@ import '../models/question.dart';
 import '../state/quiz_provider.dart';
 import '../theme/app_scale.dart';
 import '../theme/tokens/spacing_tokens.dart';
+import '../widgets/math/math_renderer.dart';
+import '../widgets/math/math_view_mode.dart';
 import '../widgets/ui/answer_option_card.dart';
 import '../widgets/ui/state_scaffold.dart';
 
@@ -295,10 +297,14 @@ class QuizBody extends StatelessWidget {
         vertical: AppSpacing.base,
       ),
       child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(question.text, style: theme.textTheme.titleLarge),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+            MathRenderer(
+              value: question.text,
+              mode: MathViewMode.questionStem,
+              style: theme.textTheme.titleLarge,
+            ),
             SizedBox(height: AppScale.s(18)),
           ],
         ),

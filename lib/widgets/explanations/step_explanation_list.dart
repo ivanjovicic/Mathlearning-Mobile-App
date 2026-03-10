@@ -120,56 +120,76 @@ class _StepExplanationListState extends State<StepExplanationList> {
 
         return Padding(
           padding: widget.padding,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildProgressHeader(context),
-              const SizedBox(height: 12),
-              if (_controller.isMistakeMode &&
-                  widget.mistakeExplanation?.trim().isNotEmpty == true) ...[
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: MistakeExplanationCard(
-                    key: ValueKey<MistakeType>(_controller.mistakeType),
-                    explanation: widget.mistakeExplanation!.trim(),
-                    misconception: widget.misconception,
-                    mistakeType: _controller.mistakeType,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final hasBoundedHeight = constraints.hasBoundedHeight;
+              final stepCard = AnimatedSwitcher(
+                duration: const Duration(milliseconds: 260),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final position = Tween<Offset>(
+                    begin: Offset(_slideFromRight ? 0.08 : -0.08, 0),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(position: position, child: child),
+                  );
+                },
+                child: StepExplanationCard(
+                  key: ValueKey<int>(_controller.currentStepIndex),
+                  step: currentStep,
+                  stepNumber: _controller.currentStepIndex + 1,
+                  totalSteps: _controller.totalSteps,
+                  isHintVisible: _controller.isHintVisible(
+                    _controller.currentStepIndex,
                   ),
+                  onHintToggle: () =>
+                      _controller.toggleHint(_controller.currentStepIndex),
                 ),
-                const SizedBox(height: 12),
-              ],
-              GestureDetector(
-                onHorizontalDragEnd: _handleDragEnd,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 260),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) {
-                    final position = Tween<Offset>(
-                      begin: Offset(_slideFromRight ? 0.08 : -0.08, 0),
-                      end: Offset.zero,
-                    ).animate(animation);
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(position: position, child: child),
+              );
+
+              final stepBody = hasBoundedHeight
+                  ? Expanded(
+                      child: GestureDetector(
+                        onHorizontalDragEnd: _handleDragEnd,
+                        child: SingleChildScrollView(
+                          child: stepCard,
+                        ),
+                      ),
+                    )
+                  : GestureDetector(
+                      onHorizontalDragEnd: _handleDragEnd,
+                      child: stepCard,
                     );
-                  },
-                  child: StepExplanationCard(
-                    key: ValueKey<int>(_controller.currentStepIndex),
-                    step: currentStep,
-                    stepNumber: _controller.currentStepIndex + 1,
-                    totalSteps: _controller.totalSteps,
-                    isHintVisible: _controller.isHintVisible(
-                      _controller.currentStepIndex,
+
+              return Column(
+                mainAxisSize: hasBoundedHeight
+                    ? MainAxisSize.max
+                    : MainAxisSize.min,
+                children: [
+                  _buildProgressHeader(context),
+                  const SizedBox(height: 12),
+                  if (_controller.isMistakeMode &&
+                      widget.mistakeExplanation?.trim().isNotEmpty == true) ...[
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: MistakeExplanationCard(
+                        key: ValueKey<MistakeType>(_controller.mistakeType),
+                        explanation: widget.mistakeExplanation!.trim(),
+                        misconception: widget.misconception,
+                        mistakeType: _controller.mistakeType,
+                      ),
                     ),
-                    onHintToggle: () =>
-                        _controller.toggleHint(_controller.currentStepIndex),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildNavigation(context),
-            ],
+                    const SizedBox(height: 12),
+                  ],
+                  stepBody,
+                  const SizedBox(height: 14),
+                  _buildNavigation(context),
+                ],
+              );
+            },
           ),
         );
       },

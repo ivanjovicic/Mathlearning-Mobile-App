@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import '../models/progress_overview.dart';
 import '../models/leaderboard_models.dart';
 import '../models/school_leaderboard_models.dart';
+import '../widgets/math/math_content_parser.dart';
 import 'network/dio_factory.dart';
 
 // Models
@@ -450,9 +451,9 @@ class ApiService {
         '/api/hints/formula',
         queryParameters: {'questionId': questionId},
       );
-      if (resp.data is String) return resp.data as String;
+      if (resp.data is String) return _sanitizeMathString(resp.data as String);
       if (resp.data is Map && resp.data['formula'] != null) {
-        return resp.data['formula'].toString();
+        return _sanitizeMathString(resp.data['formula'].toString());
       }
     } catch (_) {}
     return null;
@@ -464,9 +465,9 @@ class ApiService {
         '/api/hints/clue',
         queryParameters: {'questionId': questionId},
       );
-      if (resp.data is String) return resp.data as String;
+      if (resp.data is String) return _sanitizeMathString(resp.data as String);
       if (resp.data is Map && resp.data['clue'] != null) {
-        return resp.data['clue'].toString();
+        return _sanitizeMathString(resp.data['clue'].toString());
       }
     } catch (_) {}
     return null;
@@ -831,5 +832,10 @@ class ApiService {
     }
 
     return const <Map<String, dynamic>>[];
+  }
+
+  String _sanitizeMathString(String value) {
+    final normalized = MathContentParser.normalizeInput(value);
+    return normalized.isEmpty ? value.trim() : normalized;
   }
 }

@@ -12,6 +12,7 @@ import '../screens/quiz_summary_screen.dart';
 import '../widgets/level_up_animation.dart';
 import '../widgets/achievement_popup.dart';
 import '../widgets/formula_hint_bottom_sheet.dart';
+import '../widgets/math/math_content_parser.dart';
 import 'progress_provider.dart';
 import 'coin_provider.dart';
 import 'settings_provider.dart';
@@ -762,7 +763,8 @@ class QuizProvider extends ChangeNotifier {
   }
 
   String _normalizeText(String value) {
-    return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    final normalized = MathContentParser.normalizeInput(value);
+    return normalized.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
   }
 
   Map<String, dynamic> _flattenResponse(Map<String, dynamic> response) {

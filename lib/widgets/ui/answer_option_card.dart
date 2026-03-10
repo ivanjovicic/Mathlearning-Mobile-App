@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_scale.dart';
 import '../../theme/theme_extensions/theme_context.dart';
+import '../math/math_renderer.dart';
+import '../math/math_view_mode.dart';
 
 class QuizOptionTile extends StatelessWidget {
   const QuizOptionTile({
@@ -67,7 +69,11 @@ class QuizOptionTile extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
+                child: MathRenderer(
+                  value: text,
+                  mode: MathViewMode.answerOption,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
               ),
             ],
           ),

@@ -5,15 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mathlearning/widgets/gamified_math_panel.dart';
 
 void main() {
-  testWidgets('renders inline latex prompt as readable full text', (
-    tester,
-  ) async {
+  testWidgets('renders inline prompt with readable semantics', (tester) async {
+    final semantics = tester.ensureSemantics();
+
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
           body: GamifiedMathPanel(
             formula:
-                r'LaTeX test: Compute the derivative of $f(x)=x^2$ at $x=5$.',
+                r'LaTeX test: Compute the derivative of $f(x)=x^2$ at x = 5.',
             title: 'Challenge',
             subtitle: 'Solve it',
           ),
@@ -21,16 +21,20 @@ void main() {
       ),
     );
 
+    expect(find.byType(Math), findsOneWidget);
     expect(
-      find.text(
-        'LaTeX test: Compute the derivative of f(x)=x^2 at x=5.',
-        findRichText: true,
+      find.bySemanticsLabel(
+        'LaTeX test: Compute the derivative of f(x)=x to the power of 2 at x = 5.',
       ),
       findsOneWidget,
     );
+
+    semantics.dispose();
   });
 
-  testWidgets('renders pure latex expression with Math widget', (tester) async {
+  testWidgets('renders complex pure latex expression with Math widget', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -44,5 +48,6 @@ void main() {
     );
 
     expect(find.byType(Math), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

@@ -2,11 +2,12 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
 
 import '../l10n/app_i18n.dart';
 import '../navigation/navigation_extensions.dart';
 import '../widgets/mastery_progress_bar.dart';
+import '../widgets/math/math_renderer.dart';
+import '../widgets/math/math_view_mode.dart';
 
 class QuizSummaryScreen extends StatefulWidget {
   const QuizSummaryScreen({
@@ -385,20 +386,12 @@ class _WrongQuestionsCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Math.tex(
-                          q.questionText,
-                          textStyle: theme.textTheme.bodyMedium?.copyWith(
+                        child: MathRenderer(
+                          value: q.questionText,
+                          mode: MathViewMode.review,
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             color: cs.onSurface.withValues(alpha: 0.85),
                             height: 1.3,
-                          ),
-                          onErrorFallback: (_) => Text(
-                            q.questionText,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: cs.onSurface.withValues(alpha: 0.85),
-                              height: 1.3,
-                            ),
-                            softWrap: true,
-                            textWidthBasis: TextWidthBasis.longestLine,
                           ),
                         ),
                       ),

@@ -187,10 +187,13 @@ void main() {
         buildGoRouterTestApp(
           initialLocation: '/',
           routes: [
-            GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const HomeScreen(),
+            ),
             GoRoute(
               path: '/home/daily-review',
-              builder: (_, __) => const Scaffold(
+              builder: (context, state) => const Scaffold(
                 body: Center(child: Text('Daily Review Screen')),
               ),
             ),
@@ -223,4 +226,3 @@ void main() {
     });
   });
 }
-
