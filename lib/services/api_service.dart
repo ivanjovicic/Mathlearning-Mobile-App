@@ -400,7 +400,16 @@ class ApiService {
 
   Future<Map<String, dynamic>?> getDailyHintUsage() async {
     try {
-      final resp = await _dio.get('/api/hints/daily');
+      final resp = await _dio.get(
+        '/api/hints/daily',
+        options: Options(
+          validateStatus: (status) =>
+              status != null && (status < 400 || status == 404),
+        ),
+      );
+      if (resp.statusCode == 404) {
+        return null;
+      }
       if (resp.data is Map<String, dynamic>) {
         return resp.data as Map<String, dynamic>;
       }
@@ -433,7 +442,16 @@ class ApiService {
 
   Future<List<dynamic>?> getTopicsProgress() async {
     try {
-      final resp = await _dio.get('/api/topics/progress');
+      final resp = await _dio.get(
+        '/api/topics/progress',
+        options: Options(
+          validateStatus: (status) =>
+              status != null && (status < 400 || status == 404),
+        ),
+      );
+      if (resp.statusCode == 404) {
+        return null;
+      }
       if (resp.data is List) {
         return resp.data as List<dynamic>;
       }

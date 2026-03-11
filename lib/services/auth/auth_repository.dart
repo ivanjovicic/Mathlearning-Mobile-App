@@ -12,10 +12,10 @@ class AuthRepository {
   Future<ApiResult<bool>> login(String username, String password) async {
     try {
       // Dev API expects /api/auth/login and capitalized body keys
-      final response = await _dio.post('/api/auth/login', data: {
-        'Username': username,
-        'Password': password,
-      });
+      final response = await _dio.post(
+        '/api/auth/login',
+        data: {'Username': username, 'Password': password},
+      );
 
       final tokenPair = TokenPair.fromJson(response.data);
       await _tokenStorage.saveRefreshToken(tokenPair.refresh);
@@ -36,9 +36,37 @@ class AuthRepository {
         return ApiFailure(ApiError(message: 'No refresh token available'));
       }
 
-      final response = await _dio.post('/auth/refresh', data: {
-        'refreshToken': refreshToken,
-      });
+      final response = await _dio.post(
+        '/auth/refresh',
+        data: {'refreshToken': refreshToken},
+        options: Options(
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+
+      final statusCode = response.statusCode ?? 0;
+      if (statusCode == 401 || statusCode == 400) {
+        await _tokenStorage.clear();
+        final responseData = response.data;
+        final message = responseData is Map<String, dynamic>
+            ? (responseData['error']?.toString() ??
+                  responseData['message']?.toString() ??
+                  'Invalid or expired refresh token')
+            : 'Invalid or expired refresh token';
+        return ApiFailure(
+          ApiError(
+            message: message,
+            code: statusCode,
+            isUnauthorized: statusCode == 401,
+          ),
+        );
+      }
+
+      if (statusCode < 200 || statusCode >= 300) {
+        return ApiFailure(
+          ApiError(message: 'Refresh token request failed', code: statusCode),
+        );
+      }
 
       final tokenPair = TokenPair.fromJson(response.data);
       await _tokenStorage.saveRefreshToken(tokenPair.refresh);
@@ -52,13 +80,16 @@ class AuthRepository {
     }
   }
 
-  Future<ApiResult<Map<String, dynamic>>> register(String username, String password, String email) async {
+  Future<ApiResult<Map<String, dynamic>>> register(
+    String username,
+    String password,
+    String email,
+  ) async {
     try {
-      final response = await _dio.post('/auth/register', data: {
-        'username': username,
-        'password': password,
-        'email': email,
-      });
+      final response = await _dio.post(
+        '/auth/register',
+        data: {'username': username, 'password': password, 'email': email},
+      );
       return ApiSuccess(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       return ApiFailure(ApiError.fromDio(e));

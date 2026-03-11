@@ -97,9 +97,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
 
       progress.token = auth.token;
-      leaderboard.onTokenUpdated(auth.token);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        leaderboard.onTokenUpdated(auth.token);
         coinProvider.loadCoinsAndHints();
         leaderboard.loadGlobal();
       });
@@ -507,8 +507,8 @@ class _DashboardHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.onHeatmapTap,
   });
 
-  // Extent is computed from AppScale so it adapts to screen width.
-  static double get _extent => AppScale.s(176);
+  // Keep the header height in sync with its wrapped chip row.
+  double get _extent => AppScale.s(isDemoMode ? 224 : 208);
 
   @override
   double get minExtent => _extent;
@@ -535,162 +535,164 @@ class _DashboardHeaderDelegate extends SliverPersistentHeaderDelegate {
     final colorScheme = theme.colorScheme;
     final colors = context.colors;
 
-    return Material(
-      color: colors.screenBackground,
-      elevation: overlapsContent ? 2 : 0,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.base,
-          vertical: AppSpacing.sm,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Demo mode banner
-            if (isDemoMode)
-              Padding(
-                padding: EdgeInsets.only(bottom: AppSpacing.xs),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(AppScale.radius(6)),
-                    border: Border.all(color: colorScheme.primary),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: colorScheme.onPrimaryContainer,
-                        size: 13,
+    return SizedBox.expand(
+      child: Material(
+        color: colors.screenBackground,
+        elevation: overlapsContent ? 2 : 0,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.base,
+              vertical: AppSpacing.sm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Demo mode banner
+                if (isDemoMode)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Demo režim',
-                        style: TextStyle(
-                          color: colorScheme.onPrimaryContainer,
-                          fontSize: AppScale.font(11, min: 10, max: 14),
-                          fontWeight: FontWeight.w600,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(AppScale.radius(6)),
+                        border: Border.all(color: colorScheme.primary),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: colorScheme.onPrimaryContainer,
+                            size: 13,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Demo režim',
+                            style: TextStyle(
+                              color: colorScheme.onPrimaryContainer,
+                              fontSize: AppScale.font(11, min: 10, max: 14),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Greeting row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        t.hello(username),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: onBadgesTap,
+                          icon: Icon(
+                            Icons.workspace_premium_outlined,
+                            size: AppScale.icon(24, min: 22, max: 30),
+                          ),
+                          color: colors.textPrimary,
+                          tooltip: context.safeTooltip(t.badges),
+                          constraints: const BoxConstraints(
+                            minWidth: 40,
+                            minHeight: 40,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                        IconButton(
+                          onPressed: onHeatmapTap,
+                          icon: Icon(
+                            Icons.calendar_month,
+                            size: AppScale.icon(24, min: 22, max: 30),
+                          ),
+                          color: colors.textPrimary,
+                          tooltip: context.safeTooltip(t.activity),
+                          constraints: const BoxConstraints(
+                            minWidth: 40,
+                            minHeight: 40,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: AppSpacing.xs),
+
+                // Stat chips
+                Consumer<CoinProvider>(
+                  builder: (context, coins, _) => Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.xs,
+                    children: [
+                      _StatChip(
+                        icon: Icons.local_fire_department,
+                        label: t.streakDays(streak),
+                        backgroundColor: colorScheme.secondaryContainer
+                            .withValues(alpha: 0.55),
+                        foregroundColor: colorScheme.onSecondaryContainer,
+                      ),
+                      _StatChip(
+                        icon: Icons.monetization_on,
+                        label: t.coins(coins.coins),
+                        backgroundColor: colorScheme.tertiaryContainer
+                            .withValues(alpha: 0.55),
+                        foregroundColor: colorScheme.onTertiaryContainer,
+                      ),
+                      _StatChip(
+                        icon: Icons.flag_circle_outlined,
+                        label: t.dailyGoalShort(dailyDone, dailyGoalTarget),
+                        backgroundColor: colorScheme.primaryContainer
+                            .withValues(alpha: 0.55),
+                        foregroundColor: colorScheme.onPrimaryContainer,
                       ),
                     ],
                   ),
                 ),
-              ),
+                SizedBox(height: AppSpacing.xs),
 
-            // Greeting row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    t.hello(username),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                // XP bar
                 Row(
                   children: [
-                    IconButton(
-                      onPressed: onBadgesTap,
-                      icon: Icon(
-                        Icons.workspace_premium_outlined,
-                        size: AppScale.icon(24, min: 22, max: 30),
+                    Text(
+                      t.level(level),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.bold,
                       ),
-                      color: colors.textPrimary,
-                      tooltip: context.safeTooltip(t.badges),
-                      constraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
-                      ),
-                      padding: EdgeInsets.zero,
                     ),
-                    IconButton(
-                      onPressed: onHeatmapTap,
-                      icon: Icon(
-                        Icons.calendar_month,
-                        size: AppScale.icon(24, min: 22, max: 30),
+                    const Spacer(),
+                    Text(
+                      '$xp / $xpToNextLevel XP',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colors.textSecondary,
                       ),
-                      color: colors.textPrimary,
-                      tooltip: context.safeTooltip(t.activity),
-                      constraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
-                      ),
-                      padding: EdgeInsets.zero,
                     ),
                   ],
                 ),
+                SizedBox(height: AppSpacing.xs / 2),
+                AnimatedXpBar(currentXp: xp, maxXp: xpToNextLevel),
               ],
             ),
-            SizedBox(height: AppSpacing.xs),
-
-            // Stat chips
-            Consumer<CoinProvider>(
-              builder: (context, coins, _) => Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  _StatChip(
-                    icon: Icons.local_fire_department,
-                    label: t.streakDays(streak),
-                    backgroundColor: colorScheme.secondaryContainer.withValues(
-                      alpha: 0.55,
-                    ),
-                    foregroundColor: colorScheme.onSecondaryContainer,
-                  ),
-                  _StatChip(
-                    icon: Icons.monetization_on,
-                    label: t.coins(coins.coins),
-                    backgroundColor: colorScheme.tertiaryContainer.withValues(
-                      alpha: 0.55,
-                    ),
-                    foregroundColor: colorScheme.onTertiaryContainer,
-                  ),
-                  _StatChip(
-                    icon: Icons.flag_circle_outlined,
-                    label: t.dailyGoalShort(dailyDone, dailyGoalTarget),
-                    backgroundColor: colorScheme.primaryContainer.withValues(
-                      alpha: 0.55,
-                    ),
-                    foregroundColor: colorScheme.onPrimaryContainer,
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: AppSpacing.xs),
-
-            // XP bar
-            Row(
-              children: [
-                Text(
-                  t.level(level),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '$xp / $xpToNextLevel XP',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: AppSpacing.xs / 2),
-            AnimatedXpBar(currentXp: xp, maxXp: xpToNextLevel),
-          ],
+          ),
         ),
       ),
     );

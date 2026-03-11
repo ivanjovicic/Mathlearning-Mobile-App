@@ -11,7 +11,9 @@ class AuthClient {
   final AuthRepository _authRepository;
 
   AuthClient(this._dio, this._tokenStorage, this._authRepository) {
-    _dio.interceptors.add(_AuthInterceptor(_dio, _tokenStorage, _authRepository));
+    _dio.interceptors.add(
+      _AuthInterceptor(_dio, _tokenStorage, _authRepository),
+    );
   }
 }
 
@@ -24,15 +26,24 @@ class _AuthInterceptor extends Interceptor {
   _AuthInterceptor(this._dio, this._tokenStorage, this._authRepository);
 
   @override
-  Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  Future<void> onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     final accessToken = await _tokenStorage.getAccessToken();
-    if (accessToken != null) options.headers['Authorization'] = 'Bearer $accessToken';
+    if (accessToken != null) {
+      options.headers['Authorization'] = 'Bearer $accessToken';
+    }
     handler.next(options);
   }
 
   @override
-  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401 && !_isAuthRoute(err.requestOptions.path)) {
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    if (err.response?.statusCode == 401 &&
+        !_isAuthRoute(err.requestOptions.path)) {
       var completer = _refreshCompleter;
       if (completer == null) {
         completer = Completer<bool>();
@@ -76,5 +87,6 @@ class _AuthInterceptor extends Interceptor {
     );
   }
 
-  bool _isAuthRoute(String path) => path.startsWith('/auth');
+  bool _isAuthRoute(String path) =>
+      path.startsWith('/auth') || path.startsWith('/api/auth');
 }
