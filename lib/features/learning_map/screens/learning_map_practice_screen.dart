@@ -63,7 +63,7 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Next Challenge')),
+      appBar: AppBar(title: const Text('Daily Run')),
       body: switch (_stage) {
         _PracticeStage.intro => _buildIntro(),
         _PracticeStage.loading => const Center(
@@ -98,9 +98,7 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
               color: theme.colorScheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Text(
-              'Beat 10 quick questions to power up this skill!',
-            ),
+            child: const Text('Clear 10 quick gates to power up this skill!'),
           ),
           const Spacer(),
           SizedBox(
@@ -134,7 +132,7 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Round ${_index + 1} of ${_questions.length}',
+              'Gate ${_index + 1}/${_questions.length}',
               style: theme.textTheme.labelLarge,
             ),
           ),
@@ -249,10 +247,7 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              Text(
-                emoji,
-                style: const TextStyle(fontSize: 72),
-              )
+              Text(emoji, style: const TextStyle(fontSize: 72))
                   .animate()
                   .scale(
                     begin: const Offset(0.4, 0.4),
@@ -263,13 +258,13 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
                   .fadeIn(duration: 200.ms),
               const SizedBox(height: 20),
               Text(
-                praise,
-                style: tt.displaySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: cs.onPrimaryContainer,
-                ),
-                textAlign: TextAlign.center,
-              )
+                    praise,
+                    style: tt.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: cs.onPrimaryContainer,
+                    ),
+                    textAlign: TextAlign.center,
+                  )
                   .animate(delay: 160.ms)
                   .fadeIn(duration: 300.ms)
                   .slideY(begin: 0.15, duration: 300.ms, curve: Curves.easeOut),
@@ -294,24 +289,33 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
               const Spacer(),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => setState(() => _stage = _PracticeStage.summary),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: cs.primary,
-                    foregroundColor: cs.onPrimary,
-                    minimumSize: const Size.fromHeight(54),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Keep going! →',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-                  ),
-                )
-                    .animate(delay: 560.ms)
-                    .fadeIn(duration: 260.ms)
-                    .slideY(begin: 0.2, duration: 260.ms, curve: Curves.easeOut),
+                child:
+                    FilledButton(
+                          onPressed: () =>
+                              setState(() => _stage = _PracticeStage.summary),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: cs.primary,
+                            foregroundColor: cs.onPrimary,
+                            minimumSize: const Size.fromHeight(54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text(
+                            'Keep going! →',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                            ),
+                          ),
+                        )
+                        .animate(delay: 560.ms)
+                        .fadeIn(duration: 260.ms)
+                        .slideY(
+                          begin: 0.2,
+                          duration: 260.ms,
+                          curve: Curves.easeOut,
+                        ),
               ),
             ],
           ),
@@ -348,7 +352,7 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
           ),
           const SizedBox(height: 20),
           _SummaryTile(
-            title: 'Questions nailed',
+            title: 'Gates cleared',
             value: '$_correctCount / $total',
           ),
           const SizedBox(height: 10),
@@ -523,22 +527,22 @@ class _CelebrationStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.30)),
-      ),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w800,
-          color: color,
-        ),
-      ),
-    )
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.30)),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        )
         .animate(delay: delay)
         .fadeIn(duration: 280.ms)
         .slideX(begin: -0.06, duration: 280.ms, curve: Curves.easeOut);

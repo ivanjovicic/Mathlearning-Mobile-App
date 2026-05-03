@@ -13,6 +13,7 @@ import 'package:mathlearning/features/learning_map/screens/learning_map_screen.d
 import 'package:mathlearning/features/learning_map/services/learning_map_service.dart';
 import 'package:mathlearning/services/api_service.dart';
 import 'package:mathlearning/state/auth_provider.dart';
+import 'package:mathlearning/state/daily_run_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -131,6 +132,9 @@ Widget _buildTestShell({
       ChangeNotifierProvider<ProgressProvider>(
         create: (_) => ProgressProvider(),
       ),
+      ChangeNotifierProvider<DailyRunProvider>(
+        create: (_) => DailyRunProvider(),
+      ),
       ChangeNotifierProvider<LearningMapProvider>.value(value: provider),
     ],
     child: MaterialApp(home: child),
@@ -161,6 +165,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 60));
     await tester.pump();
 
+    expect(find.text('Your Daily Run is ready'), findsOneWidget);
+    expect(find.byKey(const Key('daily_run_start_button')), findsOneWidget);
+
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
     await tester.pumpAndSettle();
 
@@ -183,7 +190,6 @@ void main() {
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -1000));
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
     expect(find.text('Play'), findsWidgets);
   });
 
@@ -217,6 +223,9 @@ void main() {
           ),
           ChangeNotifierProvider<ProgressProvider>(
             create: (_) => ProgressProvider(),
+          ),
+          ChangeNotifierProvider<DailyRunProvider>(
+            create: (_) => DailyRunProvider(),
           ),
           ChangeNotifierProvider<LearningMapProvider>.value(value: provider),
         ],

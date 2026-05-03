@@ -9,19 +9,26 @@ class PracticeQuestionCard extends StatelessWidget {
     required this.prompt,
     required this.questionNumber,
     required this.totalQuestions,
+    this.useGateCopy = false,
   });
 
   final String prompt;
   final int questionNumber;
   final int totalQuestions;
+  final bool useGateCopy;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    final progressLabel = useGateCopy
+        ? 'Gate $questionNumber/$totalQuestions'
+        : 'Question $questionNumber of $totalQuestions';
+
     return Semantics(
       container: true,
       liveRegion: true,
-      label: 'Question $questionNumber of $totalQuestions. $prompt',
+      label: '$progressLabel. $prompt',
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 280),
         transitionBuilder: (child, animation) {
@@ -40,21 +47,46 @@ class PracticeQuestionCard extends StatelessWidget {
             ),
           );
         },
-          child: Container(
-            key: ValueKey<String>('question_$questionNumber$prompt'),
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
+        child: Container(
+          key: ValueKey<String>('question_$questionNumber$prompt'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
+            color: colors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(18),
           ),
-          child: MathRenderer(
-            value: prompt,
-            mode: MathViewMode.questionStem,
-            style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              height: 1.3,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (useGateCopy) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    progressLabel,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: colors.onPrimaryContainer,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              MathRenderer(
+                value: prompt,
+                mode: MathViewMode.questionStem,
+                style: textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                ),
+              ),
+            ],
           ),
         ),
       ),

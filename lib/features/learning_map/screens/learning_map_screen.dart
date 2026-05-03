@@ -4,12 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'package:mathlearning/features/adaptive_practice/screens/adaptive_practice_screen.dart'
+    as adaptive_practice;
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
 import 'package:mathlearning/features/learning_map/models/daily_reward.dart';
+import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/features/learning_map/models/practice_recommendation.dart';
 import 'package:mathlearning/features/learning_map/models/skill_node_state.dart';
 import 'package:mathlearning/navigation/navigation_extensions.dart';
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
+import 'package:mathlearning/features/learning_map/widgets/daily_run_card.dart';
+import 'package:mathlearning/features/learning_map/widgets/daily_chest_reward_sheet.dart';
 import 'package:mathlearning/features/learning_map/widgets/daily_reward_chest.dart';
 import 'package:mathlearning/features/learning_map/widgets/daily_missions_carousel.dart';
 import 'package:mathlearning/features/learning_map/widgets/learning_map_skeleton.dart';
@@ -20,6 +25,8 @@ import 'package:mathlearning/features/learning_map/widgets/streak_card.dart';
 import 'package:mathlearning/features/learning_map/widgets/xp_level_chip.dart';
 import 'package:mathlearning/services/connectivity_service.dart';
 import 'package:mathlearning/state/auth_provider.dart';
+import 'package:mathlearning/state/coin_provider.dart';
+import 'package:mathlearning/state/daily_run_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
 import 'package:mathlearning/state/streak_freeze_provider.dart';
 
@@ -35,6 +42,7 @@ class LearningMapScreen extends StatefulWidget {
 
 class _LearningMapScreenState extends State<LearningMapScreen> {
   bool _initialized = false;
+  bool _dailyRunInitialized = false;
   final ScrollController _pageScrollController = ScrollController();
   MapCompletionFeedback? _mapCompletionFeedback;
   bool _captureScheduled = false;
@@ -43,12 +51,20 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_initialized) return;
-    _initialized = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      context.read<LearningMapProvider>().loadAll(widget.userId);
-    });
+    if (!_initialized) {
+      _initialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<LearningMapProvider>().loadAll(widget.userId);
+      });
+    }
+    if (!_dailyRunInitialized) {
+      _dailyRunInitialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<DailyRunProvider>().load(widget.userId);
+      });
+    }
   }
 
   @override
@@ -64,13 +80,14 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     final recommendedNode = provider.recommendedNode;
     final auth = context.watch<AuthProvider>();
     final progress = context.watch<ProgressProvider>();
+    final dailyRun = context.watch<DailyRunProvider>();
     final colorScheme = Theme.of(context).colorScheme;
     final isOnline = ConnectivityService.instance.isOnline;
     final dailyRewardState = provider.isDailyRewardOpenedToday
-      ? DailyRewardChestState.opened
-      : progress.isStreakDoneToday
-      ? DailyRewardChestState.ready
-      : DailyRewardChestState.locked;
+        ? DailyRewardChestState.opened
+        : progress.isStreakDoneToday
+        ? DailyRewardChestState.ready
+        : DailyRewardChestState.locked;
 
     _maybeCaptureCompletionFeedback(provider);
     if (path != null && _mapCompletionFeedback != null) {
@@ -144,6 +161,17 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: DailyRunCard(
+                      isCompleted: dailyRun.isCompleted,
+                      chestState: dailyRun.chestState,
+                      onStart: _startDailyRun,
+                      onOpenChest: _openDailyChest,
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                     child: XpLevelChip(
                       level: progress.level,
                       xp: progress.xp,
@@ -371,6 +399,127 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     context.startAdaptivePractice(plan);
   }
 
+  Future<void> _startDailyRun() async {
+    if (!ConnectivityService.instance.isOnline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You need Wi-Fi or data to play this round!'),
+        ),
+      );
+      return;
+    }
+
+    final mapProvider = context.read<LearningMapProvider>();
+    final path = mapProvider.path;
+    if (path == null || path.nodes.isEmpty) {
+      return;
+    }
+
+    final baseNode = mapProvider.recommendedNode ?? path.nodes.first;
+    final stagePlans = _buildDailyRunPlans(
+      userId: widget.userId,
+      path: path,
+      baseNode: baseNode,
+      mapProvider: mapProvider,
+    );
+
+    await context.read<DailyRunProvider>().startRun();
+    if (!mounted) {
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => adaptive_practice.AdaptivePracticeScreen(
+          plan: stagePlans.first,
+          dailyRunPlans: stagePlans,
+        ),
+      ),
+    );
+  }
+
+  List<PracticeLaunchPlan> _buildDailyRunPlans({
+    required String userId,
+    required AdaptiveLearningPath path,
+    required SkillNode baseNode,
+    required LearningMapProvider mapProvider,
+  }) {
+    final unlockedNodes = path.nodes.where((node) => !node.isLocked).toList();
+    final warmNode = _pickNodeForDifficulty(
+      unlockedNodes,
+      preferred: SkillDifficulty.easy,
+      fallback: baseNode,
+    );
+    final challengeNode = _pickNodeForDifficulty(
+      unlockedNodes,
+      preferred: SkillDifficulty.medium,
+      fallback: baseNode,
+    );
+    final finalNode = _pickNodeForDifficulty(
+      unlockedNodes,
+      preferred: SkillDifficulty.hard,
+      fallback: challengeNode,
+    );
+
+    return [
+      _buildStagePlan(
+        userId: userId,
+        node: warmNode,
+        mapProvider: mapProvider,
+        difficulty: SkillDifficulty.easy,
+        targetQuestions: 2,
+      ),
+      _buildStagePlan(
+        userId: userId,
+        node: challengeNode,
+        mapProvider: mapProvider,
+        difficulty: SkillDifficulty.medium,
+        targetQuestions: 5,
+      ),
+      _buildStagePlan(
+        userId: userId,
+        node: finalNode,
+        mapProvider: mapProvider,
+        difficulty: SkillDifficulty.hard,
+        targetQuestions: 2,
+      ),
+    ];
+  }
+
+  PracticeLaunchPlan _buildStagePlan({
+    required String userId,
+    required SkillNode node,
+    required LearningMapProvider mapProvider,
+    required SkillDifficulty difficulty,
+    required int targetQuestions,
+  }) {
+    final seedPlan = mapProvider.buildLaunchPlanForNode(node);
+    return PracticeLaunchPlan(
+      userId: userId,
+      nodeId: node.id,
+      skillTitle: node.title,
+      topicId: node.topicId,
+      subtopicId: node.subtopicId,
+      difficulty: difficulty,
+      source: seedPlan.source,
+      practiceId: seedPlan.practiceId,
+      targetQuestions: targetQuestions,
+    );
+  }
+
+  SkillNode _pickNodeForDifficulty(
+    List<SkillNode> nodes, {
+    required SkillDifficulty preferred,
+    required SkillNode fallback,
+  }) {
+    for (final node in nodes) {
+      if (node.recommendedDifficulty == preferred) {
+        return node;
+      }
+    }
+    return fallback;
+  }
+
   Future<void> _openDailyReward(BuildContext context) async {
     final provider = context.read<LearningMapProvider>();
     final reward = await provider.openDailyReward();
@@ -392,6 +541,43 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
       case DailyRewardType.cosmetic:
         break;
     }
+  }
+
+  Future<void> _openDailyChest() async {
+    final dailyRun = context.read<DailyRunProvider>();
+    final reward = await dailyRun.openChest();
+    if (reward == null || !mounted) {
+      return;
+    }
+
+    final progress = context.read<ProgressProvider>();
+    progress.addXP(reward.xp);
+    unawaited(progress.persistLocalProgress());
+    context.read<CoinProvider>().addCoins(reward.coins);
+
+    if (!mounted) {
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return DailyChestRewardSheet(
+          reward: reward,
+          onContinue: () => Navigator.of(sheetContext).pop(),
+        );
+      },
+    );
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Tomorrow\'s chest is even better 👀')),
+    );
   }
 }
 
@@ -482,7 +668,9 @@ class _PracticeNextButton extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      isOnline ? _contextLine() : 'Connect to Wi-Fi to play! 📶',
+                      isOnline
+                          ? _contextLine()
+                          : 'Connect to Wi-Fi to play! 📶',
                       style: tt.bodySmall?.copyWith(
                         color: cs.onPrimary.withValues(alpha: 0.80),
                       ),
@@ -593,7 +781,10 @@ class _ErrorState extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Center(
-          child: FilledButton(onPressed: onRetry, child: const Text('Try again')),
+          child: FilledButton(
+            onPressed: onRetry,
+            child: const Text('Try again'),
+          ),
         ),
       ],
     );

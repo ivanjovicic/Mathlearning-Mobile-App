@@ -21,6 +21,7 @@ import 'state/user_profile_provider.dart';
 import 'state/adaptive_provider.dart';
 import 'state/avatar_provider.dart';
 import 'state/learning_path_provider.dart';
+import 'state/daily_run_provider.dart';
 import 'features/learning_map/providers/learning_map_provider.dart';
 import 'features/learning_map/services/learning_map_service.dart';
 
@@ -167,6 +168,7 @@ class MathLearningApp extends StatelessWidget {
             service: LearningMapService(apiService: _apiService),
           ),
         ),
+        ChangeNotifierProvider(create: (_) => DailyRunProvider()),
         ChangeNotifierProxyProvider<ProgressProvider, AdaptiveProvider>(
           create: (_) =>
               AdaptiveProvider(adaptiveService: _adaptiveLearningService),

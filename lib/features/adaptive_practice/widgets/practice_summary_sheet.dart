@@ -8,11 +8,13 @@ class PracticeSummarySheet extends StatelessWidget {
     required this.summary,
     required this.onBackToMap,
     required this.onPracticeNext,
+    this.headline,
   });
 
   final PracticeCompleteResponse summary;
   final VoidCallback onBackToMap;
   final VoidCallback? onPracticeNext;
+  final String? headline;
 
   @override
   Widget build(BuildContext context) {
@@ -31,9 +33,10 @@ class PracticeSummarySheet extends StatelessWidget {
                 const Icon(Icons.emoji_events_rounded, color: Colors.amber),
                 const SizedBox(width: 8),
                 Text(
-                  summary.accuracy >= 0.7
-                      ? 'You crushed it! 🎉'
-                      : 'Good fight — keep training! 💪',
+                  headline ??
+                      (summary.accuracy >= 0.7
+                          ? 'You crushed it! 🎉'
+                          : 'Good fight — keep training! 💪'),
                   style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -78,7 +81,7 @@ class PracticeSummarySheet extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: onPracticeNext,
-                  child: const Text('Next Challenge'),
+                  child: const Text('Daily Run'),
                 ),
               ),
             ],
