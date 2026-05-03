@@ -146,6 +146,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  Finder questionLabel(String prompt, {required int number}) {
+    return find.bySemanticsLabel('Question $number of 2. $prompt');
+  }
+
   testWidgets('shows loading then first question', (tester) async {
     final provider = AdaptivePracticeProvider(
       apiService: _FakePracticeApiService(),
@@ -153,9 +157,9 @@ void main() {
     );
 
     await tester.pumpWidget(_wrap(provider, plan));
-    await tester.pump(const Duration(milliseconds: 80));
-    await tester.pump();
-    expect(find.text('3 + 2 = ?'), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    expect(questionLabel('3 + 2 = ?', number: 1), findsOneWidget);
   });
 
   testWidgets('correct answer shows feedback', (tester) async {
@@ -173,7 +177,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Correct!'), findsOneWidget);
-    expect(find.text('4 + 4 = ?'), findsOneWidget);
+    expect(questionLabel('4 + 4 = ?', number: 2), findsOneWidget);
   });
 
   testWidgets('finish shows summary sheet', (tester) async {
