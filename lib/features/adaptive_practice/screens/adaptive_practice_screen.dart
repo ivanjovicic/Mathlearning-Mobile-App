@@ -10,6 +10,7 @@ import 'package:mathlearning/features/adaptive_practice/services/practice_sessio
 import 'package:mathlearning/features/adaptive_practice/models/practice_complete_response.dart';
 import 'package:mathlearning/features/adaptive_practice/widgets/mastery_inline_meter.dart';
 import 'package:mathlearning/features/adaptive_practice/widgets/practice_bottom_cta.dart';
+import 'package:mathlearning/features/adaptive_practice/widgets/practice_celebration_page.dart';
 import 'package:mathlearning/features/adaptive_practice/widgets/practice_feedback_bar.dart';
 import 'package:mathlearning/features/adaptive_practice/widgets/practice_options_list.dart';
 import 'package:mathlearning/features/adaptive_practice/widgets/practice_question_card.dart';
@@ -20,6 +21,7 @@ import 'package:mathlearning/features/learning_map/models/practice_launch_plan.d
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
 import 'package:mathlearning/navigation/navigation_extensions.dart';
 import 'package:mathlearning/services/api_service.dart';
+import 'package:mathlearning/state/progress_provider.dart';
 
 class AdaptivePracticeScreen extends StatelessWidget {
   const AdaptivePracticeScreen({
@@ -44,7 +46,9 @@ class AdaptivePracticeScreen extends StatelessWidget {
     final learningMapProvider = _maybeRead<LearningMapProvider>(context);
     if (learningMapProvider == null) {
       return const Scaffold(
-        body: Center(child: Text('Learning map is unavailable.')),
+        body: Center(
+          child: Text('Something went wrong — go back and try again.'),
+        ),
       );
     }
 
@@ -103,7 +107,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
         !provider.loading &&
         provider.sessionId == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Adaptive Practice')),
+        appBar: AppBar(title: const Text('Next Challenge')),
         body: _ErrorState(
           message: error,
           onRetry: () =>
@@ -226,7 +230,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
 
                           if (state.prompt.isEmpty) {
                             return const Center(
-                              child: Text('Preparing questions...'),
+                              child: Text('Getting your challenges ready...'),
                             );
                           }
 
@@ -364,9 +368,9 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Exit practice?'),
+          title: const Text('Exit challenge?'),
           content: const Text(
-            'Exit practice? Your progress will be saved and session will end.',
+            'Your saved progress will stay here and this round will end.',
           ),
           actions: [
             TextButton(
@@ -392,32 +396,72 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
 
   Future<void> _presentSummary(PracticeCompleteResponse completion) async {
     _summaryPresented = true;
+
+    // ── Step 1: Celebration overlay ───────────────────────────────────────
+    if (mounted) {
+      await Navigator.of(context).push<void>(
+        PageRouteBuilder<void>(
+          opaque: true,
+          pageBuilder: (_, __, ___) => PracticeCelebrationPage(
+            xpEarned: completion.xpEarned,
+            correctCount: completion.correctAnswers,
+            totalQuestions: completion.answeredQuestions,
+            masteryDelta: completion.masteryDelta,
+            onContinue: () => Navigator.of(context).pop(),
+          ),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 220),
+        ),
+      );
+    }
+
+    if (!mounted) return;
+
+    // ── Step 2: Detailed summary sheet ────────────────────────────────────
     final nextNodeId = completion.recommendedNextSkillNodeId;
     await showModalBottomSheet<void>(
       context: context,
       isDismissible: false,
       enableDrag: false,
       isScrollControlled: true,
-      builder: (context) {
+      builder: (sheetContext) {
         return PracticeSummarySheet(
           summary: completion,
-          onBackToMap: () {
-            Navigator.of(context).pop();
-            if (mounted) {
-              context.goLearnMap(focusNodeId: widget.plan.nodeId);
-            }
+          onBackToMap: () async {
+            await _syncProgressAfterCompletion(completion);
+            if (!mounted) return;
+            Navigator.of(sheetContext).pop();
+            context.goLearnMap(focusNodeId: widget.plan.nodeId);
           },
           onPracticeNext: nextNodeId == null
               ? null
-              : () {
-                  Navigator.of(context).pop();
-                  if (mounted) {
-                    context.goLearnMap(focusNodeId: nextNodeId);
-                  }
+              : () async {
+                  await _syncProgressAfterCompletion(completion);
+                  if (!mounted) return;
+                  Navigator.of(sheetContext).pop();
+                  context.goLearnMap(focusNodeId: nextNodeId);
                 },
         );
       },
     );
+  }
+
+  Future<void> _syncProgressAfterCompletion(
+    PracticeCompleteResponse completion,
+  ) async {
+    final progress = _maybeRead<ProgressProvider>(context);
+    if (progress == null) {
+      return;
+    }
+
+    try {
+      await progress.applyPracticeRoundReward(xpEarned: completion.xpEarned);
+    } catch (error, stackTrace) {
+      debugPrint('Failed to sync adaptive practice reward locally: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 }
 
@@ -457,9 +501,12 @@ class _ErrorState extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              OutlinedButton(onPressed: onBack, child: const Text('Back')),
+              OutlinedButton(
+                onPressed: onBack,
+                child: const Text('Back to my map'),
+              ),
               const SizedBox(width: 8),
-              FilledButton(onPressed: onRetry, child: const Text('Retry')),
+              FilledButton(onPressed: onRetry, child: const Text('Try again')),
             ],
           ),
         ],

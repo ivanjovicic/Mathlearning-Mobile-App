@@ -8,21 +8,63 @@ import 'package:mathlearning/features/learning_map/widgets/skill_node_bubble.dar
 import 'package:mathlearning/theme/app_scale.dart';
 import 'package:mathlearning/theme/theme_extensions/theme_context.dart';
 
-class SkillGraphView extends StatelessWidget {
+class SkillGraphView extends StatefulWidget {
   const SkillGraphView({
     super.key,
     required this.nodes,
     required this.onNodeTap,
     this.focusedNodeId,
+    this.celebrationNodeId,
+    this.celebrationXp,
+    this.autoScrollTargetNodeId,
   });
 
   final List<SkillNode> nodes;
   final ValueChanged<SkillNode> onNodeTap;
   final String? focusedNodeId;
+  final String? celebrationNodeId;
+  final int? celebrationXp;
+  final String? autoScrollTargetNodeId;
+
+  @override
+  State<SkillGraphView> createState() => _SkillGraphViewState();
+}
+
+class _SkillGraphViewState extends State<SkillGraphView> {
+  static const _graphNodeExtent = 204.0;
+
+  final ScrollController _scrollController = ScrollController();
+  String? _lastScrollSequenceKey;
+
+  double get _nodeExtent => AppScale.s(_graphNodeExtent);
+  double get _connectorExtent => AppScale.s(42);
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleScrollSequence();
+  }
+
+  @override
+  void didUpdateWidget(covariant SkillGraphView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusedNodeId != widget.focusedNodeId ||
+        oldWidget.celebrationNodeId != widget.celebrationNodeId ||
+        oldWidget.autoScrollTargetNodeId != widget.autoScrollTargetNodeId ||
+        oldWidget.nodes.length != widget.nodes.length) {
+      _scheduleScrollSequence();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (nodes.isEmpty) {
+    if (widget.nodes.isEmpty) {
       return Center(
         child: Padding(
           padding: EdgeInsets.all(context.spacing.m),
@@ -35,6 +77,7 @@ class SkillGraphView extends StatelessWidget {
     }
 
     return ListView.builder(
+      controller: _scrollController,
       key: const Key('learning_map_graph_list'),
       padding: EdgeInsets.fromLTRB(
         context.spacing.m,
@@ -42,7 +85,7 @@ class SkillGraphView extends StatelessWidget {
         context.spacing.m,
         AppScale.s(180),
       ),
-      itemCount: nodes.length * 2 - 1,
+      itemCount: widget.nodes.length * 2 - 1,
       itemBuilder: (context, index) {
         if (index.isOdd) {
           final nodeIndex = index ~/ 2;
@@ -53,37 +96,109 @@ class SkillGraphView extends StatelessWidget {
         }
 
         final nodeIndex = index ~/ 2;
-        final node = nodes[nodeIndex];
+        final node = widget.nodes[nodeIndex];
         final alignment = _alignmentForIndex(nodeIndex);
-        return Align(
-          alignment: alignment,
-          child: Selector<LearningMapProvider, _NodeViewModel>(
-            selector: (_, provider) {
-              final latest = provider.findNodeById(node.id) ?? node;
-              final state = provider.getNodeState(latest);
-              final progress = provider.getNodeProgress(latest);
-              final isRecommended = provider.path?.recommendedNext == latest.id;
-              return _NodeViewModel(
-                node: latest,
-                state: state,
-                progress: progress,
-                isRecommended: isRecommended,
-              );
-            },
-            builder: (context, viewModel, _) {
-              return SkillNodeBubble(
-                key: ValueKey('skill_node_wrap_${viewModel.node.id}'),
-                node: viewModel.node,
-                state: viewModel.state,
-                progress: viewModel.progress,
-                semanticLabel: _semanticLabel(viewModel),
-                showNextLabel: viewModel.isRecommended,
-                onTap: () => onNodeTap(viewModel.node),
-              );
-            },
+        return SizedBox(
+          height: _nodeExtent,
+          child: Align(
+            alignment: alignment,
+            child: Selector<LearningMapProvider, _NodeViewModel>(
+              selector: (_, provider) {
+                final latest = provider.findNodeById(node.id) ?? node;
+                final state = provider.getNodeState(latest);
+                final progress = provider.getNodeProgress(latest);
+                final isRecommended = provider.path?.recommendedNext == latest.id;
+                return _NodeViewModel(
+                  node: latest,
+                  state: state,
+                  progress: progress,
+                  isRecommended: isRecommended,
+                );
+              },
+              builder: (context, viewModel, _) {
+                return SkillNodeBubble(
+                  key: ValueKey('skill_node_wrap_${viewModel.node.id}'),
+                  node: viewModel.node,
+                  state: viewModel.state,
+                  progress: viewModel.progress,
+                  semanticLabel: _semanticLabel(viewModel),
+                  showNextLabel: viewModel.isRecommended,
+                  showCompletionFeedback:
+                      widget.celebrationNodeId == viewModel.node.id,
+                  completionXp: widget.celebrationNodeId == viewModel.node.id
+                      ? widget.celebrationXp
+                      : null,
+                  onTap: () => widget.onNodeTap(viewModel.node),
+                );
+              },
+            ),
           ),
         );
       },
+    );
+  }
+
+  void _scheduleScrollSequence() {
+    final focusNodeId = widget.celebrationNodeId ?? widget.focusedNodeId;
+    final targetNodeId = widget.autoScrollTargetNodeId;
+    final sequenceKey =
+        '$focusNodeId|$targetNodeId|${widget.celebrationXp}|${widget.nodes.length}';
+    if (_lastScrollSequenceKey == sequenceKey) {
+      return;
+    }
+    _lastScrollSequenceKey = sequenceKey;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
+
+      if (focusNodeId != null) {
+        await _scrollToNode(focusNodeId);
+      }
+
+      if (!mounted ||
+          widget.celebrationNodeId == null ||
+          targetNodeId == null ||
+          targetNodeId == focusNodeId) {
+        return;
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
+      await _scrollToNode(
+        targetNodeId,
+        duration: const Duration(milliseconds: 650),
+      );
+    });
+  }
+
+  Future<void> _scrollToNode(
+    String nodeId, {
+    Duration duration = const Duration(milliseconds: 420),
+  }) async {
+    final nodeIndex = widget.nodes.indexWhere((node) => node.id == nodeId);
+    if (nodeIndex < 0 || !_scrollController.hasClients) {
+      return;
+    }
+
+    final position = _scrollController.position;
+    final estimatedOffset =
+        (nodeIndex * (_nodeExtent + _connectorExtent)) -
+        ((position.viewportDimension - _nodeExtent) / 2);
+    final targetOffset =
+        estimatedOffset.clamp(0.0, position.maxScrollExtent).toDouble();
+
+    if ((position.pixels - targetOffset).abs() < 4) {
+      return;
+    }
+
+    await _scrollController.animateTo(
+      targetOffset,
+      duration: duration,
+      curve: Curves.easeOutCubic,
     );
   }
 
@@ -95,14 +210,21 @@ class SkillGraphView extends StatelessWidget {
   }
 
   String _semanticLabel(_NodeViewModel vm) {
+    final isCompleted = vm.progress >= 0.999;
     final stateText = switch (vm.state) {
       SkillNodeState.locked => 'locked',
-      SkillNodeState.learning => 'in progress',
-      SkillNodeState.mastered => 'mastered',
-      SkillNodeState.recommended => 'recommended next',
+      SkillNodeState.learning => 'ready to play',
+      SkillNodeState.mastered => 'level complete',
+      SkillNodeState.recommended => 'ready to play now',
     };
-    final percent = (vm.progress * 100).round();
-    return '${vm.node.title}, $percent% mastered, $stateText';
+    final level = vm.progress >= 0.67 ? 3 : vm.progress >= 0.34 ? 2 : 1;
+    if (isCompleted) {
+      return '${vm.node.title}, done, $stateText';
+    }
+    if (vm.state == SkillNodeState.locked) {
+      return '${vm.node.title}, locked';
+    }
+    return '${vm.node.title}, level $level, $stateText';
   }
 }
 

@@ -4,11 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
+import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/navigation/app_routes.dart';
 import 'package:mathlearning/features/learning_map/models/practice_recommendation.dart';
 import 'package:mathlearning/features/learning_map/models/skill_mastery.dart';
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
-import 'package:mathlearning/features/adaptive_practice/screens/adaptive_practice_screen.dart';
 import 'package:mathlearning/features/learning_map/screens/learning_map_screen.dart';
 import 'package:mathlearning/features/learning_map/services/learning_map_service.dart';
 import 'package:mathlearning/services/api_service.dart';
@@ -110,6 +110,17 @@ class _FakeLearningMapSource implements LearningMapDataSource {
   }
 }
 
+class _PracticeRouteProbe extends StatelessWidget {
+  const _PracticeRouteProbe({required this.plan});
+
+  final PracticeLaunchPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(body: Text('practice:${plan.nodeId}:${plan.practiceId}'));
+  }
+}
+
 Widget _buildTestShell({
   required Widget child,
   required LearningMapProvider provider,
@@ -173,10 +184,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
-    expect(find.text('Next'), findsWidgets);
+    expect(find.text('Play'), findsWidgets);
   });
 
-  testWidgets('Tapping a learning node opens practice screen', (tester) async {
+  testWidgets('Tapping practice CTA routes to adaptive practice', (
+    tester,
+  ) async {
     final provider = LearningMapProvider(service: _FakeLearningMapSource());
     final router = GoRouter(
       initialLocation: '/learning-map',
@@ -190,7 +203,7 @@ void main() {
           path: '/practice/adaptive',
           builder: (_, state) {
             final plan = AdaptivePracticeRoute.fromState(state).plan;
-            return AdaptivePracticeScreen(plan: plan);
+            return _PracticeRouteProbe(plan: plan);
           },
         ),
       ],
@@ -212,11 +225,14 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('skill_node_n1')));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('practice_next_button')),
+        matching: find.byType(InkWell),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Adaptive Practice'), findsOneWidget);
+    expect(find.text('practice:n1:fractions_pack_1'), findsOneWidget);
   });
 }

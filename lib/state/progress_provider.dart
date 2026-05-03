@@ -341,7 +341,9 @@ class ProgressProvider extends ChangeNotifier {
     accuracy = (cached['accuracy'] as num?)?.toDouble() ?? accuracy;
     final lastStreakMs = cached['last_streak_day_ms'];
     if (lastStreakMs is int) {
-      _lastStreakDay = _dateOnly(DateTime.fromMillisecondsSinceEpoch(lastStreakMs));
+      _lastStreakDay = _dateOnly(
+        DateTime.fromMillisecondsSinceEpoch(lastStreakMs),
+      );
     } else if (lastStreakMs is num) {
       _lastStreakDay = _dateOnly(
         DateTime.fromMillisecondsSinceEpoch(lastStreakMs.toInt()),
@@ -494,6 +496,41 @@ class ProgressProvider extends ChangeNotifier {
       if (onLevelUp != null) onLevelUp!();
     }
 
+    notifyListeners();
+  }
+
+  Future<void> applyPracticeRoundReward({
+    required int xpEarned,
+    DateTime? now,
+  }) async {
+    await _loadLastStreakDayFromPrefs();
+
+    if (xpEarned > 0) {
+      xp += xpEarned;
+      while (xp >= xpToNextLevel) {
+        xp -= xpToNextLevel;
+        level++;
+        if (onLevelUp != null) onLevelUp!();
+      }
+    }
+
+    final today = _dateOnly(now ?? DateTime.now());
+    final last = _lastStreakDay;
+    if (last == null) {
+      if (streak <= 0) streak = 1;
+      _lastStreakDay = today;
+    } else {
+      final diff = today.difference(_dateOnly(last)).inDays;
+      if (diff == 1) {
+        streak = (streak < 1 ? 1 : streak) + 1;
+        _lastStreakDay = today;
+      } else if (diff > 1) {
+        streak = 1;
+        _lastStreakDay = today;
+      }
+    }
+
+    await _cacheProgressLocally();
     notifyListeners();
   }
 

@@ -1,17 +1,27 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
+import 'package:mathlearning/features/learning_map/models/daily_reward.dart';
+import 'package:mathlearning/features/learning_map/models/practice_recommendation.dart';
 import 'package:mathlearning/features/learning_map/models/skill_node_state.dart';
 import 'package:mathlearning/navigation/navigation_extensions.dart';
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
+import 'package:mathlearning/features/learning_map/widgets/daily_reward_chest.dart';
 import 'package:mathlearning/features/learning_map/widgets/daily_missions_carousel.dart';
 import 'package:mathlearning/features/learning_map/widgets/learning_map_skeleton.dart';
+import 'package:mathlearning/features/learning_map/widgets/path_progress_card.dart';
 import 'package:mathlearning/features/learning_map/widgets/quest_progress_list.dart';
 import 'package:mathlearning/features/learning_map/widgets/skill_graph_view.dart';
+import 'package:mathlearning/features/learning_map/widgets/streak_card.dart';
+import 'package:mathlearning/features/learning_map/widgets/xp_level_chip.dart';
 import 'package:mathlearning/services/connectivity_service.dart';
 import 'package:mathlearning/state/auth_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
+import 'package:mathlearning/state/streak_freeze_provider.dart';
 
 class LearningMapScreen extends StatefulWidget {
   const LearningMapScreen({super.key, required this.userId, this.focusNodeId});
@@ -25,6 +35,10 @@ class LearningMapScreen extends StatefulWidget {
 
 class _LearningMapScreenState extends State<LearningMapScreen> {
   bool _initialized = false;
+  final ScrollController _pageScrollController = ScrollController();
+  MapCompletionFeedback? _mapCompletionFeedback;
+  bool _captureScheduled = false;
+  bool _mapRevealScheduled = false;
 
   @override
   void didChangeDependencies() {
@@ -38,6 +52,12 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   }
 
   @override
+  void dispose() {
+    _pageScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final provider = context.watch<LearningMapProvider>();
     final path = provider.path;
@@ -46,24 +66,24 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     final progress = context.watch<ProgressProvider>();
     final colorScheme = Theme.of(context).colorScheme;
     final isOnline = ConnectivityService.instance.isOnline;
+    final dailyRewardState = provider.isDailyRewardOpenedToday
+      ? DailyRewardChestState.opened
+      : progress.isStreakDoneToday
+      ? DailyRewardChestState.ready
+      : DailyRewardChestState.locked;
+
+    _maybeCaptureCompletionFeedback(provider);
+    if (path != null && _mapCompletionFeedback != null) {
+      _maybeRevealMapSection();
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           auth.username?.isNotEmpty == true
-              ? '${auth.username} - Learning Map'
-              : 'Learning Map',
+              ? '${auth.username}\'s Adventure Map'
+              : 'Your Adventure Map',
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: _CompactStatsChip(
-              level: progress.level,
-              xp: progress.xp,
-              streak: progress.streak,
-            ),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: () => provider.refresh(widget.userId),
@@ -87,6 +107,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
             }
 
             return CustomScrollView(
+              controller: _pageScrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 if (provider.isOfflineFallback)
@@ -111,7 +132,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Offline mode: showing cached learning path.',
+                              'You\'re offline — showing your saved progress.',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
@@ -119,12 +140,53 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                       ),
                     ),
                   ),
+                // ── XP level progress ─────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: XpLevelChip(
+                      level: progress.level,
+                      xp: progress.xp,
+                      xpToNextLevel: progress.xpToNextLevel,
+                    ),
+                  ),
+                ),
+                // ── Streak card ───────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: StreakCard(
+                      streakDays: progress.streak,
+                      practicedToday: progress.isStreakDoneToday,
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: DailyRewardChest(
+                      state: dailyRewardState,
+                      reward: provider.todayDailyReward,
+                      onOpen: dailyRewardState == DailyRewardChestState.ready
+                          ? () => _openDailyReward(context)
+                          : null,
+                    ),
+                  ),
+                ),
+                // ── Daily missions ────────────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: DailyMissionsCarousel(
                       missions: provider.dailyMissions,
                     ),
+                  ),
+                ),
+                // ── Path progress ─────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: PathProgressCard(nodes: path.nodes),
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -168,7 +230,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
                     child: Text(
-                      'Skill Graph',
+                      'Your Levels',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -180,6 +242,11 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                   child: SkillGraphView(
                     nodes: path.nodes,
                     focusedNodeId: widget.focusNodeId,
+                    celebrationNodeId: _mapCompletionFeedback?.nodeId,
+                    celebrationXp: _mapCompletionFeedback?.xpEarned,
+                    autoScrollTargetNodeId: _mapCompletionFeedback == null
+                        ? null
+                        : recommendedNode?.id,
                     onNodeTap: (node) => _onNodeTap(context, node.id),
                   ),
                 ),
@@ -192,16 +259,69 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
           ? null
           : SafeArea(
               minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: FilledButton.icon(
+              child: _PracticeNextButton(
                 key: const Key('practice_next_button'),
-                onPressed: isOnline
-                    ? () => _openPracticeForNode(recommendedNode.id)
-                    : null,
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: Text('Practice Next: ${recommendedNode.title}'),
+                node: recommendedNode,
+                recommendations: provider.recommendations,
+                isOnline: isOnline,
+                onTap: () => _openPracticeForNode(recommendedNode.id),
               ),
             ),
     );
+  }
+
+  void _maybeCaptureCompletionFeedback(LearningMapProvider provider) {
+    if (_mapCompletionFeedback != null ||
+        _captureScheduled ||
+        !provider.hasPendingMapCompletionFeedback) {
+      return;
+    }
+
+    _captureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _captureScheduled = false;
+      if (!mounted || _mapCompletionFeedback != null) {
+        return;
+      }
+      final feedback = provider.takePendingMapCompletionFeedback();
+      if (feedback == null) {
+        return;
+      }
+      setState(() {
+        _mapCompletionFeedback = feedback;
+        _mapRevealScheduled = false;
+      });
+
+      Future<void>.delayed(const Duration(milliseconds: 2600), () {
+        if (!mounted || _mapCompletionFeedback != feedback) {
+          return;
+        }
+        setState(() => _mapCompletionFeedback = null);
+      });
+    });
+  }
+
+  void _maybeRevealMapSection() {
+    if (_mapRevealScheduled) {
+      return;
+    }
+
+    _mapRevealScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_pageScrollController.hasClients) {
+        return;
+      }
+      final position = _pageScrollController.position;
+      final targetOffset = position.maxScrollExtent;
+      if ((position.pixels - targetOffset).abs() < 4) {
+        return;
+      }
+      await _pageScrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   void _onNodeTap(BuildContext context, String nodeId) {
@@ -214,14 +334,18 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     final state = provider.getNodeState(node);
     if (state == SkillNodeState.locked) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete previous skill first')),
+        const SnackBar(
+          content: Text('Beat the level before this one to unlock it!'),
+        ),
       );
       return;
     }
 
     if (!ConnectivityService.instance.isOnline) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Practice needs internet connection.')),
+        const SnackBar(
+          content: Text('You need Wi-Fi or data to play this round!'),
+        ),
       );
       return;
     }
@@ -232,7 +356,9 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   void _openPracticeForNode(String nodeId) {
     if (!ConnectivityService.instance.isOnline) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Practice needs internet connection.')),
+        const SnackBar(
+          content: Text('You need Wi-Fi or data to play this round!'),
+        ),
       );
       return;
     }
@@ -244,38 +370,134 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     final plan = provider.buildLaunchPlanForNode(node);
     context.startAdaptivePractice(plan);
   }
+
+  Future<void> _openDailyReward(BuildContext context) async {
+    final provider = context.read<LearningMapProvider>();
+    final reward = await provider.openDailyReward();
+    if (reward == null || !mounted) {
+      return;
+    }
+
+    switch (reward.type) {
+      case DailyRewardType.xp:
+        final progress = context.read<ProgressProvider>();
+        progress.addXP(reward.xpAmount ?? 0);
+        unawaited(progress.persistLocalProgress());
+        break;
+      case DailyRewardType.streakBoost:
+        await context.read<StreakFreezeProvider>().add(
+          reward.streakBoosts ?? 1,
+        );
+        break;
+      case DailyRewardType.cosmetic:
+        break;
+    }
+  }
 }
 
-class _CompactStatsChip extends StatelessWidget {
-  const _CompactStatsChip({
-    required this.level,
-    required this.xp,
-    required this.streak,
+String _recommendationReasonCopy(String reason) {
+  return switch (reason.toLowerCase()) {
+    'low_mastery' => 'You\'re almost there — keep training!',
+    'weak' => 'Time to level up your weak spot!',
+    'review' => 'Quick review — lock in what you learned!',
+    _ => 'You\'re on a roll — keep it up! 🔥',
+  };
+}
+
+String _difficultyPromptCopy(SkillDifficulty difficulty) {
+  return switch (difficulty) {
+    SkillDifficulty.easy => 'Perfect starting point — jump in! 🎯',
+    SkillDifficulty.medium => 'You\'ve got this — go for it! ⚡',
+    SkillDifficulty.hard => 'Boss level unlocked — do you dare? 🏆',
+  };
+}
+
+class _PracticeNextButton extends StatelessWidget {
+  const _PracticeNextButton({
+    super.key,
+    required this.node,
+    required this.recommendations,
+    required this.isOnline,
+    required this.onTap,
   });
 
-  final int level;
-  final int xp;
-  final int streak;
+  final SkillNode node;
+  final List<PracticeRecommendation> recommendations;
+  final bool isOnline;
+  final VoidCallback onTap;
+
+  String _contextLine() {
+    // Try to find a matching recommendation for this node's topic.
+    final rec = recommendations
+        .where((r) => r.topicId == node.topicId)
+        .firstOrNull;
+
+    if (rec != null) {
+      return _recommendationReasonCopy(rec.reason);
+    }
+
+    return _difficultyPromptCopy(node.recommendedDifficulty);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Lv $level'),
-          const SizedBox(width: 8),
-          Text('$xp XP'),
-          const SizedBox(width: 8),
-          Text('Streak $streak'),
-        ],
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    return Material(
+      color: cs.primary,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      child: InkWell(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        onTap: isOnline ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: cs.onPrimary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  color: cs.onPrimary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      node.title,
+                      style: tt.titleSmall?.copyWith(
+                        color: cs.onPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      isOnline ? _contextLine() : 'Connect to Wi-Fi to play! 📶',
+                      style: tt.bodySmall?.copyWith(
+                        color: cs.onPrimary.withValues(alpha: 0.80),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: cs.onPrimary.withValues(alpha: isOnline ? 1.0 : 0.45),
+                size: 16,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -296,7 +518,7 @@ class _RecommendationSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Recommended Practice',
+          'Up Next for You',
           style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 10),
@@ -323,7 +545,7 @@ class _RecommendationSection extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        item.reason,
+                        _recommendationReasonCopy(item.reason),
                         style: textTheme.bodySmall?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
@@ -334,7 +556,7 @@ class _RecommendationSection extends StatelessWidget {
                 const SizedBox(width: 10),
                 FilledButton.tonal(
                   onPressed: () => onPracticeTap(item.topicId),
-                  child: const Text('Practice'),
+                  child: const Text('Play →'),
                 ),
               ],
             ),
@@ -371,7 +593,7 @@ class _ErrorState extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Center(
-          child: FilledButton(onPressed: onRetry, child: const Text('Retry')),
+          child: FilledButton(onPressed: onRetry, child: const Text('Try again')),
         ),
       ],
     );
@@ -392,7 +614,7 @@ class _EmptyState extends StatelessWidget {
         const Icon(Icons.route_rounded, size: 48),
         const SizedBox(height: 12),
         const Center(
-          child: Text('Complete a few quizzes to generate your learning map'),
+          child: Text('Do a few practice rounds to build your map!'),
         ),
         const SizedBox(height: 12),
         Center(
@@ -401,7 +623,7 @@ class _EmptyState extends StatelessWidget {
               HapticFeedback.selectionClick();
               onRetry();
             },
-            child: const Text('Refresh'),
+            child: const Text('Try again'),
           ),
         ),
       ],

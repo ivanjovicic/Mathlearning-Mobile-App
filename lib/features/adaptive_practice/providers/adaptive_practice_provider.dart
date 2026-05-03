@@ -98,7 +98,7 @@ class AdaptivePracticeProvider extends ChangeNotifier {
 
     if (!ConnectivityService.instance.isOnline) {
       _loading = false;
-      _error = 'Practice needs internet connection.';
+      _error = 'You need Wi\u2011Fi or data to start a practice round!';
       notifyListeners();
       return;
     }
@@ -117,7 +117,7 @@ class AdaptivePracticeProvider extends ChangeNotifier {
       _applyRateLimit(
         result.retryAfter,
         defaultMessage:
-            result.error?.message ?? 'Unable to start practice session.',
+            result.error?.message ?? 'Something went wrong — tap Try again to keep going!',
       );
       notifyListeners();
       return;

@@ -16,7 +16,7 @@ class PracticeBottomCta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = isLastQuestion ? 'Finish' : 'Next';
+    final label = isLastQuestion ? 'Done! →' : 'Next →';
     return SizedBox(
       width: double.infinity,
       child: FilledButton.icon(

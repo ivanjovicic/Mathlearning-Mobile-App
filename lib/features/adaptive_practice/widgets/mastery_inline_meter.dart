@@ -30,7 +30,7 @@ class MasteryInlineMeter extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Mastery',
+                'Skill strength',
                 style: textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -60,7 +60,7 @@ class MasteryInlineMeter extends StatelessWidget {
           if (delta > 0) ...[
             const SizedBox(height: 6),
             Text(
-              '+${(delta * 100).round()}% this session',
+              '+${(delta * 100).round()}% this round',
               style: textTheme.labelMedium?.copyWith(
                 color: colors.primary,
                 fontWeight: FontWeight.w700,

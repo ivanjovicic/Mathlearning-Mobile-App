@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
+import 'package:mathlearning/features/learning_map/models/daily_reward.dart';
+import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/features/learning_map/models/practice_recommendation.dart';
 import 'package:mathlearning/features/learning_map/models/skill_mastery.dart';
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
@@ -132,6 +134,58 @@ void main() {
       expect(provider.path, isNull);
       expect(provider.error, isNotNull);
       expect(provider.isOfflineFallback, isFalse);
+    });
+
+    test('completePractice stores one-shot map completion feedback', () async {
+      await provider.loadAll('user-1');
+
+      await provider.completePractice(
+        plan: const PracticeLaunchPlan(
+          userId: 'user-1',
+          nodeId: 'fractions_basics',
+          skillTitle: 'Fractions Basics',
+          topicId: 4,
+          subtopicId: 12,
+          difficulty: SkillDifficulty.easy,
+          source: PracticeSource.recent,
+          practiceId: 'fractions_pack_1',
+          targetQuestions: 10,
+        ),
+        xpEarned: 42,
+        masteryDelta: 0.08,
+        accuracy: 0.9,
+        recommendedNextNodeId: 'fractions_basics',
+      );
+
+      expect(provider.hasPendingMapCompletionFeedback, isTrue);
+
+      final feedback = provider.takePendingMapCompletionFeedback();
+      expect(feedback, isNotNull);
+      expect(feedback?.nodeId, 'fractions_basics');
+      expect(feedback?.xpEarned, 42);
+      expect(provider.hasPendingMapCompletionFeedback, isFalse);
+    });
+
+    test('openDailyReward marks reward opened for today', () async {
+      await provider.loadAll('user-1');
+
+      expect(provider.isDailyRewardOpenedToday, isFalse);
+
+      final reward = await provider.openDailyReward();
+
+      expect(reward, isNotNull);
+      expect(provider.isDailyRewardOpenedToday, isTrue);
+      expect(
+        reward?.type,
+        anyOf(
+          DailyRewardType.xp,
+          DailyRewardType.cosmetic,
+          DailyRewardType.streakBoost,
+        ),
+      );
+
+      final duplicate = await provider.openDailyReward();
+      expect(duplicate, isNull);
     });
   });
 }

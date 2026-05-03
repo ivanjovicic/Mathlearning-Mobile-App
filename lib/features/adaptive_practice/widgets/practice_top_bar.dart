@@ -31,7 +31,7 @@ class PracticeTopBar extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Exit practice',
+              tooltip: 'Exit challenge',
               onPressed: onClosePressed,
               icon: const Icon(Icons.close_rounded),
             ),

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
@@ -10,7 +11,7 @@ import 'package:mathlearning/features/learning_map/providers/learning_map_provid
 import 'package:mathlearning/features/learning_map/services/practice_repository.dart';
 import 'package:provider/provider.dart';
 
-enum _PracticeStage { intro, loading, playing, summary }
+enum _PracticeStage { intro, loading, playing, celebration, summary }
 
 class LearningMapPracticeScreen extends StatefulWidget {
   const LearningMapPracticeScreen({
@@ -39,6 +40,10 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
   int? _selectedOptionId;
   bool _isProcessingAnswer = false;
 
+  // Pre-computed at session end so celebration and summary share the same values.
+  int _xpEarned = 0;
+  double _masteryDelta = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -58,13 +63,14 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Adaptive Practice')),
+      appBar: AppBar(title: const Text('Next Challenge')),
       body: switch (_stage) {
         _PracticeStage.intro => _buildIntro(),
         _PracticeStage.loading => const Center(
           child: CircularProgressIndicator(),
         ),
         _PracticeStage.playing => _buildQuestionStage(),
+        _PracticeStage.celebration => _buildCelebration(),
         _PracticeStage.summary => _buildSummary(),
       },
     );
@@ -93,7 +99,7 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Text(
-              'Goal: complete up to 10 questions and improve mastery for this skill.',
+              'Beat 10 quick questions to power up this skill!',
             ),
           ),
           const Spacer(),
@@ -102,7 +108,7 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
             child: FilledButton.icon(
               onPressed: _startPractice,
               icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Start Practice'),
+              label: const Text('Let\'s go! →'),
             ),
           ),
         ],
@@ -128,7 +134,7 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Question ${_index + 1}/${_questions.length}',
+              'Round ${_index + 1} of ${_questions.length}',
               style: theme.textTheme.labelLarge,
             ),
           ),
@@ -209,11 +215,114 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
     );
   }
 
+  Widget _buildCelebration() {
+    final total = _questions.length;
+    final accuracy = total == 0 ? 0.0 : _correctCount / total;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    final String emoji;
+    final String praise;
+    if (accuracy >= 0.9) {
+      emoji = '🔥';
+      praise = 'You\'re on fire! 🔥';
+    } else if (accuracy >= 0.7) {
+      emoji = '⭐';
+      praise = 'Great job! ⭐';
+    } else {
+      emoji = '💪';
+      praise = 'Keep it up — you\'ll nail it next time! 💪';
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [cs.primaryContainer, cs.secondaryContainer],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Spacer(),
+              Text(
+                emoji,
+                style: const TextStyle(fontSize: 72),
+              )
+                  .animate()
+                  .scale(
+                    begin: const Offset(0.4, 0.4),
+                    end: const Offset(1.0, 1.0),
+                    duration: 480.ms,
+                    curve: Curves.easeOutBack,
+                  )
+                  .fadeIn(duration: 200.ms),
+              const SizedBox(height: 20),
+              Text(
+                praise,
+                style: tt.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: cs.onPrimaryContainer,
+                ),
+                textAlign: TextAlign.center,
+              )
+                  .animate(delay: 160.ms)
+                  .fadeIn(duration: 300.ms)
+                  .slideY(begin: 0.15, duration: 300.ms, curve: Curves.easeOut),
+              const SizedBox(height: 32),
+              _CelebrationStat(
+                label: '+$_xpEarned XP earned!',
+                color: cs.primary,
+                delay: 280.ms,
+              ),
+              const SizedBox(height: 12),
+              _CelebrationStat(
+                label: '$_correctCount/${_questions.length} nailed it ✅',
+                color: cs.secondary,
+                delay: 380.ms,
+              ),
+              const SizedBox(height: 12),
+              _CelebrationStat(
+                label: 'Skill +${(_masteryDelta * 100).round()}% stronger!',
+                color: cs.tertiary,
+                delay: 480.ms,
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => setState(() => _stage = _PracticeStage.summary),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    minimumSize: const Size.fromHeight(54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'Keep going! →',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                )
+                    .animate(delay: 560.ms)
+                    .fadeIn(duration: 260.ms)
+                    .slideY(begin: 0.2, duration: 260.ms, curve: Curves.easeOut),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSummary() {
     final total = _questions.length;
     final accuracy = total == 0 ? 0.0 : _correctCount / total;
-    final xpEarned = _calculateXp(total: total, correct: _correctCount);
-    final masteryDelta = _calculateMasteryDelta(accuracy);
     final provider = context.read<LearningMapProvider>();
 
     return Padding(
@@ -229,7 +338,9 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
           ),
           const SizedBox(height: 12),
           Text(
-            accuracy >= 0.7 ? 'Great session!' : 'Nice effort!',
+            accuracy >= 0.7
+                ? 'You crushed it! 🎉'
+                : 'Good fight — keep training! 💪',
             textAlign: TextAlign.center,
             style: Theme.of(
               context,
@@ -237,23 +348,23 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
           ),
           const SizedBox(height: 20),
           _SummaryTile(
-            title: 'Correct answers',
+            title: 'Questions nailed',
             value: '$_correctCount / $total',
           ),
           const SizedBox(height: 10),
-          _SummaryTile(title: 'XP gained', value: '+$xpEarned XP'),
+          _SummaryTile(title: 'XP earned', value: '+$_xpEarned XP'),
           const SizedBox(height: 10),
           _SummaryTile(
-            title: 'Mastery change',
-            value: '+${(masteryDelta * 100).round()}%',
+            title: 'Skill power boost',
+            value: '+${(_masteryDelta * 100).round()}%',
           ),
           const Spacer(),
           FilledButton(
             onPressed: () async {
               await provider.completePractice(
                 plan: widget.plan,
-                xpEarned: xpEarned,
-                masteryDelta: masteryDelta,
+                xpEarned: _xpEarned,
+                masteryDelta: _masteryDelta,
                 accuracy: accuracy,
               );
               if (widget.plan.userId.isNotEmpty) {
@@ -262,7 +373,7 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
               if (!mounted) return;
               Navigator.of(context).pop();
             },
-            child: const Text('Back to Learning Map'),
+            child: const Text('Back to my map'),
           ),
         ],
       ),
@@ -309,11 +420,15 @@ class _LearningMapPracticeScreenState extends State<LearningMapPracticeScreen>
 
     final isLastQuestion = _index + 1 >= _questions.length;
     if (isLastQuestion) {
-      HapticFeedback.mediumImpact();
+      HapticFeedback.heavyImpact();
+      final total = _questions.length;
+      final accuracy = total == 0 ? 0.0 : _correctCount / total;
       setState(() {
+        _xpEarned = _calculateXp(total: total, correct: _correctCount);
+        _masteryDelta = _calculateMasteryDelta(accuracy);
         _isProcessingAnswer = false;
         _selectedOptionId = null;
-        _stage = _PracticeStage.summary;
+        _stage = _PracticeStage.celebration;
       });
       return;
     }
@@ -391,5 +506,41 @@ class _SummaryTile extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _CelebrationStat extends StatelessWidget {
+  const _CelebrationStat({
+    required this.label,
+    required this.color,
+    required this.delay,
+  });
+
+  final String label;
+  final Color color;
+  final Duration delay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
+    )
+        .animate(delay: delay)
+        .fadeIn(duration: 280.ms)
+        .slideX(begin: -0.06, duration: 280.ms, curve: Curves.easeOut);
   }
 }

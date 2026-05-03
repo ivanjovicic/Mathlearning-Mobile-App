@@ -17,6 +17,8 @@ class SkillNodeBubble extends StatefulWidget {
     required this.onTap,
     required this.semanticLabel,
     this.showNextLabel = false,
+    this.showCompletionFeedback = false,
+    this.completionXp,
   });
 
   final SkillNode node;
@@ -25,6 +27,8 @@ class SkillNodeBubble extends StatefulWidget {
   final VoidCallback onTap;
   final String semanticLabel;
   final bool showNextLabel;
+  final bool showCompletionFeedback;
+  final int? completionXp;
 
   @override
   State<SkillNodeBubble> createState() => _SkillNodeBubbleState();
@@ -35,7 +39,14 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
   late final AnimationController _progressController;
   late Animation<double> _progressAnimation;
   Timer? _unlockTimer;
+  Timer? _celebrationTimer;
+  Timer? _celebrationPulseTimer;
   bool _unlockPulse = false;
+  bool _celebrationPulse = false;
+  bool _showCompletionBadge = false;
+  bool _showFloatingXp = false;
+  bool _showLevelCompleteLabel = false;
+  int _celebrationRun = 0;
 
   @override
   void initState() {
@@ -48,6 +59,7 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
       CurvedAnimation(parent: _progressController, curve: AppMotion.standard),
     );
     _progressController.forward();
+    _maybeStartCompletionFeedback();
   }
 
   @override
@@ -78,11 +90,18 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
         () => mounted ? setState(() => _unlockPulse = false) : null,
       );
     }
+
+    if (oldWidget.showCompletionFeedback != widget.showCompletionFeedback ||
+        oldWidget.completionXp != widget.completionXp) {
+      _maybeStartCompletionFeedback();
+    }
   }
 
   @override
   void dispose() {
     _unlockTimer?.cancel();
+    _celebrationTimer?.cancel();
+    _celebrationPulseTimer?.cancel();
     _progressController.dispose();
     super.dispose();
   }
@@ -90,11 +109,19 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = _colorsForState(theme.colorScheme, widget.state);
     final spacing = context.spacing;
     final motion = context.motion;
     final progress = widget.progress.clamp(0.0, 1.0);
     final isLocked = widget.state == SkillNodeState.locked;
+    final isCompleted = progress >= 0.999;
+    final visualState = isLocked
+        ? SkillNodeState.locked
+        : isCompleted
+        ? SkillNodeState.mastered
+        : widget.state == SkillNodeState.mastered
+        ? SkillNodeState.learning
+        : widget.state;
+    final colors = _colorsForState(theme.colorScheme, visualState);
     final icon = _iconForTitle(widget.node.title);
 
     final bubble = AnimatedContainer(
@@ -106,9 +133,17 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
         color: colors.background,
         shape: BoxShape.circle,
         boxShadow: [
-          if (widget.state == SkillNodeState.recommended)
+          if (!isLocked)
             BoxShadow(
-              color: colors.glow.withValues(alpha: 0.45),
+              color: colors.glow.withValues(
+                alpha: _showCompletionBadge
+                    ? 0.42
+                    : visualState == SkillNodeState.recommended
+                    ? 0.45
+                    : isCompleted
+                    ? 0.22
+                    : 0.18,
+              ),
               blurRadius: AppScale.s(18),
               spreadRadius: AppScale.s(1.5),
             ),
@@ -121,8 +156,36 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
         border: Border.all(color: colors.border, width: AppScale.s(2)),
       ),
       child: Stack(
+        clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
+          if (_showLevelCompleteLabel)
+            Positioned(
+              top: -AppScale.s(18),
+              left: 0,
+              right: 0,
+              child: _CelebrationPill(
+                key: ValueKey('level_complete_$_celebrationRun'),
+                label: 'Level Complete!',
+                backgroundColor: colors.background,
+                foregroundColor: colors.foreground,
+                borderColor: colors.border,
+                riseDistance: AppScale.s(14),
+              ),
+            ),
+          if (_showFloatingXp && widget.completionXp != null)
+            Positioned(
+              top: -AppScale.s(8),
+              right: -AppScale.s(10),
+              child: _CelebrationPill(
+                key: ValueKey('xp_feedback_$_celebrationRun'),
+                label: '+${widget.completionXp} XP',
+                backgroundColor: colors.background,
+                foregroundColor: colors.foreground,
+                borderColor: colors.border,
+                riseDistance: AppScale.s(20),
+              ),
+            ),
           SizedBox(
             width: AppScale.s(96),
             height: AppScale.s(96),
@@ -142,13 +205,17 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                isLocked ? Icons.lock_outline_rounded : icon,
+                isLocked
+                    ? Icons.lock_outline_rounded
+                    : isCompleted
+                    ? Icons.check_rounded
+                    : icon,
                 color: colors.foreground,
                 size: AppScale.icon(24, min: 20, max: 30),
               ),
               SizedBox(height: spacing.xs),
               Text(
-                '${(progress * 100).round()}%',
+                _centerLabel(progress, isLocked: isLocked, isCompleted: isCompleted),
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: colors.foreground,
                   fontWeight: FontWeight.w700,
@@ -156,14 +223,19 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
               ),
             ],
           ),
-          if (widget.state == SkillNodeState.mastered)
+          if (isCompleted || _showCompletionBadge)
             Positioned(
               right: AppScale.s(14),
               top: AppScale.s(14),
-              child: Icon(
-                Icons.check_circle,
-                color: context.learningTheme.masteryStrong,
-                size: AppScale.icon(20, min: 18, max: 24),
+              child: AnimatedScale(
+                scale: _showCompletionBadge ? 1.12 : 1.0,
+                duration: motion.fast,
+                curve: motion.decelerate,
+                child: Icon(
+                  Icons.check_circle,
+                  color: isCompleted ? colors.foreground : colors.progress,
+                  size: AppScale.icon(20, min: 18, max: 24),
+                ),
               ),
             ),
         ],
@@ -188,7 +260,7 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
               children: [
                 AnimatedScale(
                   duration: motion.fast,
-                  scale: _unlockPulse ? 1.08 : 1.0,
+                  scale: _unlockPulse || _celebrationPulse ? 1.08 : 1.0,
                   child: bubble,
                 ),
                 SizedBox(height: spacing.s),
@@ -204,32 +276,127 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
                     ),
                   ),
                 ),
-                if (widget.showNextLabel) ...[
-                  SizedBox(height: spacing.xs),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: spacing.s + spacing.xs / 2,
-                      vertical: spacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.tertiaryContainer,
-                      borderRadius: BorderRadius.circular(context.radius.pill),
-                    ),
-                    child: Text(
-                      'Next',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onTertiaryContainer,
-                        fontWeight: FontWeight.w700,
-                      ),
+                SizedBox(height: spacing.xs),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacing.s + spacing.xs / 2,
+                    vertical: spacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _badgeBackgroundColor(theme.colorScheme, isLocked, isCompleted),
+                    borderRadius: BorderRadius.circular(context.radius.pill),
+                  ),
+                  child: Text(
+                    _badgeLabel(isLocked: isLocked, isCompleted: isCompleted),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: _badgeForegroundColor(theme.colorScheme, isLocked, isCompleted),
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ],
+                ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  void _maybeStartCompletionFeedback() {
+    if (!widget.showCompletionFeedback) {
+      return;
+    }
+
+    _celebrationTimer?.cancel();
+    _celebrationPulseTimer?.cancel();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _celebrationRun += 1;
+      _celebrationPulse = true;
+      _showCompletionBadge = true;
+      _showFloatingXp = (widget.completionXp ?? 0) > 0;
+      _showLevelCompleteLabel = true;
+    });
+
+    _celebrationPulseTimer = Timer(const Duration(milliseconds: 900), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _celebrationPulse = false);
+    });
+
+    _celebrationTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showCompletionBadge = false;
+        _showFloatingXp = false;
+        _showLevelCompleteLabel = false;
+      });
+    });
+  }
+
+  String _centerLabel(double progress, {required bool isLocked, required bool isCompleted}) {
+    if (isLocked) {
+      return 'Locked';
+    }
+    if (isCompleted) {
+      return 'DONE';
+    }
+    return 'Level ${_levelNumber(progress)}';
+  }
+
+  int _levelNumber(double progress) {
+    if (progress >= 0.67) return 3;
+    if (progress >= 0.34) return 2;
+    return 1;
+  }
+
+  String _badgeLabel({required bool isLocked, required bool isCompleted}) {
+    if (isLocked) {
+      return 'Locked';
+    }
+    if (isCompleted) {
+      return 'DONE';
+    }
+    return 'Play';
+  }
+
+  Color _badgeBackgroundColor(
+    ColorScheme colorScheme,
+    bool isLocked,
+    bool isCompleted,
+  ) {
+    if (isLocked) {
+      return colorScheme.surfaceContainerHighest;
+    }
+    if (isCompleted) {
+      return const Color(0xFFFFF1BF);
+    }
+    return widget.showNextLabel
+        ? colorScheme.tertiaryContainer
+        : colorScheme.primaryContainer;
+  }
+
+  Color _badgeForegroundColor(
+    ColorScheme colorScheme,
+    bool isLocked,
+    bool isCompleted,
+  ) {
+    if (isLocked) {
+      return colorScheme.onSurfaceVariant;
+    }
+    if (isCompleted) {
+      return const Color(0xFF8A5B00);
+    }
+    return widget.showNextLabel
+        ? colorScheme.onTertiaryContainer
+        : colorScheme.onPrimaryContainer;
   }
 
   IconData _iconForTitle(String title) {
@@ -239,6 +406,68 @@ class _SkillNodeBubbleState extends State<SkillNodeBubble>
     if (value.contains('geometry')) return Icons.change_history_rounded;
     if (value.contains('algebra')) return Icons.auto_graph_rounded;
     return Icons.school_rounded;
+  }
+}
+
+class _CelebrationPill extends StatelessWidget {
+  const _CelebrationPill({
+    super.key,
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.borderColor,
+    required this.riseDistance,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final Color borderColor;
+  final double riseDistance;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value.clamp(0.0, 1.0),
+          child: Transform.translate(
+            offset: Offset(0, -riseDistance * value),
+            child: child,
+          ),
+        );
+      },
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: AppScale.s(10),
+            vertical: AppScale.s(6),
+          ),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(AppScale.radius(999)),
+            border: Border.all(color: borderColor.withValues(alpha: 0.95)),
+            boxShadow: [
+              BoxShadow(
+                color: borderColor.withValues(alpha: 0.18),
+                blurRadius: AppScale.s(12),
+                offset: Offset(0, AppScale.s(4)),
+              ),
+            ],
+          ),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: foregroundColor,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -273,12 +502,12 @@ _NodeColors _colorsForState(ColorScheme colors, SkillNodeState state) {
       );
     case SkillNodeState.mastered:
       return _NodeColors(
-        background: colors.secondaryContainer,
-        foreground: colors.onSecondaryContainer,
-        border: colors.secondary,
-        progress: colors.secondary,
-        progressBackground: colors.secondaryContainer.withValues(alpha: 0.35),
-        glow: colors.secondary,
+        background: const Color(0xFFFFF8DD),
+        foreground: const Color(0xFF8A5B00),
+        border: const Color(0xFFE0B200),
+        progress: const Color(0xFFE0B200),
+        progressBackground: const Color(0xFFFFF1BF),
+        glow: const Color(0xFFE0B200),
       );
     case SkillNodeState.recommended:
       return _NodeColors(

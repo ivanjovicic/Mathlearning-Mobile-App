@@ -183,8 +183,8 @@ class PathNodeDetailsSheet extends StatelessWidget {
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: Text(
                       node.type == PathNodeType.review
-                          ? 'Start Review'
-                          : 'Start Practice',
+                          ? 'Review it! →'
+                          : 'Let\'s go! →',
                     ),
                   ),
                 ),

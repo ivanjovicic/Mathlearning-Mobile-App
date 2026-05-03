@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
 import 'package:mathlearning/features/learning_map/models/daily_mission.dart';
+import 'package:mathlearning/features/learning_map/models/daily_reward.dart';
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/features/learning_map/models/practice_recommendation.dart';
 import 'package:mathlearning/features/learning_map/models/quest.dart';
@@ -31,6 +32,7 @@ class LearningMapProvider extends ChangeNotifier {
   static const _recommendationCachePrefix = 'learning_map.rec.v1.';
   static const _questCachePrefix = 'learning_map.quest.v1.';
   static const _missionCachePrefix = 'learning_map.mission.v1.';
+  static const _dailyRewardOpenedPrefix = 'learning_map.daily_reward.opened.v1.';
 
   final LearningMapDataSource _service;
   final AdaptiveRetryHelper _retryHelper;
@@ -51,6 +53,8 @@ class LearningMapProvider extends ChangeNotifier {
   String? _currentUserId;
   int _lastRewardXp = 0;
   double _lastMasteryDelta = 0;
+  MapCompletionFeedback? _pendingMapCompletionFeedback;
+  String? _openedDailyRewardDayKey;
 
   AdaptiveLearningPath? get path => _path;
   List<SkillMastery> get mastery => _mastery;
@@ -65,6 +69,12 @@ class LearningMapProvider extends ChangeNotifier {
   DateTime? get lastUpdated => _lastUpdated;
   int get lastRewardXp => _lastRewardXp;
   double get lastMasteryDelta => _lastMasteryDelta;
+  bool get hasPendingMapCompletionFeedback =>
+      _pendingMapCompletionFeedback != null;
+    bool get isDailyRewardOpenedToday =>
+      _openedDailyRewardDayKey == _todayRewardKey();
+    DailyReward get todayDailyReward =>
+      _buildDailyReward(_currentUserId ?? '', DateTime.now());
 
   SkillNode? get recommendedNode => _path?.recommendedNextNode;
 
@@ -79,14 +89,17 @@ class LearningMapProvider extends ChangeNotifier {
     _isRetrying = false;
     notifyListeners();
 
+    await _loadDailyRewardState(userId);
     await _loadGamification(userId);
+
+    notifyListeners();
 
     final isOnline = ConnectivityService.instance.isOnline;
     if (!isOnline) {
       final loaded = await _loadFromCache(userId);
       _loading = false;
       _isOfflineFallback = loaded;
-      _error = loaded ? null : 'No internet connection and no cached data.';
+      _error = loaded ? null : 'You\'re offline and there\'s nothing saved yet. Try again when you have Wi\u2011Fi!';
       notifyListeners();
       return;
     }
@@ -146,7 +159,7 @@ class LearningMapProvider extends ChangeNotifier {
       _isOfflineFallback = loaded;
       _error = loaded
           ? _firstError(results)
-          : (_firstError(results) ?? 'Unable to load learning map.');
+          : (_firstError(results) ?? 'Couldn\'t load your map — try again in a bit!');
       if (_path != null && _quests.isEmpty && _dailyMissions.isEmpty) {
         _buildGamification();
       }
@@ -215,6 +228,10 @@ class LearningMapProvider extends ChangeNotifier {
   }) async {
     _lastRewardXp = xpEarned;
     _lastMasteryDelta = masteryDelta;
+    _pendingMapCompletionFeedback = MapCompletionFeedback(
+      nodeId: plan.nodeId,
+      xpEarned: xpEarned,
+    );
 
     final currentPath = _path;
     if (currentPath != null) {
@@ -239,6 +256,31 @@ class LearningMapProvider extends ChangeNotifier {
       'xp': xpEarned,
     });
     notifyListeners();
+  }
+
+  MapCompletionFeedback? takePendingMapCompletionFeedback() {
+    final feedback = _pendingMapCompletionFeedback;
+    _pendingMapCompletionFeedback = null;
+    return feedback;
+  }
+
+  Future<DailyReward?> openDailyReward() async {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty || isDailyRewardOpenedToday) {
+      return null;
+    }
+
+    final reward = todayDailyReward;
+    _openedDailyRewardDayKey = _todayRewardKey();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_dailyRewardOpenedPrefix$userId',
+      _openedDailyRewardDayKey!,
+    );
+
+    notifyListeners();
+    return reward;
   }
 
   PracticeSource _resolveSourceForNode(SkillNode node) {
@@ -275,8 +317,8 @@ class LearningMapProvider extends ChangeNotifier {
       generatedQuests.add(
         Quest(
           id: 'quest_weak_${weakest.topicId}',
-          title: 'Weakness Recovery',
-          description: 'Improve ${weakest.topicName} mastery to 60%',
+          title: 'Level Up ${weakest.topicName}!',
+          description: 'Boost your ${weakest.topicName} skill power to 60%!',
           target: weakest.topicName,
           progress: math.min(currentPercent, 60),
           goal: 60,
@@ -290,7 +332,7 @@ class LearningMapProvider extends ChangeNotifier {
       Quest(
         id: 'quest_practice_3',
         title: 'Practice Sprint',
-        description: 'Complete 3 adaptive practices',
+        description: 'Complete 3 practice rounds',
         target: 'practice_count',
         progress: _questProgress('quest_practice_3', fallback: 0),
         goal: 3,
@@ -304,7 +346,7 @@ class LearningMapProvider extends ChangeNotifier {
       generatedMissions.add(
         DailyMission(
           id: 'mission_next_skill',
-          title: 'Complete next skill: ${recommended.title}',
+          title: 'Beat ${recommended.title} today!',
           progress: _missionProgress('mission_next_skill', fallback: 0),
           goal: 1,
           rewardXp: 35,
@@ -316,7 +358,7 @@ class LearningMapProvider extends ChangeNotifier {
     generatedMissions.add(
       DailyMission(
         id: 'mission_daily_practice',
-        title: 'Finish 1 adaptive practice',
+        title: 'Finish 1 practice round',
         progress: _missionProgress('mission_daily_practice', fallback: 0),
         goal: 1,
         rewardXp: 20,
@@ -531,6 +573,52 @@ class LearningMapProvider extends ChangeNotifier {
     );
   }
 
+  Future<void> _loadDailyRewardState(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    _openedDailyRewardDayKey = prefs.getString(
+      '$_dailyRewardOpenedPrefix$userId',
+    );
+  }
+
+  String _todayRewardKey([DateTime? now]) {
+    final value = now ?? DateTime.now();
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
+  }
+
+  DailyReward _buildDailyReward(String userId, DateTime now) {
+    final seed = '$userId|${_todayRewardKey(now)}';
+    var hash = 0;
+    for (final codeUnit in seed.codeUnits) {
+      hash = (hash * 31 + codeUnit) & 0x7fffffff;
+    }
+
+    switch (hash % 3) {
+      case 0:
+        return const DailyReward(
+          type: DailyRewardType.xp,
+          title: '+35 XP',
+          subtitle: 'A quick XP boost for today\'s adventure.',
+          xpAmount: 35,
+        );
+      case 1:
+        return const DailyReward(
+          type: DailyRewardType.cosmetic,
+          title: 'Spark Trail Cosmetic',
+          subtitle: 'A future-ready style reward for your collection.',
+          cosmeticName: 'Spark Trail',
+        );
+      default:
+        return const DailyReward(
+          type: DailyRewardType.streakBoost,
+          title: 'Streak Boost x1',
+          subtitle: 'Adds one streak shield for a busy day.',
+          streakBoosts: 1,
+        );
+    }
+  }
+
   Future<void> _loadGamification(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     final rawQuest = prefs.getString('$_questCachePrefix$userId');
@@ -622,4 +710,11 @@ class LearningMapProvider extends ChangeNotifier {
     }
     return null;
   }
+}
+
+class MapCompletionFeedback {
+  const MapCompletionFeedback({required this.nodeId, required this.xpEarned});
+
+  final String nodeId;
+  final int xpEarned;
 }

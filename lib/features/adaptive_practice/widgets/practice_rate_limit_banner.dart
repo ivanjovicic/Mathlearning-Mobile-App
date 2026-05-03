@@ -25,7 +25,7 @@ class PracticeRateLimitBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Too many requests. Try again in ${seconds}s.',
+              'Hold on — try again in ${seconds}s! ⏳',
               style: Theme.of(
                 context,
               ).textTheme.labelLarge?.copyWith(color: colors.onErrorContainer),

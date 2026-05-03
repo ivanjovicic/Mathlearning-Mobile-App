@@ -31,7 +31,9 @@ class PracticeSummarySheet extends StatelessWidget {
                 const Icon(Icons.emoji_events_rounded, color: Colors.amber),
                 const SizedBox(width: 8),
                 Text(
-                  'Session Complete',
+                  summary.accuracy >= 0.7
+                      ? 'You crushed it! 🎉'
+                      : 'Good fight — keep training! 💪',
                   style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -40,14 +42,14 @@ class PracticeSummarySheet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _SummaryRow(
-              label: 'Accuracy',
+              label: 'Hit rate',
               value: '${(summary.accuracy * 100).round()}%',
             ),
             const SizedBox(height: 8),
             _SummaryRow(label: 'XP earned', value: '+${summary.xpEarned}'),
             const SizedBox(height: 8),
             _SummaryRow(
-              label: 'Mastery delta',
+              label: 'Skill power boost',
               value: '+${(summary.masteryDelta * 100).round()}%',
             ),
             const SizedBox(height: 12),
@@ -59,7 +61,7 @@ class PracticeSummarySheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                'Answered ${summary.answeredQuestions} questions, correct ${summary.correctAnswers}.',
+                '${summary.correctAnswers}/${summary.answeredQuestions} nailed it ✅',
               ),
             ),
             const SizedBox(height: 16),
@@ -67,7 +69,7 @@ class PracticeSummarySheet extends StatelessWidget {
               width: double.infinity,
               child: FilledButton(
                 onPressed: onBackToMap,
-                child: const Text('Back to Map'),
+                child: const Text('Back to my map'),
               ),
             ),
             if (onPracticeNext != null) ...[
@@ -76,7 +78,7 @@ class PracticeSummarySheet extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: onPracticeNext,
-                  child: const Text('Practice Next Skill'),
+                  child: const Text('Next Challenge'),
                 ),
               ),
             ],

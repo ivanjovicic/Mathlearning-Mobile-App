@@ -36,7 +36,7 @@ class _AdaptivePracticeScreenState extends State<AdaptivePracticeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Adaptive Practice'),
+        title: const Text('Practice Hub'),
       ),
       body: Builder(
         builder: (context) {
@@ -124,7 +124,7 @@ class _AdaptivePracticeScreenState extends State<AdaptivePracticeScreen> {
                     source: 'adaptive_hub',
                   ),
                   icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Start adaptive practice'),
+                  label: const Text('Let\'s go! →'),
                 ),
               ],
             ),

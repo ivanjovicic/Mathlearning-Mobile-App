@@ -14,6 +14,7 @@ import 'package:mathlearning/features/adaptive_practice/services/practice_sessio
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/services/api_service.dart';
+import 'package:mathlearning/state/progress_provider.dart';
 
 class _FakePracticeApiService extends PracticeSessionApiService {
   _FakePracticeApiService() : super(apiService: ApiService());
@@ -117,6 +118,9 @@ Widget _wrap(AdaptivePracticeProvider provider, PracticeLaunchPlan plan) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<AdaptivePracticeProvider>.value(value: provider),
+      ChangeNotifierProvider<ProgressProvider>(
+        create: (_) => ProgressProvider(),
+      ),
     ],
     child: MaterialApp(
       home: AdaptivePracticeScreen(plan: plan, providerOverride: provider),
@@ -165,7 +169,7 @@ void main() {
 
     await tester.tap(find.text('5'));
     await tester.pump();
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('Next →'));
     await tester.pumpAndSettle();
 
     expect(find.text('Correct!'), findsOneWidget);
@@ -183,15 +187,20 @@ void main() {
 
     await tester.tap(find.text('5'));
     await tester.pump();
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('Next →'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('8'));
     await tester.pump();
-    await tester.tap(find.text('Finish'));
+    await tester.tap(find.text('Done! →'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Session Complete'), findsOneWidget);
-    expect(find.text('Back to Map'), findsOneWidget);
+    expect(find.text('Keep going! →'), findsOneWidget);
+
+    await tester.tap(find.text('Keep going! →'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('You crushed it! 🎉'), findsOneWidget);
+    expect(find.text('Back to my map'), findsOneWidget);
   });
 }
