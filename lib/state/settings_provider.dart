@@ -5,6 +5,7 @@ import '../models/hint_models.dart';
 import '../models/user_settings.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
+import '../services/sound_service.dart';
 
 enum AppLanguage { english, serbian, german, spanish }
 
@@ -121,6 +122,7 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   SettingsProvider() {
+    _syncSoundService();
     _load();
   }
 
@@ -138,6 +140,7 @@ class SettingsProvider extends ChangeNotifier {
         _soundEnabled = settings.soundEnabled;
         _vibrationEnabled = settings.vibrationEnabled;
         _dailyReminderEnabled = settings.dailyReminderEnabled;
+        _syncSoundService();
 
         if (settings.dailyReminderHour != null &&
             settings.dailyReminderMinute != null) {
@@ -248,6 +251,7 @@ class SettingsProvider extends ChangeNotifier {
     if (_soundEnabled == value && _feedbackConfigured) return;
     _soundEnabled = value;
     _feedbackConfigured = true;
+    _syncSoundService();
     notifyListeners();
     await _persist();
     await _syncToBackend(); // Sync to backend
@@ -257,6 +261,7 @@ class SettingsProvider extends ChangeNotifier {
     if (_vibrationEnabled == value && _feedbackConfigured) return;
     _vibrationEnabled = value;
     _feedbackConfigured = true;
+    _syncSoundService();
     notifyListeners();
     await _persist();
     await _syncToBackend(); // Sync to backend
@@ -308,6 +313,7 @@ class SettingsProvider extends ChangeNotifier {
       _soundEnabled = prefs.getBool(_soundEnabledKey) ?? true;
       _vibrationEnabled = prefs.getBool(_vibrationEnabledKey) ?? true;
       _dailyReminderEnabled = prefs.getBool(_dailyReminderEnabledKey) ?? false;
+      _syncSoundService();
       final reminderMinutes =
           prefs.getInt(_dailyReminderMinutesKey) ?? (18 * 60);
       _dailyReminderTime = _timeFromMinutes(reminderMinutes);
@@ -371,6 +377,11 @@ class SettingsProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Settings save fallback: $e');
     }
+  }
+
+  void _syncSoundService() {
+    SoundService.instance.setMuted(!_soundEnabled);
+    SoundService.instance.setHapticsEnabled(_vibrationEnabled);
   }
 
   TimeOfDay _timeFromMinutes(int minutes) {

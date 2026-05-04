@@ -13,6 +13,7 @@ import 'package:mathlearning/features/adaptive_practice/providers/adaptive_pract
 import 'package:mathlearning/features/adaptive_practice/screens/adaptive_practice_screen.dart';
 import 'package:mathlearning/features/adaptive_practice/services/practice_session_api_service.dart';
 import 'package:mathlearning/features/learning_map/widgets/daily_chest_reward_sheet.dart';
+import 'package:mathlearning/features/learning_map/widgets/chest_open_animation.dart';
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/services/api_service.dart';
@@ -216,6 +217,9 @@ Widget _wrap(AdaptivePracticeProvider provider, PracticeLaunchPlan plan) {
 Widget _wrapDailyRun(
   AdaptivePracticeProvider provider,
   List<PracticeLaunchPlan> plans,
+  {
+  VoidCallback? onComboSound,
+}
 ) {
   return MultiProvider(
     providers: [
@@ -232,6 +236,7 @@ Widget _wrapDailyRun(
         plan: plans.first,
         providerOverride: provider,
         dailyRunPlans: plans,
+        onComboSound: onComboSound,
       ),
     ),
   );
@@ -396,8 +401,15 @@ void main() {
       apiService: _FakeDailyRunApiService(),
       learningMapRefresher: _FakeMapRefresher(),
     );
+    var comboSoundCalls = 0;
 
-    await tester.pumpWidget(_wrapDailyRun(provider, comboRunPlans));
+    await tester.pumpWidget(
+      _wrapDailyRun(
+        provider,
+        comboRunPlans,
+        onComboSound: () => comboSoundCalls += 1,
+      ),
+    );
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
 
@@ -408,7 +420,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 120));
     }
 
-    expect(find.text('Combo x2'), findsOneWidget);
+    expect(comboSoundCalls, 1);
+    expect(find.text('3-Hit Combo!'), findsOneWidget);
+    expect(find.text('🔥 Combo!'), findsNothing);
+    expect(find.text('⚡ On fire!'), findsNothing);
     await tester.pump(const Duration(seconds: 1));
   });
 
@@ -436,7 +451,89 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
-  testWidgets('daily chest reward sheet reveals rewards sequentially', (
+  // ---------------------------------------------------------------------------
+  // DailyChestRewardSheet – updated tests for juice-pass
+  // ---------------------------------------------------------------------------
+
+  /// Helper that builds the sheet inside a Material context with HUD target keys.
+  /// [startOpen] bypasses the chest animation (for reliable test timing).
+  Widget _buildSheet({
+    required DailyChestReward reward,
+    GlobalKey? xpTargetKey,
+    GlobalKey? coinTargetKey,
+    void Function(int)? onApplyXp,
+    void Function(int)? onApplyCoins,
+    VoidCallback? onContinue,
+    bool startOpen = true,
+  }) {
+    final xpKey = xpTargetKey ?? GlobalKey();
+    final coinKey = coinTargetKey ?? GlobalKey();
+    // Use a Stack without a constrained Scaffold body so the sheet never overflows.
+    return MaterialApp(
+      home: Scaffold(
+        body: Stack(
+          children: [
+            Positioned(top: 8, left: 8, child: Container(key: xpKey, width: 180, height: 12, color: Colors.blue)),
+            Positioned(top: 8, right: 8, child: Container(key: coinKey, width: 44, height: 24, color: Colors.amber)),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SingleChildScrollView(
+                child: DailyChestRewardSheet(
+                  reward: reward,
+                  xpTargetKey: xpKey,
+                  coinTargetKey: coinKey,
+                  onApplyXp: onApplyXp,
+                  onApplyCoins: onApplyCoins,
+                  onContinue: onContinue ?? () {},
+                  startOpen: startOpen,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Drives animations frame by frame so animation controllers advance properly.
+  Future<void> pumpMs(WidgetTester tester, int totalMs) async {
+    const stepMs = 50;
+    var elapsed = 0;
+    while (elapsed < totalMs) {
+      final step = (totalMs - elapsed).clamp(0, stepMs);
+      await tester.pump(Duration(milliseconds: step));
+      elapsed += step;
+    }
+  }
+
+  // With startOpen: true, _onChestOpened fires on the first post-frame callback.
+  // Reward sequence: 180ms → XP; +620ms → fly; +240ms → coins; +620ms → fly;
+  //                 +280ms → cosmetic; +600ms → done. Total: ~2560ms.
+
+  testWidgets('daily chest reward sheet shows chest before rewards', (tester) async {
+    const reward = DailyChestReward(
+      xp: 30,
+      coins: 12,
+      cosmeticFragment: 'Nova Trail Fragment',
+    );
+
+    // Use startOpen: false to verify chest is shown before rewards.
+    await tester.pumpWidget(_buildSheet(reward: reward, startOpen: false));
+    await tester.pump(); // post-frame
+
+    // Chest animation widget is present immediately.
+    expect(find.byType(ChestOpenAnimation), findsOneWidget);
+
+    // Rewards not visible yet.
+    expect(find.text('+30 XP'), findsNothing);
+    expect(find.text('+12 coins'), findsNothing);
+    expect(find.text('Fragment found!'), findsNothing);
+
+    // Drain chest animation + reward sequence timers so the test ends cleanly.
+    await pumpMs(tester, 5000);
+  });
+
+  testWidgets('daily chest reward sheet reveals rewards sequentially after chest opens', (
     tester,
   ) async {
     const reward = DailyChestReward(
@@ -445,29 +542,112 @@ void main() {
       cosmeticFragment: 'Nova Trail Fragment',
     );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: DailyChestRewardSheet(reward: reward, onContinue: () {}),
-        ),
-      ),
+    // startOpen: true fires _onChestOpened on first post-frame callback.
+    await tester.pumpWidget(_buildSheet(reward: reward));
+    await tester.pump(); // post-frame → _onChestOpened fires, phase = xpReveal
+
+    // XP row not yet visible (180ms delay hasn't elapsed).
+    expect(find.byKey(const Key('daily_reward_xp_source')), findsNothing);
+
+    // After 200ms: XP count-up visible (180ms delay elapsed).
+    await pumpMs(tester, 200);
+    expect(find.textContaining('XP'), findsOneWidget);
+    expect(find.textContaining('coins'), findsNothing);
+
+    // After XP count-up (620ms) + fly + 240ms gap: coins count-up visible.
+    await pumpMs(tester, 1600);
+    expect(find.textContaining('coins'), findsOneWidget);
+
+    // After coin count-up + fly + 280ms: cosmetic visible.
+    await pumpMs(tester, 1600);
+    expect(find.text('Fragment found!'), findsOneWidget);
+    expect(find.text('Nova Trail'), findsOneWidget);
+
+    // Tomorrow teaser always present.
+    expect(find.text('Tomorrow'), findsOneWidget);
+
+    // Drain remaining sequence timers.
+    await pumpMs(tester, 1500);
+  });
+
+  testWidgets('claim button reads "Claim rewards!" and is disabled until done', (
+    tester,
+  ) async {
+    const reward = DailyChestReward(
+      xp: 30,
+      coins: 12,
+      cosmeticFragment: 'Nova Trail Fragment',
     );
 
-    expect(find.text('+30 XP'), findsOneWidget);
-    expect(find.text('+12 coins'), findsNothing);
-    expect(find.text('Cosmetic fragment found'), findsNothing);
+    await tester.pumpWidget(_buildSheet(reward: reward));
+    await tester.pump();
 
-    await tester.pump(const Duration(milliseconds: 320));
-    expect(find.text('+30 XP'), findsWidgets);
-    expect(find.text('+12 coins'), findsNothing);
+    // Button text is "Claim rewards!" from the start.
+    expect(find.text('Claim rewards!'), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 320));
-    expect(find.text('+12 coins'), findsOneWidget);
+    // Button is disabled (sequence not done).
+    final btn = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(btn.onPressed, isNull);
 
-    await tester.pump(const Duration(milliseconds: 320));
-    expect(find.text('Cosmetic fragment found'), findsOneWidget);
-    expect(find.text('Tomorrow'), findsOneWidget);
-    expect(find.text('Tomorrow\'s chest is even better 👀'), findsOneWidget);
-    await tester.pumpAndSettle();
+    // Drive past the full sequence (~3800ms after chest fires, including fly animations).
+    await pumpMs(tester, 4500);
+
+    final btnDone = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(btnDone.onPressed, isNotNull);
+  });
+
+  testWidgets('cosmetic fragment card shows name, rarity, and progress', (
+    tester,
+  ) async {
+    const reward = DailyChestReward(
+      xp: 30,
+      coins: 12,
+      cosmeticFragment: 'Nova Trail Fragment',
+    );
+
+    await tester.pumpWidget(_buildSheet(reward: reward));
+    await tester.pump();
+
+    // Drive through full sequence (including fly animations).
+    await pumpMs(tester, 4500);
+
+    expect(find.text('Fragment found!'), findsOneWidget);
+    // "Nova Trail" is extracted by stripping " Fragment".
+    expect(find.text('Nova Trail'), findsOneWidget);
+    // Rarity badge for rare.
+    expect(find.text('Rare'), findsOneWidget);
+    // Progress pips label.
+    expect(find.textContaining('/5 fragments'), findsOneWidget);
+  });
+
+  testWidgets('daily chest reward sheet applies XP then coins after flights', (
+    tester,
+  ) async {
+    const reward = DailyChestReward(
+      xp: 30,
+      coins: 12,
+      cosmeticFragment: 'Nova Trail Fragment',
+    );
+    var appliedXp = 0;
+    var appliedCoins = 0;
+
+    await tester.pumpWidget(
+      _buildSheet(
+        reward: reward,
+        onApplyXp: (v) => appliedXp += v,
+        onApplyCoins: (v) => appliedCoins += v,
+      ),
+    );
+    await tester.pump();
+
+    // Nothing applied yet.
+    expect(appliedXp, 0);
+    expect(appliedCoins, 0);
+
+    // Drive through full sequence (including fly animations).
+    await pumpMs(tester, 4500);
+
+    expect(appliedXp, 30);
+    expect(appliedCoins, 12);
   });
 }

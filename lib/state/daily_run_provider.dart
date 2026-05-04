@@ -62,16 +62,6 @@ class DailyRunProvider extends ChangeNotifier {
     return DailyChestState.locked;
   }
 
-  String? get comboText {
-    if (_correctStreak >= 5) {
-      return 'On fire!';
-    }
-    if (_correctStreak >= 3) {
-      return 'Combo!';
-    }
-    return null;
-  }
-
   double get displayedXpMultiplier {
     if (_correctStreak >= 5) {
       return 1.5;

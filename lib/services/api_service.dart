@@ -401,7 +401,7 @@ class ApiService {
   Future<Map<String, dynamic>?> getDailyHintUsage() async {
     try {
       final resp = await _dio.get(
-        '/api/hints/daily',
+        '/daily-hints',
         options: Options(
           validateStatus: (status) =>
               status != null && (status < 400 || status == 404),

@@ -44,6 +44,10 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   bool _initialized = false;
   bool _dailyRunInitialized = false;
   final ScrollController _pageScrollController = ScrollController();
+  final GlobalKey _xpHudTargetKey = GlobalKey(debugLabel: 'learning_map_xp_hud');
+  final GlobalKey _coinHudTargetKey = GlobalKey(
+    debugLabel: 'learning_map_coin_hud',
+  );
   MapCompletionFeedback? _mapCompletionFeedback;
   bool _captureScheduled = false;
   bool _mapRevealScheduled = false;
@@ -101,6 +105,12 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
               ? '${auth.username}\'s Adventure Map'
               : 'Your Adventure Map',
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _CoinHudChip(targetKey: _coinHudTargetKey),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () => provider.refresh(widget.userId),
@@ -176,6 +186,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                       level: progress.level,
                       xp: progress.xp,
                       xpToNextLevel: progress.xpToNextLevel,
+                      progressBarKey: _xpHudTargetKey,
                     ),
                   ),
                 ),
@@ -550,11 +561,6 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
       return;
     }
 
-    final progress = context.read<ProgressProvider>();
-    progress.addXP(reward.xp);
-    unawaited(progress.persistLocalProgress());
-    context.read<CoinProvider>().addCoins(reward.coins);
-
     if (!mounted) {
       return;
     }
@@ -567,6 +573,16 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
       builder: (sheetContext) {
         return DailyChestRewardSheet(
           reward: reward,
+          xpTargetKey: _xpHudTargetKey,
+          coinTargetKey: _coinHudTargetKey,
+          onApplyXp: (amount) async {
+            final progress = context.read<ProgressProvider>();
+            progress.addXP(amount);
+            unawaited(progress.persistLocalProgress());
+          },
+          onApplyCoins: (amount) {
+            context.read<CoinProvider>().addCoins(amount);
+          },
           onContinue: () => Navigator.of(sheetContext).pop(),
         );
       },
@@ -577,6 +593,51 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Tomorrow\'s chest is even better 👀')),
+    );
+  }
+}
+
+class _CoinHudChip extends StatelessWidget {
+  const _CoinHudChip({required this.targetKey});
+
+  final GlobalKey targetKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final coins = context.watch<CoinProvider?>();
+    if (coins == null) {
+      return const SizedBox.shrink();
+    }
+
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      key: targetKey,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colors.tertiaryContainer,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: colors.tertiary.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.monetization_on_rounded,
+            size: 16,
+            color: colors.onTertiaryContainer,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '${coins.coins}',
+            style: textTheme.labelLarge?.copyWith(
+              color: colors.onTertiaryContainer,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

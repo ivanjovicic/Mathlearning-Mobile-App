@@ -8,7 +8,6 @@ class DailyRunProgressStrip extends StatelessWidget {
     required this.totalStages,
     required this.progressText,
     required this.correctStreak,
-    required this.comboText,
     required this.xpMultiplier,
     required this.lastXpGain,
   });
@@ -18,7 +17,6 @@ class DailyRunProgressStrip extends StatelessWidget {
   final int totalStages;
   final String progressText;
   final int correctStreak;
-  final String? comboText;
   final double xpMultiplier;
   final int? lastXpGain;
 
@@ -117,15 +115,6 @@ class DailyRunProgressStrip extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const Spacer(),
-              if (comboText != null)
-                Text(
-                  comboText!,
-                  style: textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: colors.primary,
-                  ),
-                ),
             ],
           ),
         ],

@@ -11,11 +11,13 @@ class XpLevelChip extends StatelessWidget {
     required this.level,
     required this.xp,
     required this.xpToNextLevel,
+    this.progressBarKey,
   });
 
   final int level;
   final int xp;
   final int xpToNextLevel;
+  final Key? progressBarKey;
 
   @override
   Widget build(BuildContext context) {
@@ -72,9 +74,12 @@ class XpLevelChip extends StatelessWidget {
                   ],
                 ),
                 SizedBox(height: spacing.xs),
-                AnimatedXpBar(
-                  currentXp: xp,
-                  maxXp: xpToNextLevel,
+                SizedBox(
+                  key: progressBarKey,
+                  child: AnimatedXpBar(
+                    currentXp: xp,
+                    maxXp: xpToNextLevel,
+                  ),
                 ),
               ],
             ),

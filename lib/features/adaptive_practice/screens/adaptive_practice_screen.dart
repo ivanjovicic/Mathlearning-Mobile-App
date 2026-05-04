@@ -24,6 +24,7 @@ import 'package:mathlearning/features/learning_map/models/practice_launch_plan.d
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
 import 'package:mathlearning/navigation/navigation_extensions.dart';
 import 'package:mathlearning/services/api_service.dart';
+import 'package:mathlearning/services/sound_service.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
 
@@ -33,11 +34,13 @@ class AdaptivePracticeScreen extends StatelessWidget {
     required this.plan,
     this.providerOverride,
     this.dailyRunPlans,
+    this.onComboSound,
   });
 
   final PracticeLaunchPlan plan;
   final AdaptivePracticeProvider? providerOverride;
   final List<PracticeLaunchPlan>? dailyRunPlans;
+  final VoidCallback? onComboSound;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +48,11 @@ class AdaptivePracticeScreen extends StatelessWidget {
     if (provider != null) {
       return ChangeNotifierProvider<AdaptivePracticeProvider>.value(
         value: provider,
-        child: _AdaptivePracticeView(plan: plan, dailyRunPlans: dailyRunPlans),
+        child: _AdaptivePracticeView(
+          plan: plan,
+          dailyRunPlans: dailyRunPlans,
+          onComboSound: onComboSound,
+        ),
       );
     }
 
@@ -66,16 +73,25 @@ class AdaptivePracticeScreen extends StatelessWidget {
         learningMapRefresher: LearningMapRefresherAdapter(learningMapProvider),
         refreshParentDashboard: dashboardBridge?.refreshAll,
       ),
-      child: _AdaptivePracticeView(plan: plan, dailyRunPlans: dailyRunPlans),
+      child: _AdaptivePracticeView(
+        plan: plan,
+        dailyRunPlans: dailyRunPlans,
+        onComboSound: onComboSound,
+      ),
     );
   }
 }
 
 class _AdaptivePracticeView extends StatefulWidget {
-  const _AdaptivePracticeView({required this.plan, this.dailyRunPlans});
+  const _AdaptivePracticeView({
+    required this.plan,
+    this.dailyRunPlans,
+    this.onComboSound,
+  });
 
   final PracticeLaunchPlan plan;
   final List<PracticeLaunchPlan>? dailyRunPlans;
+  final VoidCallback? onComboSound;
 
   @override
   State<_AdaptivePracticeView> createState() => _AdaptivePracticeViewState();
@@ -103,6 +119,8 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
   String? _runOverlaySubtitle;
   IconData? _runOverlayIcon;
   bool _runOverlayCompact = false;
+  bool _runOverlayShowParticles = false;
+  SoundEffect? _runOverlaySoundEffect;
   Timer? _runOverlayTimer;
   bool _startBeatRunning = false;
 
@@ -212,12 +230,6 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
                           final dailyRun = _maybeRead<DailyRunProvider>(
                             context,
                           );
-                          final comboText = dailyRun?.comboText;
-                          final comboLabel = comboText == null
-                              ? null
-                              : comboText == 'On fire!'
-                              ? '⚡ On fire!'
-                              : '🔥 Combo!';
                           return DailyRunProgressStrip(
                             stageLabel: _stageLabelForIndex(_runStageIndex),
                             stageIndex: _runStageIndex,
@@ -225,7 +237,6 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
                             progressText:
                                 'Gate ${state.questionIndex + 1}/${state.targetQuestions}',
                             correctStreak: dailyRun?.correctStreak ?? 0,
-                            comboText: comboLabel,
                             xpMultiplier:
                                 dailyRun?.displayedXpMultiplier ?? 1.0,
                             lastXpGain: _latestXpGain,
@@ -437,6 +448,8 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
                 subtitle: _runOverlaySubtitle,
                 icon: _runOverlayIcon,
                 compact: _runOverlayCompact,
+                showParticles: _runOverlayShowParticles,
+                soundEffect: _runOverlaySoundEffect,
               ),
           ],
         ),
@@ -475,13 +488,18 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
         text,
         duration: const Duration(milliseconds: 250),
         autoHide: false,
+        soundEffect: text == 'Go!' ? null : SoundEffect.run_start_tick,
       );
     }
 
     if (!mounted) {
       return;
     }
-    setState(() => _showRunOverlay = false);
+    setState(() {
+      _showRunOverlay = false;
+      _runOverlayShowParticles = false;
+      _runOverlaySoundEffect = null;
+    });
     context.read<AdaptivePracticeProvider>().start(plan);
     _startBeatRunning = false;
   }
@@ -492,6 +510,8 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
     IconData? icon,
     Duration duration = const Duration(milliseconds: 760),
     bool compact = false,
+    bool showParticles = false,
+    SoundEffect? soundEffect,
     bool autoHide = true,
   }) async {
     _runOverlayTimer?.cancel();
@@ -503,6 +523,8 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
       _runOverlaySubtitle = subtitle;
       _runOverlayIcon = icon;
       _runOverlayCompact = compact;
+      _runOverlayShowParticles = showParticles;
+      _runOverlaySoundEffect = soundEffect;
       _showRunOverlay = true;
     });
 
@@ -511,11 +533,28 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
         if (!mounted) {
           return;
         }
-        setState(() => _showRunOverlay = false);
+        setState(() {
+          _showRunOverlay = false;
+          _runOverlayShowParticles = false;
+          _runOverlaySoundEffect = null;
+        });
       });
     }
 
     await Future<void>.delayed(duration);
+  }
+
+  void _showComboBurst(String text, IconData icon) {
+    widget.onComboSound?.call();
+    unawaited(
+      _showRunBurst(
+        text,
+        icon: icon,
+        duration: const Duration(milliseconds: 780),
+        showParticles: true,
+        soundEffect: SoundEffect.combo_burst,
+      ),
+    );
   }
 
   Future<void> _submitSelectedAnswer() async {
@@ -533,6 +572,9 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
 
     if (response.isCorrect) {
       unawaited(HapticFeedback.lightImpact());
+      if (_isDailyRunMode) {
+        unawaited(SoundService.instance.playCorrectPing());
+      }
     } else {
       unawaited(HapticFeedback.selectionClick());
     }
@@ -573,16 +615,11 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
       _quickCorrectStreak = wasFast ? _quickCorrectStreak + 1 : 0;
 
       if (_runCorrectStreak == 8) {
-        unawaited(_showRunBurst('Unstoppable!', icon: Icons.flash_on_rounded));
+        _showComboBurst('Unstoppable!', Icons.flash_on_rounded);
       } else if (_runCorrectStreak == 5) {
-        unawaited(
-          _showRunBurst(
-            'On Fire x3',
-            icon: Icons.local_fire_department_rounded,
-          ),
-        );
+        _showComboBurst('On Fire!', Icons.local_fire_department_rounded);
       } else if (_runCorrectStreak == 3) {
-        unawaited(_showRunBurst('Combo x2', icon: Icons.whatshot_rounded));
+        _showComboBurst('3-Hit Combo!', Icons.whatshot_rounded);
       } else if (_quickCorrectStreak == 3) {
         unawaited(
           _showRunBurst(
