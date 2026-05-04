@@ -39,7 +39,11 @@ extension _FragmentRarityX on FragmentRarity {
 }
 
 /// Shows a cosmetic fragment with rarity glow, spin-in animation, and
-/// collection progress ("2/5 fragments").
+/// collection progress ("2/5 collected").
+///
+/// When [collected] >= [total] the card switches to a completion state:
+/// a stronger glow, repeating shimmer celebration, and an optional
+/// "View collection" button (shown when [onViewCollection] is provided).
 class CosmeticFragmentCard extends StatelessWidget {
   const CosmeticFragmentCard({
     super.key,
@@ -50,6 +54,7 @@ class CosmeticFragmentCard extends StatelessWidget {
     this.icon = Icons.auto_awesome_rounded,
     this.animate = true,
     this.heading = 'Fragment found!',
+    this.onViewCollection,
   });
 
   final String fragmentName;
@@ -59,6 +64,9 @@ class CosmeticFragmentCard extends StatelessWidget {
   final IconData icon;
   final bool animate;
   final String heading;
+  final VoidCallback? onViewCollection;
+
+  bool get _isCompleted => collected >= total;
 
   @override
   Widget build(BuildContext context) {
@@ -85,59 +93,95 @@ class CosmeticFragmentCard extends StatelessWidget {
               blurRadius: rarity._glowBlur * 1.8,
               spreadRadius: 0,
             ),
+          // Stronger outer glow when all fragments collected.
+          if (_isCompleted)
+            BoxShadow(
+              color: rarityColor.withValues(alpha: 0.28),
+              blurRadius: rarity._glowBlur * 2.4,
+              spreadRadius: rarity._glowSpread + 2,
+            ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Fragment icon with spin
-          _FragmentIcon(color: rarityColor, icon: icon, animate: animate),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  heading,
-                  style: textTheme.labelMedium?.copyWith(
+          Row(
+            children: [
+              // Fragment icon with spin
+              _FragmentIcon(
+                color: rarityColor,
+                icon: icon,
+                animate: animate,
+                isCompleted: _isCompleted,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      heading,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: rarityColor,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      fragmentName,
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: colors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _ProgressPips(
+                      collected: collected,
+                      total: total,
+                      color: rarityColor,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Rarity badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: rarityColor.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: rarityColor.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  _isCompleted ? 'Unlocked' : rarity.label,
+                  style: textTheme.labelSmall?.copyWith(
                     color: rarityColor,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 0.4,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  fragmentName,
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: colors.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                _ProgressPips(
-                  collected: collected,
-                  total: total,
-                  color: rarityColor,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Rarity badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: rarityColor.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: rarityColor.withValues(alpha: 0.4)),
-            ),
-            child: Text(
-              rarity.label,
-              style: textTheme.labelSmall?.copyWith(
-                color: rarityColor,
-                fontWeight: FontWeight.w900,
               ),
-            ),
+            ],
           ),
+          // "View collection" / "Equip later" CTA row — only shown when item
+          // is fully unlocked and the caller provides an onViewCollection callback.
+          if (_isCompleted && onViewCollection != null) ...
+            [
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onViewCollection,
+                  icon: const Icon(Icons.collections_bookmark_rounded, size: 16),
+                  label: const Text('View collection'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: rarityColor,
+                    side: BorderSide(color: rarityColor.withValues(alpha: 0.55)),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+            ],
         ],
       ),
     );
@@ -152,6 +196,19 @@ class CosmeticFragmentCard extends StatelessWidget {
             color: rarityColor.withValues(alpha: 0.22),
             delay: 200.ms,
           );
+
+      if (_isCompleted) {
+        // Celebration: repeating golden shimmer after the reveal.
+        card = card
+            .animate(
+              delay: 600.ms,
+              onPlay: (c) => c.repeat(period: 2400.ms, reverse: true),
+            )
+            .shimmer(
+              duration: 1200.ms,
+              color: rarityColor.withValues(alpha: 0.20),
+            );
+      }
     }
 
     return card;
@@ -163,11 +220,13 @@ class _FragmentIcon extends StatelessWidget {
     required this.color,
     required this.icon,
     required this.animate,
+    this.isCompleted = false,
   });
 
   final Color color;
   final IconData icon;
   final bool animate;
+  final bool isCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -184,6 +243,34 @@ class _FragmentIcon extends StatelessWidget {
       ),
       child: Icon(icon, color: color, size: 28),
     );
+
+    // When the item is fully unlocked, overlay a check badge.
+    if (isCompleted) {
+      w = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          w,
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color,
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                size: 11,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     if (animate) {
       w = w
@@ -217,35 +304,62 @@ class _ProgressPips extends StatelessWidget {
   final int total;
   final Color color;
 
+  bool get _isComplete => collected >= total;
+  int get _remaining => total - collected;
+
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 1; i <= total; i++) ...[
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: i <= collected
-                  ? color
-                  : color.withValues(alpha: 0.22),
-              border: Border.all(
-                color: color.withValues(alpha: i <= collected ? 0.8 : 0.35),
+        Row(
+          children: [
+            for (var i = 1; i <= total; i++) ...[
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i <= collected
+                      ? color
+                      : color.withValues(alpha: 0.22),
+                  border: Border.all(
+                    color: color.withValues(alpha: i <= collected ? 0.8 : 0.35),
+                  ),
+                ),
+              ),
+              if (i < total) const SizedBox(width: 4),
+            ],
+            const SizedBox(width: 8),
+            Text(
+              '$collected/$total collected',
+              style: textTheme.labelSmall?.copyWith(
+                color: color.withValues(alpha: 0.85),
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-          if (i < total) const SizedBox(width: 4),
-        ],
-        const SizedBox(width: 8),
-        Text(
-          '$collected/$total fragments',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: color.withValues(alpha: 0.85),
-            fontWeight: FontWeight.w700,
-          ),
+          ],
         ),
+        if (!_isComplete) ...[
+          const SizedBox(height: 3),
+          Text(
+            '$_remaining more to unlock',
+            style: textTheme.labelSmall?.copyWith(
+              color: color.withValues(alpha: 0.65),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            'Collect $total to unlock this item',
+            style: textTheme.bodySmall?.copyWith(
+              color: color.withValues(alpha: 0.45),
+              fontSize: 10,
+            ),
+          ),
+        ],
       ],
     );
   }

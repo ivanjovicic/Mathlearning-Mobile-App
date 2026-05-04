@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mathlearning/features/adaptive_practice/providers/adaptive_practice_provider.dart';
@@ -571,12 +570,17 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
     }
 
     if (response.isCorrect) {
-      unawaited(HapticFeedback.lightImpact());
+      // Route through SoundService so the vibration setting is always honoured.
+      // correct_ping carries a lightImpact haptic internally; outside Daily Run
+      // mode, fire the haptic directly via the service's haptic-only path.
       if (_isDailyRunMode) {
         unawaited(SoundService.instance.playCorrectPing());
+      } else {
+        unawaited(SoundService.instance.haptic(SoundHaptic.lightImpact));
       }
     } else {
-      unawaited(HapticFeedback.selectionClick());
+      // Wrong answer — selection haptic only, no sound.
+      unawaited(SoundService.instance.hapticForWrongAnswer());
     }
 
     if (_isDailyRunMode) {
@@ -626,11 +630,17 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
             'Speed streak!',
             icon: Icons.speed_rounded,
             compact: true,
+            soundEffect: SoundEffect.speed_streak,
           ),
         );
       } else if (wasFast) {
         unawaited(
-          _showRunBurst('Fast hit!', icon: Icons.bolt_rounded, compact: true),
+          _showRunBurst(
+            'Fast hit!',
+            icon: Icons.bolt_rounded,
+            compact: true,
+            soundEffect: SoundEffect.fast_hit,
+          ),
         );
       }
       return;
@@ -718,6 +728,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
           'Warm-up cleared',
           icon: Icons.check_circle_rounded,
           duration: const Duration(milliseconds: 760),
+          soundEffect: SoundEffect.stage_cleared,
         );
       } else if (_runStageIndex == 1) {
         await _showRunBurst(
@@ -725,6 +736,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
           subtitle: 'Crack the chest',
           icon: Icons.card_giftcard_rounded,
           duration: const Duration(milliseconds: 900),
+          soundEffect: SoundEffect.final_gate_unlocked,
         );
       }
 
@@ -745,6 +757,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
           subtitle: 'Chest is waiting',
           icon: Icons.card_giftcard_rounded,
           duration: const Duration(milliseconds: 520),
+          soundEffect: SoundEffect.final_gate_whoosh,
         );
       }
       await context.read<AdaptivePracticeProvider>().start(_currentPlan);

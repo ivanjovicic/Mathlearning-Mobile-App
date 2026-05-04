@@ -25,6 +25,7 @@ class DailyChestRewardSheet extends StatefulWidget {
     this.coinTargetKey,
     this.onApplyXp,
     this.onApplyCoins,
+    this.onViewCollection,
     this.startOpen = false,
   });
 
@@ -34,6 +35,9 @@ class DailyChestRewardSheet extends StatefulWidget {
   final GlobalKey? coinTargetKey;
   final FutureOr<void> Function(int amount)? onApplyXp;
   final FutureOr<void> Function(int amount)? onApplyCoins;
+
+  /// Called when the user taps "View collection" after unlocking an item.
+  final VoidCallback? onViewCollection;
 
   /// Skip the chest open animation and start the reward sequence immediately.
   /// Intended for tests only.
@@ -50,6 +54,8 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   final GlobalKey _coinsSourceKey = GlobalKey(debugLabel: 'daily_reward_coins_source');
 
   late final FragmentRarity _rarity;
+  late final int _fragmentCollected;
+  late final bool _isFragmentComplete;
 
   bool _xpApplied = false;
   bool _coinsApplied = false;
@@ -60,11 +66,23 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   void initState() {
     super.initState();
     _rarity = _rarityFromFragment(widget.reward.cosmeticFragment);
+    _fragmentCollected = _fragmentProgress(widget.reward.cosmeticFragment);
+    _isFragmentComplete = _fragmentCollected >= 5;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(SoundService.instance.playChestDrop());
       if (widget.startOpen) {
+        // In test / skip-animation mode fire chest_drop immediately since
+        // there is no visual landing to synchronise with.
+        unawaited(SoundService.instance.playChestDrop());
         _onChestOpened();
+      } else {
+        // Fire chest_drop ~300 ms after mount so it aligns with the visual
+        // chest landing (160 ms mount delay + 220 ms shake = ~380 ms total
+        // to peak; 300 ms offset lands just before the shake peak).
+        Future<void>.delayed(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          unawaited(SoundService.instance.playChestDrop());
+        });
       }
     });
   }
@@ -247,10 +265,11 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
                   const SizedBox(height: 8),
                   CosmeticFragmentCard(
                     fragmentName: _extractCosmeticName(widget.reward.cosmeticFragment),
-                    collected: _fragmentProgress(widget.reward.cosmeticFragment),
+                    collected: _fragmentCollected,
                     total: 5,
                     rarity: _rarity,
                     heading: _rarityHeading,
+                    onViewCollection: widget.onViewCollection,
                   ),
                 ],
               ],
@@ -293,6 +312,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
             const SizedBox(height: 14),
             _ClaimButton(
               enabled: sequenceDone,
+              label: _isFragmentComplete ? 'Equip later' : 'Claim rewards!',
               onPressed: widget.onContinue,
             ),
           ],
@@ -301,12 +321,14 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
     );
   }
 
-  String get _rarityHeading => switch (_rarity) {
-    FragmentRarity.common => 'Fragment found!',
-    FragmentRarity.rare => 'Rare fragment!',
-    FragmentRarity.epic => 'Epic find!',
-    FragmentRarity.legendary => 'Legendary drop!',
-  };
+  String get _rarityHeading => _isFragmentComplete
+      ? 'Item unlocked! 🎉'
+      : switch (_rarity) {
+          FragmentRarity.common => 'Fragment found!',
+          FragmentRarity.rare => 'Rare fragment!',
+          FragmentRarity.epic => 'Epic find!',
+          FragmentRarity.legendary => 'Legendary drop!',
+        };
 
   String _extractCosmeticName(String raw) {
     const suffix = ' Fragment';
@@ -368,10 +390,15 @@ class _RewardRow extends StatelessWidget {
 }
 
 class _ClaimButton extends StatelessWidget {
-  const _ClaimButton({required this.enabled, required this.onPressed});
+  const _ClaimButton({
+    required this.enabled,
+    required this.onPressed,
+    this.label = 'Claim rewards!',
+  });
 
   final bool enabled;
   final VoidCallback onPressed;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -384,7 +411,7 @@ class _ClaimButton extends StatelessWidget {
                 onPressed();
               }
             : null,
-        child: const Text('Claim rewards!'),
+        child: Text(label),
       ),
     );
 
