@@ -49,6 +49,8 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   final GlobalKey _xpSourceKey = GlobalKey(debugLabel: 'daily_reward_xp_source');
   final GlobalKey _coinsSourceKey = GlobalKey(debugLabel: 'daily_reward_coins_source');
 
+  late final FragmentRarity _rarity;
+
   bool _xpApplied = false;
   bool _coinsApplied = false;
   // Guard against double-fire (startOpen AND ChestOpenAnimation both calling onOpened).
@@ -57,6 +59,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   @override
   void initState() {
     super.initState();
+    _rarity = _rarityFromFragment(widget.reward.cosmeticFragment);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(SoundService.instance.playChestDrop());
@@ -164,6 +167,14 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
     final textTheme = Theme.of(context).textTheme;
     final phase = _phase;
 
+    final bool isJackpot = _rarity != FragmentRarity.common;
+    final Color? rarityAccent = switch (_rarity) {
+      FragmentRarity.common => null,
+      FragmentRarity.rare => colors.primary,
+      FragmentRarity.epic => colors.tertiary,
+      FragmentRarity.legendary => const Color(0xFFFFB800),
+    };
+
     final xpVisible = phase.index >= _Phase.xpReveal.index;
     final coinsVisible = phase.index >= _Phase.coinsReveal.index;
     final cosmeticVisible = phase.index >= _Phase.cosmeticReveal.index;
@@ -189,7 +200,9 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
             const SizedBox(height: 16),
             Center(
               child: ChestOpenAnimation(
-                size: 90,
+                size: 160,
+                accentColor: rarityAccent,
+                isJackpot: isJackpot,
                 onOpened: _onChestOpened,
               ),
             ),
@@ -236,7 +249,8 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
                     fragmentName: _extractCosmeticName(widget.reward.cosmeticFragment),
                     collected: _fragmentProgress(widget.reward.cosmeticFragment),
                     total: 5,
-                    rarity: _rarityFromFragment(widget.reward.cosmeticFragment),
+                    rarity: _rarity,
+                    heading: _rarityHeading,
                   ),
                 ],
               ],
@@ -286,6 +300,13 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
       ),
     );
   }
+
+  String get _rarityHeading => switch (_rarity) {
+    FragmentRarity.common => 'Fragment found!',
+    FragmentRarity.rare => 'Rare fragment!',
+    FragmentRarity.epic => 'Epic find!',
+    FragmentRarity.legendary => 'Legendary drop!',
+  };
 
   String _extractCosmeticName(String raw) {
     const suffix = ' Fragment';

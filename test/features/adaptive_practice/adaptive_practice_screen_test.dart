@@ -527,7 +527,7 @@ void main() {
     // Rewards not visible yet.
     expect(find.text('+30 XP'), findsNothing);
     expect(find.text('+12 coins'), findsNothing);
-    expect(find.text('Fragment found!'), findsNothing);
+    expect(find.text('Rare fragment!'), findsNothing);
 
     // Drain chest animation + reward sequence timers so the test ends cleanly.
     await pumpMs(tester, 5000);
@@ -560,7 +560,7 @@ void main() {
 
     // After coin count-up + fly + 280ms: cosmetic visible.
     await pumpMs(tester, 1600);
-    expect(find.text('Fragment found!'), findsOneWidget);
+    expect(find.text('Rare fragment!'), findsOneWidget);
     expect(find.text('Nova Trail'), findsOneWidget);
 
     // Tomorrow teaser always present.
@@ -611,7 +611,7 @@ void main() {
     // Drive through full sequence (including fly animations).
     await pumpMs(tester, 4500);
 
-    expect(find.text('Fragment found!'), findsOneWidget);
+    expect(find.text('Rare fragment!'), findsOneWidget);
     // "Nova Trail" is extracted by stripping " Fragment".
     expect(find.text('Nova Trail'), findsOneWidget);
     // Rarity badge for rare.

@@ -22,6 +22,20 @@ extension _FragmentRarityX on FragmentRarity {
       FragmentRarity.legendary => 'Legendary',
     };
   }
+
+  double get _glowBlur => switch (this) {
+    FragmentRarity.common => 18.0,
+    FragmentRarity.rare => 28.0,
+    FragmentRarity.epic => 36.0,
+    FragmentRarity.legendary => 44.0,
+  };
+
+  double get _glowSpread => switch (this) {
+    FragmentRarity.common => 1.0,
+    FragmentRarity.rare => 3.0,
+    FragmentRarity.epic => 5.0,
+    FragmentRarity.legendary => 7.0,
+  };
 }
 
 /// Shows a cosmetic fragment with rarity glow, spin-in animation, and
@@ -35,6 +49,7 @@ class CosmeticFragmentCard extends StatelessWidget {
     this.rarity = FragmentRarity.rare,
     this.icon = Icons.auto_awesome_rounded,
     this.animate = true,
+    this.heading = 'Fragment found!',
   });
 
   final String fragmentName;
@@ -43,6 +58,7 @@ class CosmeticFragmentCard extends StatelessWidget {
   final FragmentRarity rarity;
   final IconData icon;
   final bool animate;
+  final String heading;
 
   @override
   Widget build(BuildContext context) {
@@ -60,9 +76,15 @@ class CosmeticFragmentCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: rarityColor.withValues(alpha: 0.30),
-            blurRadius: 18,
-            spreadRadius: 1,
+            blurRadius: rarity._glowBlur,
+            spreadRadius: rarity._glowSpread,
           ),
+          if (rarity.index >= FragmentRarity.epic.index)
+            BoxShadow(
+              color: rarityColor.withValues(alpha: 0.15),
+              blurRadius: rarity._glowBlur * 1.8,
+              spreadRadius: 0,
+            ),
         ],
       ),
       child: Row(
@@ -75,7 +97,7 @@ class CosmeticFragmentCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Fragment found!',
+                  heading,
                   style: textTheme.labelMedium?.copyWith(
                     color: rarityColor,
                     fontWeight: FontWeight.w900,
