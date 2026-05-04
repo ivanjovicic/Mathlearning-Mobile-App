@@ -401,7 +401,7 @@ class ApiService {
   Future<Map<String, dynamic>?> getDailyHintUsage() async {
     try {
       final resp = await _dio.get(
-        '/daily-hints',
+        '/api/hints/daily',
         options: Options(
           validateStatus: (status) =>
               status != null && (status < 400 || status == 404),
@@ -443,7 +443,7 @@ class ApiService {
   Future<List<dynamic>?> getTopicsProgress() async {
     try {
       final resp = await _dio.get(
-        '/api/topics/progress',
+        '/api/progress/topics',
         options: Options(
           validateStatus: (status) =>
               status != null && (status < 400 || status == 404),
@@ -666,7 +666,7 @@ class ApiService {
     String userId,
   ) {
     return _requestResult<Map<String, dynamic>>(
-      () => _dio.get('/api/adaptive/path/$userId'),
+      () => _dio.get('/api/adaptive/path'),
       (data) {
         if (data is Map<String, dynamic>) {
           if (data['data'] is Map<String, dynamic>) {
@@ -680,27 +680,44 @@ class ApiService {
   }
 
   Future<ApiResult<List<Map<String, dynamic>>>> getMasteryForUserResult(
-    String userId,
-  ) {
+    String userId, {
+    int page = 1,
+    int pageSize = 5,
+  }) {
     return _requestResult<List<Map<String, dynamic>>>(
-      () => _dio.get('/api/analytics/mastery/$userId'),
+      () => _dio.get(
+        '/api/analytics/mastery',
+        queryParameters: {'page': page, 'pageSize': pageSize},
+      ),
       _normalizeListPayload,
     );
   }
 
   Future<ApiResult<List<Map<String, dynamic>>>> getWeaknessForUserResult(
-    String userId,
-  ) {
+    String userId, {
+    int page = 1,
+    int pageSize = 5,
+  }) {
     return _requestResult<List<Map<String, dynamic>>>(
-      () => _dio.get('/api/analytics/weakness/$userId'),
+      () => _dio.get(
+        '/api/analytics/weakness',
+        queryParameters: {'page': page, 'pageSize': pageSize},
+      ),
       _normalizeListPayload,
     );
   }
 
   Future<ApiResult<List<Map<String, dynamic>>>>
-  getPracticeRecommendationsForUserResult(String userId) {
+  getPracticeRecommendationsForUserResult(
+    String userId, {
+    int page = 1,
+    int pageSize = 10,
+  }) {
     return _requestResult<List<Map<String, dynamic>>>(
-      () => _dio.get('/api/recommendations/practice/$userId'),
+      () => _dio.get(
+        '/api/recommendations/practice',
+        queryParameters: {'page': page, 'pageSize': pageSize},
+      ),
       _normalizeListPayload,
     );
   }
@@ -740,7 +757,7 @@ class ApiService {
 
   Future<ApiResult<Map<String, dynamic>>> getAdaptiveRecommendationsResult() {
     return _requestResult<Map<String, dynamic>>(
-      () => _dio.get('/adaptive/recommendations'),
+      () => _dio.get('/api/adaptive/recommendations'),
       (data) {
         if (data is Map<String, dynamic>) return data;
         if (data is List &&
@@ -776,7 +793,7 @@ class ApiService {
       payload['topic'] = topic;
     }
     return _requestResult<Map<String, dynamic>>(
-      () => _dio.post('/adaptive/session/start', data: payload),
+      () => _dio.post('/api/adaptive/session/start', data: payload),
       (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
     );
   }
@@ -811,7 +828,7 @@ class ApiService {
       payload['responseTimeMs'] = responseTimeMs;
     }
     return _requestResult<Map<String, dynamic>>(
-      () => _dio.post('/adaptive/session/answer', data: payload),
+      () => _dio.post('/api/adaptive/session/answer', data: payload),
       (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
     );
   }
@@ -823,7 +840,7 @@ class ApiService {
 
   Future<ApiResult<List<Map<String, dynamic>>>> getAdaptiveReviewResult() {
     return _requestResult<List<Map<String, dynamic>>>(
-      () => _dio.get('/adaptive/review'),
+      () => _dio.get('/api/adaptive/review'),
       (data) {
         if (data is List) {
           return data.whereType<Map<String, dynamic>>().toList(growable: false);

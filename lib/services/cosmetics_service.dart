@@ -125,7 +125,7 @@ class CosmeticsService {
     final userId = AuthService.instance.userId ?? 'local';
     try {
       final client = AuthService.instance.client;
-      final response = await client.get('/api/avatar/config');
+      final response = await client.get('/api/cosmetics/avatar');
       if (response.statusCode == 200) {
         final config = UserAvatar.fromJson(
           response.data as Map<String, dynamic>,
@@ -143,8 +143,8 @@ class CosmeticsService {
     await _saveAvatarLocally(config);
     try {
       final client = AuthService.instance.client;
-      final response = await client.post(
-        '/api/avatar/update',
+      final response = await client.put(
+        '/api/cosmetics/avatar',
         data: config.toJson(),
       );
       return response.statusCode != null &&
@@ -208,8 +208,12 @@ class CosmeticsService {
     try {
       final client = AuthService.instance.client;
       await client.post(
-        '/api/cosmetics/unlock/$itemId',
-        data: {'source_type': sourceType, 'source_event': sourceEvent},
+        '/api/cosmetics/purchase',
+        data: {
+          'cosmeticItemId': itemId,
+          'sourceType': sourceType,
+          'sourceEvent': sourceEvent,
+        },
       );
     } catch (e) {
       debugPrint('[CosmeticsService] unlock server call failed: $e');
