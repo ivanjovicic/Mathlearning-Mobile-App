@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mathlearning/models/cosmetic_item.dart';
 import 'package:mathlearning/models/leaderboard_models.dart';
+import 'package:mathlearning/models/social_cosmetic_loadout.dart';
 import 'package:mathlearning/widgets/mini_leaderboard.dart';
 
 void main() {
@@ -37,6 +39,43 @@ void main() {
     expect(find.text('Mia'), findsOneWidget);
     expect(find.text('Alex'), findsOneWidget);
     expect(find.text('You'), findsOneWidget);
+  });
+
+  testWidgets('renders cosmetic badge for rival recent unlocks', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MiniLeaderboard(
+            entries: const <RivalLeaderboardEntry>[
+              RivalLeaderboardEntry(
+                rank: 8,
+                userId: 8,
+                displayName: 'Nova',
+                score: 120,
+                streakDays: 3,
+                cosmeticLoadout: SocialCosmeticLoadout(
+                  avatarFrameId: 'frame_olympiad',
+                  highlightRarity: CosmeticRarity.epic,
+                  recentUnlocks: [
+                    SocialCosmeticUnlock(
+                      itemId: 'effect_neon_number_burst',
+                      name: 'Neon Number Burst',
+                      rarity: CosmeticRarity.epic,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            currentUserId: 99,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Nova'), findsOneWidget);
+    expect(find.text('EPIC'), findsOneWidget);
   });
 
   testWidgets('renders retry action on error state', (tester) async {

@@ -4,6 +4,8 @@ import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mathlearning/models/leaderboard_models.dart';
+import 'package:mathlearning/models/cosmetic_item.dart';
+import 'package:mathlearning/models/social_cosmetic_loadout.dart';
 import 'package:mathlearning/screens/leaderboard_screen.dart';
 import 'package:mathlearning/state/leaderboard_provider.dart';
 import 'package:mathlearning/widgets/animated_leaderboard_item.dart';
@@ -81,6 +83,40 @@ void main() {
       await tester.pumpWidget(createTestWidget());
 
       expect(find.byType(AnimatedLeaderboardItem), findsNWidgets(2));
+    });
+
+    testWidgets('shows cosmetic status badge when a row has a rare unlock', (
+      WidgetTester tester,
+    ) async {
+      provider.paging.isLoading = false;
+      provider.setErrorForTesting(null);
+      provider.paging.items
+        ..clear()
+        ..add(
+          const LeaderboardItem(
+            rank: 10,
+            userId: 77,
+            displayName: 'Cosmo',
+            score: 88,
+            streakDays: 3,
+            cosmeticLoadout: SocialCosmeticLoadout(
+              avatarFrameId: 'frame_comet',
+              highlightRarity: CosmeticRarity.rare,
+              recentUnlocks: [
+                SocialCosmeticUnlock(
+                  itemId: 'frame_comet',
+                  name: 'Comet Frame',
+                  rarity: CosmeticRarity.rare,
+                ),
+              ],
+            ),
+          ),
+        );
+
+      await tester.pumpWidget(createTestWidget());
+
+      expect(find.text('Cosmo'), findsOneWidget);
+      expect(find.text('RARE'), findsOneWidget);
     });
   });
 }

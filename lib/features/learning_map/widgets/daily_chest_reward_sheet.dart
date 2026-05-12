@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -7,6 +7,9 @@ import 'package:mathlearning/features/learning_map/widgets/chest_open_animation.
 import 'package:mathlearning/features/learning_map/widgets/cosmetic_fragment_card.dart';
 import 'package:mathlearning/features/learning_map/widgets/cosmetic_unlock_celebration.dart';
 import 'package:mathlearning/features/learning_map/widgets/daily_chest.dart';
+import 'package:mathlearning/models/cosmetic_fragment_progress.dart';
+import 'package:mathlearning/models/cosmetic_item.dart';
+import 'package:mathlearning/services/cosmetics_service.dart';
 import 'package:mathlearning/services/sound_service.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
 import 'package:mathlearning/widgets/animated_count_label.dart';
@@ -15,7 +18,7 @@ import 'package:mathlearning/widgets/reward_fly_to_target.dart';
 // ---------------------------------------------------------------------------
 // Sheet phases – drive the entire sequence as a simple state machine.
 // ---------------------------------------------------------------------------
-enum _Phase { chestDrop, opening, xpReveal, coinsReveal, cosmeticReveal, done }
+enum _Phase { chestDrop, xpReveal, coinsReveal, cosmeticReveal, done }
 
 class DailyChestRewardSheet extends StatefulWidget {
   const DailyChestRewardSheet({
@@ -26,6 +29,8 @@ class DailyChestRewardSheet extends StatefulWidget {
     this.coinTargetKey,
     this.onApplyXp,
     this.onApplyCoins,
+    this.onGrantCosmeticFragment,
+    this.onEquipNow,
     this.onViewCollection,
     this.fragmentCountForTesting,
     this.startOpen = false,
@@ -37,6 +42,9 @@ class DailyChestRewardSheet extends StatefulWidget {
   final GlobalKey? coinTargetKey;
   final FutureOr<void> Function(int amount)? onApplyXp;
   final FutureOr<void> Function(int amount)? onApplyCoins;
+  final Future<DailyRunCosmeticGrantResult> Function(String fragmentName)?
+  onGrantCosmeticFragment;
+  final FutureOr<void> Function(CosmeticItem item)? onEquipNow;
 
   /// Called when the user taps "View collection" after unlocking an item.
   final VoidCallback? onViewCollection;
@@ -56,12 +64,17 @@ class DailyChestRewardSheet extends StatefulWidget {
 class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   _Phase _phase = _Phase.chestDrop;
 
-  final GlobalKey _xpSourceKey = GlobalKey(debugLabel: 'daily_reward_xp_source');
-  final GlobalKey _coinsSourceKey = GlobalKey(debugLabel: 'daily_reward_coins_source');
+  final GlobalKey _xpSourceKey = GlobalKey(
+    debugLabel: 'daily_reward_xp_source',
+  );
+  final GlobalKey _coinsSourceKey = GlobalKey(
+    debugLabel: 'daily_reward_coins_source',
+  );
 
+  late final CosmeticItem _cosmeticItem;
   late final FragmentRarity _rarity;
-  late final int _fragmentCollected;
-  late final bool _isFragmentComplete;
+  late final Future<DailyRunCosmeticGrantResult> _fragmentGrantFuture;
+  DailyRunCosmeticGrantResult? _fragmentGrantResult;
 
   bool _xpApplied = false;
   bool _coinsApplied = false;
@@ -71,10 +84,11 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   @override
   void initState() {
     super.initState();
-    _rarity = _rarityFromFragment(widget.reward.cosmeticFragment);
-    _fragmentCollected = widget.fragmentCountForTesting
-        ?? _fragmentProgress(widget.reward.cosmeticFragment);
-    _isFragmentComplete = _fragmentCollected >= 5;
+    _cosmeticItem = CosmeticsService.instance.dailyRunItemForFragment(
+      widget.reward.cosmeticFragment,
+    );
+    _rarity = _rarityFromItem(_cosmeticItem.rarity);
+    _fragmentGrantFuture = _recordFragmentProgress();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (widget.startOpen) {
@@ -140,10 +154,13 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
 
     await Future<void>.delayed(const Duration(milliseconds: 280));
     if (!mounted) return;
+    final grantResult = await _fragmentGrantFuture;
+    if (!mounted) return;
+    setState(() => _fragmentGrantResult = grantResult);
     setState(() => _phase = _Phase.cosmeticReveal);
     unawaited(SoundService.instance.playRareFragmentReveal());
 
-    if (_isFragmentComplete) {
+    if (grantResult.didUnlock) {
       // Brief pause so the CosmeticFragmentCard "Unlocked!" state animates in.
       await Future<void>.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
@@ -154,6 +171,39 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
       if (!mounted) return;
     }
     setState(() => _phase = _Phase.done);
+  }
+
+  Future<DailyRunCosmeticGrantResult> _recordFragmentProgress() async {
+    final count = widget.fragmentCountForTesting;
+    if (count != null) {
+      final collected = count
+          .clamp(0, CosmeticsService.dailyRunRequiredFragments)
+          .toInt();
+      return DailyRunCosmeticGrantResult(
+        item: _cosmeticItem,
+        progress: CosmeticFragmentProgress(
+          itemId: _cosmeticItem.id,
+          collectedFragments: collected,
+          requiredFragments: CosmeticsService.dailyRunRequiredFragments,
+          updatedAt: DateTime.now(),
+          unlockedAt: collected >= CosmeticsService.dailyRunRequiredFragments
+              ? DateTime.now()
+              : null,
+        ),
+        previousFragments: (collected - 1)
+            .clamp(0, CosmeticsService.dailyRunRequiredFragments)
+            .toInt(),
+        didUnlock: collected >= CosmeticsService.dailyRunRequiredFragments,
+      );
+    }
+
+    final grant = widget.onGrantCosmeticFragment;
+    if (grant != null) {
+      return grant(widget.reward.cosmeticFragment);
+    }
+    return CosmeticsService.instance.grantDailyRunFragment(
+      fragmentName: widget.reward.cosmeticFragment,
+    );
   }
 
   Future<void> _flyAndApply({
@@ -203,7 +253,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   }
 
   Future<void> _showUnlockCelebration() {
-    final itemName = _extractCosmeticName(widget.reward.cosmeticFragment);
+    final itemName = _cosmeticItem.name;
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -213,8 +263,8 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
         itemName: itemName,
         rarity: _rarity,
         onEquipNow: () {
-          Navigator.of(dialogContext).pop();
-          widget.onViewCollection?.call();
+          if (widget.onEquipNow == null) return;
+          unawaited(Future.sync(() => widget.onEquipNow?.call(_cosmeticItem)));
         },
         onViewCollection: () {
           Navigator.of(dialogContext).pop();
@@ -242,6 +292,11 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
     final coinsVisible = phase.index >= _Phase.coinsReveal.index;
     final cosmeticVisible = phase.index >= _Phase.cosmeticReveal.index;
     final sequenceDone = phase == _Phase.done;
+    final fragmentProgress = _fragmentGrantResult?.progress;
+    final fragmentCollected = fragmentProgress?.collectedFragments ?? 0;
+    final fragmentRequired =
+        fragmentProgress?.requiredFragments ??
+        CosmeticsService.dailyRunRequiredFragments;
 
     return SafeArea(
       top: false,
@@ -253,12 +308,16 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
           children: [
             Text(
               'Run cleared!',
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               _subtitleCopy,
-              style: textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
             Center(
@@ -309,12 +368,20 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
                 if (cosmeticVisible) ...[
                   const SizedBox(height: 8),
                   CosmeticFragmentCard(
-                    fragmentName: _extractCosmeticName(widget.reward.cosmeticFragment),
-                    collected: _fragmentCollected,
-                    total: 5,
+                    fragmentName: _cosmeticItem.name,
+                    collected: fragmentCollected,
+                    total: fragmentRequired,
                     rarity: _rarity,
                     heading: _rarityHeading,
-                    onEquipNow: widget.onViewCollection,
+                    onEquipNow: widget.onEquipNow == null
+                        ? null
+                        : () {
+                            unawaited(
+                              Future.sync(
+                                () => widget.onEquipNow?.call(_cosmeticItem),
+                              ),
+                            );
+                          },
                     onViewCollection: widget.onViewCollection,
                   ),
                 ],
@@ -331,7 +398,11 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
               ),
               child: Row(
                 children: [
-                  DailyChest(state: DailyChestState.locked, onTap: null, size: 42),
+                  DailyChest(
+                    state: DailyChestState.locked,
+                    onTap: null,
+                    size: 42,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -376,9 +447,11 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
 
   String get _tomorrowTeaser {
     // When ≥60% of the set is collected, name the item to create a comeback hook.
-    if (!_isFragmentComplete && _fragmentCollected >= 3) {
-      final name = _extractCosmeticName(widget.reward.cosmeticFragment);
-      return 'Tomorrow: chance to finish $name';
+    final progress = _fragmentGrantResult?.progress;
+    if (progress != null &&
+        !progress.isUnlocked &&
+        progress.collectedFragments * 100 ~/ progress.requiredFragments >= 60) {
+      return 'Tomorrow: chance to finish ${_cosmeticItem.name}';
     }
     return switch (_rarity) {
       FragmentRarity.common => 'Tomorrow: +200 XP chest',
@@ -387,6 +460,9 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
       FragmentRarity.legendary => 'Tomorrow: Legendary chest \ud83d\udc51',
     };
   }
+
+  bool get _isFragmentComplete =>
+      _fragmentGrantResult?.progress.isUnlocked ?? false;
 
   String get _rarityHeading => _isFragmentComplete
       ? 'Item unlocked! 🎉'
@@ -397,27 +473,13 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
           FragmentRarity.legendary => 'Legendary drop!',
         };
 
-  String _extractCosmeticName(String raw) {
-    const suffix = ' Fragment';
-    if (raw.endsWith(suffix)) {
-      return raw.substring(0, raw.length - suffix.length);
-    }
-    return raw;
-  }
-
-  int _fragmentProgress(String raw) {
-    var hash = 0;
-    for (final c in raw.codeUnits) {
-      hash = ((hash * 31) + c) & 0x7fffffff;
-    }
-    return 1 + (hash % 5);
-  }
-
-  FragmentRarity _rarityFromFragment(String raw) {
-    final lower = raw.toLowerCase();
-    if (lower.contains('neon') || lower.contains('burst')) return FragmentRarity.epic;
-    if (lower.contains('nova') || lower.contains('comet')) return FragmentRarity.rare;
-    return FragmentRarity.common;
+  FragmentRarity _rarityFromItem(CosmeticRarity rarity) {
+    return switch (rarity) {
+      CosmeticRarity.common => FragmentRarity.common,
+      CosmeticRarity.rare => FragmentRarity.rare,
+      CosmeticRarity.epic || CosmeticRarity.mythic => FragmentRarity.epic,
+      CosmeticRarity.legendary => FragmentRarity.legendary,
+    };
   }
 }
 
@@ -503,10 +565,7 @@ class _ClaimButtonState extends State<_ClaimButton> {
     if (_tapped) {
       btn = btn
           .animate()
-          .shimmer(
-            duration: 260.ms,
-            color: Colors.white.withValues(alpha: 0.8),
-          )
+          .shimmer(duration: 260.ms, color: Colors.white.withValues(alpha: 0.8))
           .scale(
             begin: const Offset(1.0, 1.0),
             end: const Offset(1.04, 1.04),

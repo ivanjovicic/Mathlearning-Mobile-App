@@ -1,3 +1,5 @@
+import 'social_cosmetic_loadout.dart';
+
 class SchoolAggregateItem {
   final int rank;
   final int schoolId;
@@ -14,6 +16,7 @@ class SchoolAggregateItem {
   final String? city;
   final String? country;
   final DateTime? updatedAt;
+  final List<SocialCosmeticLoadout> topAvatars;
 
   SchoolAggregateItem({
     required this.rank,
@@ -31,6 +34,7 @@ class SchoolAggregateItem {
     this.city,
     this.country,
     this.updatedAt,
+    this.topAvatars = const <SocialCosmeticLoadout>[],
   });
 
   factory SchoolAggregateItem.fromJson(Map<String, dynamic> json) {
@@ -89,8 +93,31 @@ class SchoolAggregateItem {
       updatedAt: DateTime.tryParse(
         (json['updatedAt'] ?? json['updated_at'] ?? '').toString(),
       ),
+      topAvatars: _topAvatarsFromJson(json),
     );
   }
+}
+
+List<SocialCosmeticLoadout> _topAvatarsFromJson(Map<String, dynamic> json) {
+  final raw =
+      json['topAvatars'] ??
+      json['top_avatars'] ??
+      json['topStudents'] ??
+      json['top_students'];
+  if (raw is! List) {
+    return const <SocialCosmeticLoadout>[];
+  }
+  return raw
+      .map((entry) {
+        if (entry is Map) {
+          final map = Map<String, dynamic>.from(entry);
+          return socialCosmeticLoadoutFromJson(map) ??
+              SocialCosmeticLoadout.fromJson(map);
+        }
+        return null;
+      })
+      .whereType<SocialCosmeticLoadout>()
+      .toList(growable: false);
 }
 
 class SchoolLeaderboardResponse {

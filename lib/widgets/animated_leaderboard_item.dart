@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/leaderboard_models.dart';
+import '../models/social_cosmetic_loadout.dart';
+import 'social_cosmetic_avatar.dart';
 
 class AnimatedLeaderboardItem extends StatelessWidget {
   final LeaderboardItem item;
@@ -20,8 +22,27 @@ class AnimatedLeaderboardItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Use only real API-provided loadout. Empty loadout = honest default.
+    final loadout = item.cosmeticLoadout ?? const SocialCosmeticLoadout();
+
     return ListTile(
-      leading: CircleAvatar(child: Text('${item.rank}')),
+      leading: SizedBox(
+        width: 88,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(radius: 16, child: Text('${item.rank}')),
+            const SizedBox(width: 8),
+            SocialCosmeticAvatar(
+              userId: item.userId.toString(),
+              displayName: item.displayName,
+              avatarUrl: item.avatarUrl,
+              loadout: loadout,
+              size: 42,
+            ),
+          ],
+        ),
+      ),
       title: Text(title ?? item.displayName),
       subtitle: Text(subtitle ?? 'Score: ${item.score}'),
       trailing: isCurrentUser ? const Text('Ti') : null,

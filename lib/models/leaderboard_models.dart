@@ -1,3 +1,5 @@
+import 'social_cosmetic_loadout.dart';
+
 enum LeaderboardPeriod { allTime, week, month }
 
 LeaderboardPeriod parseLeaderboardPeriod(String? value) {
@@ -90,6 +92,7 @@ class LeaderboardItem {
     this.avatarUrl,
     required this.score,
     required this.streakDays,
+    this.cosmeticLoadout,
   });
 
   final int rank;
@@ -98,6 +101,7 @@ class LeaderboardItem {
   final String? avatarUrl;
   final int score;
   final int streakDays;
+  final SocialCosmeticLoadout? cosmeticLoadout;
 
   factory LeaderboardItem.fromJson(Map<String, dynamic> json) {
     return LeaderboardItem(
@@ -107,6 +111,7 @@ class LeaderboardItem {
       avatarUrl: _asNullableString(json['avatarUrl'] ?? json['avatar']),
       score: _asInt(json['score'] ?? json['xp'] ?? json['weeklyXp']),
       streakDays: _asInt(json['streakDays'] ?? json['streak']),
+      cosmeticLoadout: socialCosmeticLoadoutFromJson(json),
     );
   }
 }
@@ -119,6 +124,7 @@ class RivalLeaderboardEntry extends LeaderboardItem {
     super.avatarUrl,
     required super.score,
     required super.streakDays,
+    super.cosmeticLoadout,
   });
 
   factory RivalLeaderboardEntry.fromJson(Map<String, dynamic> json) {
@@ -130,6 +136,7 @@ class RivalLeaderboardEntry extends LeaderboardItem {
       avatarUrl: base.avatarUrl,
       score: base.score,
       streakDays: base.streakDays,
+      cosmeticLoadout: base.cosmeticLoadout,
     );
   }
 }
@@ -195,6 +202,7 @@ class SchoolLeaderboardEntry {
     this.members = 0,
     this.badgeLabel,
     this.badgeUrl,
+    this.topAvatars = const <SocialCosmeticLoadout>[],
   });
 
   final int rank;
@@ -204,6 +212,7 @@ class SchoolLeaderboardEntry {
   final int members;
   final String? badgeLabel;
   final String? badgeUrl;
+  final List<SocialCosmeticLoadout> topAvatars;
 
   factory SchoolLeaderboardEntry.fromJson(Map<String, dynamic> json) {
     final schoolName = _asString(json['schoolName'] ?? json['name']);
@@ -234,8 +243,33 @@ class SchoolLeaderboardEntry {
       badgeUrl: _asNullableString(
         json['badgeUrl'] ?? json['logoUrl'] ?? json['badge_url'],
       ),
+      topAvatars: _schoolTopAvatarsFromJson(json),
     );
   }
+}
+
+List<SocialCosmeticLoadout> _schoolTopAvatarsFromJson(
+  Map<String, dynamic> json,
+) {
+  final raw =
+      json['topAvatars'] ??
+      json['top_avatars'] ??
+      json['topStudents'] ??
+      json['top_students'];
+  if (raw is! List) {
+    return const <SocialCosmeticLoadout>[];
+  }
+  return raw
+      .map((entry) {
+        if (entry is Map) {
+          final map = Map<String, dynamic>.from(entry);
+          return socialCosmeticLoadoutFromJson(map) ??
+              SocialCosmeticLoadout.fromJson(map);
+        }
+        return null;
+      })
+      .whereType<SocialCosmeticLoadout>()
+      .toList(growable: false);
 }
 
 class SchoolLeaderboardFeed {

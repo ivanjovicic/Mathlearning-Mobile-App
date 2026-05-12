@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../models/leaderboard_models.dart';
 import '../models/school_leaderboard_models.dart' show SchoolAggregateItem;
+import '../models/social_cosmetic_loadout.dart';
 import '../theme/app_scale.dart';
 import '../theme/theme_extensions/theme_context.dart';
 import '../theme/tokens/app_motion.dart';
+import 'social_cosmetic_avatar.dart';
 import 'ui/app_badge.dart';
 import 'ui/app_card.dart';
 
@@ -75,10 +77,12 @@ class LeaderboardItemWidget extends StatelessWidget {
                   padding: EdgeInsets.only(top: spacing.xs),
                   child: AppBadge(
                     label: 'You',
-                    backgroundColor:
-                        Theme.of(context).colorScheme.primaryContainer,
-                    foregroundColor:
-                        Theme.of(context).colorScheme.onPrimaryContainer,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer,
+                    foregroundColor: Theme.of(
+                      context,
+                    ).colorScheme.onPrimaryContainer,
                   ),
                 ),
             ],
@@ -110,21 +114,14 @@ class LeaderboardItemWidget extends StatelessWidget {
   }
 
   Widget _buildAvatar(BuildContext context, LeaderboardItem item) {
-    final cs = Theme.of(context).colorScheme;
-    return CircleAvatar(
-      radius: AppScale.s(20),
-      backgroundImage: item.avatarUrl != null
-          ? NetworkImage(item.avatarUrl!)
-          : null,
-      child: item.avatarUrl == null
-          ? Text(
-              item.displayName[0].toUpperCase(),
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: cs.onSurface,
-                fontWeight: FontWeight.w700,
-              ),
-            )
-          : null,
+    // Use only real API-provided loadout. Empty loadout = honest default.
+    final loadout = item.cosmeticLoadout ?? const SocialCosmeticLoadout();
+    return SocialCosmeticAvatar(
+      userId: item.userId.toString(),
+      displayName: item.displayName,
+      avatarUrl: item.avatarUrl,
+      loadout: loadout,
+      size: AppScale.s(44),
     );
   }
 
@@ -161,7 +158,8 @@ class _SchoolTile extends StatelessWidget {
         : '$rankDelta';
 
     return Semantics(
-      label: 'School rank ${item.rank}, ${item.schoolName}, score ${item.score}',
+      label:
+          'School rank ${item.rank}, ${item.schoolName}, score ${item.score}',
       child: AppCard(
         margin: EdgeInsets.symmetric(vertical: spacing.xs + spacing.xs / 2),
         child: ListTile(
@@ -248,7 +246,8 @@ class AnimatedLeaderboardItem extends StatefulWidget {
   final int previousRank;
 
   @override
-  State<AnimatedLeaderboardItem> createState() => _AnimatedLeaderboardItemState();
+  State<AnimatedLeaderboardItem> createState() =>
+      _AnimatedLeaderboardItemState();
 }
 
 class _AnimatedLeaderboardItemState extends State<AnimatedLeaderboardItem>
@@ -259,13 +258,11 @@ class _AnimatedLeaderboardItemState extends State<AnimatedLeaderboardItem>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: AppMotion.slow,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1)
-        .chain(CurveTween(curve: AppMotion.decelerate))
-        .animate(_controller);
+    _controller = AnimationController(duration: AppMotion.slow, vsync: this);
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).chain(CurveTween(curve: AppMotion.decelerate)).animate(_controller);
 
     if (widget.item.rank < widget.previousRank) {
       _controller.forward().then((_) => _controller.reverse());

@@ -20,8 +20,7 @@ class AvatarCustomizationScreen extends StatefulWidget {
       _AvatarCustomizationScreenState();
 }
 
-class _AvatarCustomizationScreenState
-    extends State<AvatarCustomizationScreen>
+class _AvatarCustomizationScreenState extends State<AvatarCustomizationScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
@@ -35,6 +34,7 @@ class _AvatarCustomizationScreenState
     CosmeticCategory.accessory,
     CosmeticCategory.emojiReaction,
     CosmeticCategory.avatarFrame,
+    CosmeticCategory.animatedEffect,
     CosmeticCategory.profileBackground,
   ];
 
@@ -76,6 +76,8 @@ class _AvatarCustomizationScreenState
         return base.copyWith(frameId: item.id);
       case CosmeticCategory.profileBackground:
         return base.copyWith(backgroundId: item.id);
+      case CosmeticCategory.animatedEffect:
+        return base.copyWith(animatedEffectId: item.id);
       default:
         return base;
     }
@@ -143,8 +145,9 @@ class _AvatarCustomizationScreenState
                   controller: _tabController,
                   isScrollable: true,
                   labelColor: colorScheme.primary,
-                    unselectedLabelColor:
-                      colorScheme.onSurface.withValues(alpha: 0.5),
+                  unselectedLabelColor: colorScheme.onSurface.withValues(
+                    alpha: 0.5,
+                  ),
                   indicatorColor: colorScheme.primary,
                   tabs: _categories
                       .map(
@@ -197,6 +200,8 @@ class _AvatarCustomizationScreenState
         return Icons.crop_square;
       case CosmeticCategory.profileBackground:
         return Icons.wallpaper;
+      case CosmeticCategory.animatedEffect:
+        return Icons.auto_fix_high;
       default:
         return Icons.star;
     }
@@ -275,8 +280,7 @@ class _CategoryGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = provider.catalogForCategory(category);
     final previewEquipped =
-        previewConfig?.slotFor(category.id) ??
-        provider.equippedIdFor(category);
+        previewConfig?.slotFor(category.id) ?? provider.equippedIdFor(category);
 
     final ownedCount = entries.where((e) => e.owned).length;
 
@@ -294,9 +298,9 @@ class _CategoryGrid extends StatelessWidget {
               const Spacer(),
               Text(
                 '${(ownedCount / entries.length * 100).round()}%',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -304,8 +308,9 @@ class _CategoryGrid extends StatelessWidget {
         LinearProgressIndicator(
           value: entries.isEmpty ? 0 : ownedCount / entries.length,
           minHeight: 3,
-            backgroundColor:
-              Theme.of(context).colorScheme.surfaceContainerHighest,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation(
             Theme.of(context).colorScheme.primary,
           ),

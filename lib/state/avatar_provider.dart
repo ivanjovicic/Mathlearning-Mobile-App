@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/cosmetic_item.dart';
+import '../models/cosmetic_fragment_progress.dart';
 import '../models/user_avatar.dart';
 import '../models/user_cosmetic.dart';
 import '../services/cosmetics_service.dart';
@@ -29,7 +30,9 @@ class AvatarProvider extends ChangeNotifier {
   List<CosmeticItem> ownedItemsForCategory(CosmeticCategory category) {
     final ownedIds = _inventory.map((c) => c.itemId).toSet();
     return _catalog
-        .where((item) => item.category == category && ownedIds.contains(item.id))
+        .where(
+          (item) => item.category == category && ownedIds.contains(item.id),
+        )
         .toList();
   }
 
@@ -112,8 +115,7 @@ class AvatarProvider extends ChangeNotifier {
     if (!owns(item.id)) return;
 
     final userId = AuthService.instance.userId ?? 'local';
-    final current =
-        _avatarConfig ?? UserAvatar.defaults(userId);
+    final current = _avatarConfig ?? UserAvatar.defaults(userId);
 
     final updated = _applyEquip(current, item);
     _avatarConfig = updated;
@@ -147,6 +149,8 @@ class AvatarProvider extends ChangeNotifier {
         return config.copyWith(frameId: item.id);
       case CosmeticCategory.profileBackground:
         return config.copyWith(backgroundId: item.id);
+      case CosmeticCategory.animatedEffect:
+        return config.copyWith(animatedEffectId: item.id);
       default:
         return config;
     }
@@ -168,6 +172,8 @@ class AvatarProvider extends ChangeNotifier {
         return config.copyWith(clearFrame: true);
       case CosmeticCategory.profileBackground:
         return config.copyWith(clearBackground: true);
+      case CosmeticCategory.animatedEffect:
+        return config.copyWith(clearAnimatedEffect: true);
       default:
         return config;
     }
@@ -198,6 +204,22 @@ class AvatarProvider extends ChangeNotifier {
     return null;
   }
 
+  Future<DailyRunCosmeticGrantResult> grantDailyRunFragment(
+    String fragmentName,
+  ) async {
+    if (_catalog.isEmpty) {
+      _catalog = _service.getCatalog();
+    }
+    final result = await _service.grantDailyRunFragment(
+      fragmentName: fragmentName,
+    );
+    if (result.unlockedCosmetic != null && !owns(result.item.id)) {
+      _inventory = [..._inventory, result.unlockedCosmetic!];
+      notifyListeners();
+    }
+    return result;
+  }
+
   // ─────────────────────── LEVEL-UP HOOK ──────────────────────────
 
   /// Called when the user reaches a new level.
@@ -206,10 +228,7 @@ class AvatarProvider extends ChangeNotifier {
     final unlocks = <CosmeticItem>[];
     final levelUnlocks = _levelUnlockMap[newLevel] ?? [];
     for (final itemId in levelUnlocks) {
-      final item = await grantItem(
-        itemId: itemId,
-        sourceType: 'level_up',
-      );
+      final item = await grantItem(itemId: itemId, sourceType: 'level_up');
       if (item != null) unlocks.add(item);
     }
     return unlocks;
@@ -242,10 +261,7 @@ class AvatarProvider extends ChangeNotifier {
     };
     final itemId = unlockMap[streakDays];
     if (itemId != null) {
-      final item = await grantItem(
-        itemId: itemId,
-        sourceType: 'streak',
-      );
+      final item = await grantItem(itemId: itemId, sourceType: 'streak');
       if (item != null) unlocks.add(item);
     }
     return unlocks;

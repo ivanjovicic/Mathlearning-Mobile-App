@@ -48,6 +48,8 @@ void main() {
     expect(find.text('9800'), findsOneWidget);
     expect(find.textContaining('9800 total score'), findsOneWidget);
     expect(find.text('Gold League'), findsOneWidget);
+    // No mock avatars — empty topAvatars shows the honest fallback text.
+    expect(find.text('No avatar flex yet'), findsWidgets);
   });
 
   testWidgets('changing period reloads school leaderboard', (tester) async {

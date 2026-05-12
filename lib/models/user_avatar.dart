@@ -9,6 +9,7 @@ class UserAvatar {
   final String? emojiId;
   final String? frameId;
   final String? backgroundId;
+  final String? animatedEffectId;
   final DateTime updatedAt;
 
   const UserAvatar({
@@ -20,20 +21,22 @@ class UserAvatar {
     this.emojiId,
     this.frameId,
     this.backgroundId,
+    this.animatedEffectId,
     required this.updatedAt,
   });
 
   factory UserAvatar.defaults(String userId) => UserAvatar(
-        userId: userId,
-        skinId: 'skin_default',
-        hairId: 'hair_default',
-        clothingId: 'clothing_default',
-        accessoryId: null,
-        emojiId: 'emoji_default',
-        frameId: null,
-        backgroundId: 'bg_default',
-        updatedAt: DateTime.now(),
-      );
+    userId: userId,
+    skinId: 'skin_default',
+    hairId: 'hair_default',
+    clothingId: 'clothing_default',
+    accessoryId: null,
+    emojiId: 'emoji_default',
+    frameId: null,
+    backgroundId: 'bg_default',
+    animatedEffectId: null,
+    updatedAt: DateTime.now(),
+  );
 
   factory UserAvatar.fromJson(Map<String, dynamic> json) {
     return UserAvatar(
@@ -45,6 +48,8 @@ class UserAvatar {
       emojiId: json['emoji_id'] as String?,
       frameId: json['frame_id'] as String?,
       backgroundId: json['background_id'] as String?,
+      animatedEffectId:
+          (json['animated_effect_id'] ?? json['animatedEffectId']) as String?,
       updatedAt:
           DateTime.tryParse(json['updated_at'] as String? ?? '') ??
           DateTime.now(),
@@ -52,16 +57,17 @@ class UserAvatar {
   }
 
   Map<String, dynamic> toJson() => {
-        'user_id': userId,
-        'skin_id': skinId,
-        'hair_id': hairId,
-        'clothing_id': clothingId,
-        'accessory_id': accessoryId,
-        'emoji_id': emojiId,
-        'frame_id': frameId,
-        'background_id': backgroundId,
-        'updated_at': updatedAt.toIso8601String(),
-      };
+    'user_id': userId,
+    'skin_id': skinId,
+    'hair_id': hairId,
+    'clothing_id': clothingId,
+    'accessory_id': accessoryId,
+    'emoji_id': emojiId,
+    'frame_id': frameId,
+    'background_id': backgroundId,
+    'animated_effect_id': animatedEffectId,
+    'updated_at': updatedAt.toIso8601String(),
+  };
 
   UserAvatar copyWith({
     String? skinId,
@@ -71,6 +77,7 @@ class UserAvatar {
     String? emojiId,
     String? frameId,
     String? backgroundId,
+    String? animatedEffectId,
     bool clearSkin = false,
     bool clearHair = false,
     bool clearClothing = false,
@@ -78,6 +85,7 @@ class UserAvatar {
     bool clearEmoji = false,
     bool clearFrame = false,
     bool clearBackground = false,
+    bool clearAnimatedEffect = false,
   }) {
     return UserAvatar(
       userId: userId,
@@ -87,7 +95,12 @@ class UserAvatar {
       accessoryId: clearAccessory ? null : (accessoryId ?? this.accessoryId),
       emojiId: clearEmoji ? null : (emojiId ?? this.emojiId),
       frameId: clearFrame ? null : (frameId ?? this.frameId),
-      backgroundId: clearBackground ? null : (backgroundId ?? this.backgroundId),
+      backgroundId: clearBackground
+          ? null
+          : (backgroundId ?? this.backgroundId),
+      animatedEffectId: clearAnimatedEffect
+          ? null
+          : (animatedEffectId ?? this.animatedEffectId),
       updatedAt: DateTime.now(),
     );
   }
@@ -109,6 +122,8 @@ class UserAvatar {
         return frameId;
       case 'profile_background':
         return backgroundId;
+      case 'animated_effect':
+        return animatedEffectId;
       default:
         return null;
     }

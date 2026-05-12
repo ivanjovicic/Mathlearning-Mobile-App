@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/social_cosmetic_loadout.dart';
 import '../navigation/app_routes.dart';
 import '../navigation/navigation_extensions.dart';
 import '../services/user_service.dart';
+import '../state/avatar_provider.dart';
 import '../state/auth_provider.dart';
 import '../state/badge_provider.dart';
 import '../state/progress_provider.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/animated_xp_bar.dart';
 import '../widgets/avatar_widget.dart';
+import '../widgets/cosmetic_visuals.dart';
+import '../widgets/social_cosmetic_avatar.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
 import '../widgets/ui/app_section.dart';
 
@@ -23,6 +27,13 @@ class ProfileScreen extends StatelessWidget {
     final progress = context.watch<ProgressProvider>();
     final badges = context.watch<BadgeProvider>().badges;
     final auth = context.watch<AuthProvider>();
+    final avatar = context.watch<AvatarProvider>();
+    final socialLoadout = SocialCosmeticLoadout.fromLocal(
+      userId: auth.userId ?? 'local',
+      avatar: avatar.avatarConfig,
+      inventory: avatar.inventory,
+      catalog: avatar.catalog,
+    );
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -110,6 +121,15 @@ class ProfileScreen extends StatelessWidget {
               compact: true,
             ),
             const SizedBox(height: 16),
+            AppSection(
+              title: 'Cosmetic showcase',
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _CosmeticShowcase(
+                userId: auth.userId ?? 'local',
+                displayName: auth.username ?? 'Korisnik',
+                loadout: socialLoadout,
+              ),
+            ),
             AppSection(
               title: 'Brze opcije',
               padding: const EdgeInsets.only(bottom: 16),
@@ -427,6 +447,148 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
+class _CosmeticShowcase extends StatelessWidget {
+  const _CosmeticShowcase({
+    required this.userId,
+    required this.displayName,
+    required this.loadout,
+  });
+
+  final String userId;
+  final String displayName;
+  final SocialCosmeticLoadout loadout;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerHighest.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              SocialCosmeticAvatar(
+                userId: userId,
+                displayName: displayName,
+                loadout: loadout,
+                size: 74,
+                isCurrentUser: true,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      loadout.hasEquippedCosmetics
+                          ? 'Equipped cosmetics'
+                          : 'Default avatar',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (loadout.hasEquippedCosmetics)
+                      _EquippedItemLabels(loadout: loadout)
+                    else
+                      Text(
+                        'Unlock and equip frames, trails, and gear to show off here.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Recent unlocks',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        RecentUnlocksStrip(
+          unlocks: loadout.recentUnlocks,
+          emptyText:
+              'No cosmetic unlocks yet. Daily Run chests can change that.',
+        ),
+      ],
+    );
+  }
+
+  String _equippedSummary(SocialCosmeticLoadout loadout) {
+    return loadout.equippedItemLabels.map((e) => e.name).join(' · ');
+  }
+}
+
+class _EquippedItemLabels extends StatelessWidget {
+  const _EquippedItemLabels({required this.loadout});
+
+  final SocialCosmeticLoadout loadout;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final labels = loadout.equippedItemLabels;
+    if (labels.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: labels.map((label) {
+        final rarityColor = label.rarity != null
+            ? CosmeticVisuals.rarityColor(label.rarity!)
+            : null;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (rarityColor != null) ...[
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: rarityColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: rarityColor.withValues(alpha: 0.45),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label.name,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: rarityColor ??
+                    theme.colorScheme.onSurfaceVariant,
+                fontWeight: rarityColor != null
+                    ? FontWeight.w700
+                    : FontWeight.normal,
+              ),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+}
+
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({required this.username, required this.progress});
 
@@ -445,10 +607,7 @@ class _ProfileHeader extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              const AvatarWidget(
-                size: 110,
-                showFrame: true,
-              ),
+              const AvatarWidget(size: 110, showFrame: true),
               Positioned(
                 bottom: 0,
                 right: 0,
@@ -457,16 +616,9 @@ class _ProfileHeader extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: colorScheme.primary,
-                    border: Border.all(
-                      color: colorScheme.surface,
-                      width: 2,
-                    ),
+                    border: Border.all(color: colorScheme.surface, width: 2),
                   ),
-                  child: const Icon(
-                    Icons.edit,
-                    size: 14,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.edit, size: 14, color: Colors.white),
                 ),
               ),
             ],

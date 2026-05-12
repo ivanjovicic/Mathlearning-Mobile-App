@@ -113,15 +113,30 @@ class CosmeticVisuals {
             ),
           ],
         );
+      case 'frame_comet':
+        return BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: const Color(0xFF5EC8FF),
+            width: size * 0.04,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF5EC8FF).withValues(alpha: 0.50),
+              blurRadius: 14,
+              spreadRadius: 2,
+            ),
+            BoxShadow(
+              color: const Color(0xFFFFFFFF).withValues(alpha: 0.28),
+              blurRadius: 22,
+            ),
+          ],
+        );
       case 'frame_olympiad':
         return BoxDecoration(
           shape: BoxShape.circle,
           gradient: const LinearGradient(
-            colors: [
-              Color(0xFFE91E63),
-              Color(0xFF9C27B0),
-              Color(0xFF2196F3),
-            ],
+            colors: [Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF2196F3)],
           ),
           boxShadow: [
             BoxShadow(
@@ -204,7 +219,10 @@ class CosmeticVisuals {
         return BoxDecoration(
           borderRadius: borderRadius,
           gradient: LinearGradient(
-            colors: [const Color(0xFF0A0A0A), const Color(0xFF00E5FF).withValues(alpha: 0.2)],
+            colors: [
+              const Color(0xFF0A0A0A),
+              const Color(0xFF00E5FF).withValues(alpha: 0.2),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -250,6 +268,17 @@ class CosmeticVisuals {
         return Icons.workspace_premium;
       default:
         return Icons.star;
+    }
+  }
+
+  static IconData animatedEffectIcon(String? effectId) {
+    switch (effectId) {
+      case 'effect_neon_number_burst':
+        return Icons.offline_bolt;
+      case 'effect_nova_trail':
+        return Icons.auto_awesome;
+      default:
+        return Icons.auto_fix_high;
     }
   }
 }

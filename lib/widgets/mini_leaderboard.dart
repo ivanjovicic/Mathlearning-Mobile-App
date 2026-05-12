@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/leaderboard_models.dart';
+import '../models/social_cosmetic_loadout.dart';
+import 'social_cosmetic_avatar.dart';
 
 class MiniLeaderboard extends StatelessWidget {
   const MiniLeaderboard({
@@ -107,6 +109,8 @@ class _MiniLeaderboardRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    // Use only real API-provided loadout. Empty loadout = honest default.
+    final loadout = entry.cosmeticLoadout ?? const SocialCosmeticLoadout();
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
@@ -126,28 +130,34 @@ class _MiniLeaderboardRow extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isCurrentUser
-                  ? colors.primary.withValues(alpha: 0.12)
-                  : colors.surface,
-              shape: BoxShape.circle,
-            ),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              transitionBuilder: (child, animation) {
-                return ScaleTransition(scale: animation, child: child);
-              },
-              child: Text(
-                '${entry.rank}',
-                key: ValueKey<int>(entry.rank),
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+          SizedBox(
+            width: 76,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 30,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    transitionBuilder: (child, animation) {
+                      return ScaleTransition(scale: animation, child: child);
+                    },
+                    child: Text(
+                      '#${entry.rank}',
+                      key: ValueKey<int>(entry.rank),
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                SocialCosmeticAvatar(
+                  userId: entry.userId.toString(),
+                  displayName: entry.displayName,
+                  avatarUrl: entry.avatarUrl,
+                  loadout: loadout,
+                  size: 38,
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 12),

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/leaderboard_models.dart';
+import '../models/social_cosmetic_loadout.dart';
 import '../state/leaderboard_provider.dart';
 import '../widgets/leaderboard_tabs.dart';
 import '../widgets/period_selector.dart';
+import '../widgets/social_cosmetic_avatar.dart';
 
 class SchoolLeaderboardScreen extends StatefulWidget {
   const SchoolLeaderboardScreen({super.key});
@@ -249,6 +251,8 @@ class _SchoolLeaderboardCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                    const SizedBox(height: 8),
+                    _TopSchoolAvatars(entry: entry),
                   ],
                 ),
               ),
@@ -263,6 +267,46 @@ class _SchoolLeaderboardCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TopSchoolAvatars extends StatelessWidget {
+  const _TopSchoolAvatars({required this.entry});
+
+  final SchoolLeaderboardEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    // Only show avatars the API actually provided. Empty list = honest fallback.
+    final avatars = entry.topAvatars;
+    if (avatars.isEmpty) {
+      return Text(
+        'No avatar flex yet',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 34,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (var i = 0; i < avatars.take(3).length; i++)
+            Positioned(
+              left: i * 24,
+              child: SocialCosmeticAvatar(
+                userId: '${entry.schoolId}-$i',
+                displayName: '${entry.schoolName} top player ${i + 1}',
+                loadout: avatars[i],
+                size: 34,
+                showRecentBadge: i == 0,
+              ),
+            ),
+        ],
       ),
     );
   }

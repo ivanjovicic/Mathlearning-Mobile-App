@@ -1,29 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
+import '../models/social_cosmetic_loadout.dart';
+import '../widgets/social_cosmetic_avatar.dart';
+
 class UserProfileScreen extends StatelessWidget {
   final String userId;
 
-  const UserProfileScreen({
-    super.key,
-    required this.userId,
-  });
+  const UserProfileScreen({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
+    // No mock data — empty loadout is the honest default until the API
+    // provides a real cosmeticLoadout for this user.
+    const emptyLoadout = SocialCosmeticLoadout();
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('User Profile'),
-      ),
-      body: Padding(
+      appBar: AppBar(title: const Text('User Profile')),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Profile details for user ID: $userId',
-              style: Theme.of(context).textTheme.headlineSmall,
+            Row(
+              children: [
+                SocialCosmeticAvatar(
+                  userId: userId,
+                  displayName: 'User $userId',
+                  loadout: emptyLoadout,
+                  size: 82,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'User $userId',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'No cosmetics available yet',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 20),
+            Text(
+              'Recent unlocks',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 10),
+            const RecentUnlocksStrip(unlocks: <SocialCosmeticUnlock>[]),
             const SizedBox(height: 20),
             Text(
               'XP Progress Chart',

@@ -25,6 +25,7 @@ import 'package:mathlearning/features/learning_map/widgets/streak_card.dart';
 import 'package:mathlearning/features/learning_map/widgets/xp_level_chip.dart';
 import 'package:mathlearning/services/connectivity_service.dart';
 import 'package:mathlearning/state/auth_provider.dart';
+import 'package:mathlearning/state/avatar_provider.dart';
 import 'package:mathlearning/state/coin_provider.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
@@ -44,7 +45,9 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   bool _initialized = false;
   bool _dailyRunInitialized = false;
   final ScrollController _pageScrollController = ScrollController();
-  final GlobalKey _xpHudTargetKey = GlobalKey(debugLabel: 'learning_map_xp_hud');
+  final GlobalKey _xpHudTargetKey = GlobalKey(
+    debugLabel: 'learning_map_xp_hud',
+  );
   final GlobalKey _coinHudTargetKey = GlobalKey(
     debugLabel: 'learning_map_coin_hud',
   );
@@ -571,10 +574,31 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
       enableDrag: false,
       isScrollControlled: true,
       builder: (sheetContext) {
+        void openCollectionFromSheet() {
+          Navigator.of(sheetContext).pop();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            context.openAvatarCustomization();
+          });
+        }
+
         return DailyChestRewardSheet(
           reward: reward,
           xpTargetKey: _xpHudTargetKey,
           coinTargetKey: _coinHudTargetKey,
+          onGrantCosmeticFragment: (fragmentName) {
+            return context.read<AvatarProvider>().grantDailyRunFragment(
+              fragmentName,
+            );
+          },
+          onEquipNow: (item) async {
+            await context.read<AvatarProvider>().equipItem(item);
+            if (!mounted) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('${item.name} equipped!')));
+          },
+          onViewCollection: openCollectionFromSheet,
           onApplyXp: (amount) async {
             final progress = context.read<ProgressProvider>();
             progress.addXP(amount);

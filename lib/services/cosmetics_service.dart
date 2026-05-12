@@ -8,6 +8,7 @@ import '../models/cosmetic_item.dart';
 import '../models/user_avatar.dart';
 import '../models/user_cosmetic.dart';
 import 'auth_service.dart';
+import 'new_look_badge_service.dart';
 
 /// Manages the cosmetics catalog, user inventory, and equipped avatar config.
 ///
@@ -404,6 +405,7 @@ class CosmeticsService {
     }
 
     await _saveAvatarLocally(updated);
+    await NewLookBadgeService.instance.markEquipped();
   }
 
   UserCosmetic _buildUnlockedCosmetic({

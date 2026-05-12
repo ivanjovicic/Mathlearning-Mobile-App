@@ -32,8 +32,8 @@ class AvatarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<AvatarProvider>();
-    final config = overrideConfig ?? provider.avatarConfig;
+    final config =
+        overrideConfig ?? context.watch<AvatarProvider>().avatarConfig;
 
     if (config == null) {
       return _PlaceholderAvatar(size: size, borderColor: borderColor);
@@ -69,6 +69,39 @@ class _AvatarBody extends StatelessWidget {
     final innerSize = size - padding * 2;
 
     Widget avatar = _buildAvatarFace(innerSize);
+    if (config.animatedEffectId != null) {
+      avatar = Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          avatar,
+          Positioned(
+            right: -innerSize * 0.04,
+            bottom: innerSize * 0.06,
+            child: Container(
+              width: innerSize * 0.28,
+              height: innerSize * 0.28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF00E5FF),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00E5FF).withValues(alpha: 0.45),
+                    blurRadius: innerSize * 0.16,
+                    spreadRadius: innerSize * 0.02,
+                  ),
+                ],
+              ),
+              child: Icon(
+                CosmeticVisuals.animatedEffectIcon(config.animatedEffectId),
+                color: Colors.white,
+                size: innerSize * 0.17,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     if (showFrame) {
       final frameDecoration = CosmeticVisuals.frameDecoration(
@@ -104,10 +137,7 @@ class _AvatarBody extends StatelessWidget {
           Container(
             width: innerSize,
             height: innerSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: skinColor,
-            ),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: skinColor),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -127,9 +157,7 @@ class _AvatarBody extends StatelessWidget {
           ),
           // Face features
           Positioned.fill(
-            child: CustomPaint(
-              painter: _FacePainter(skinColor: skinColor),
-            ),
+            child: CustomPaint(painter: _FacePainter(skinColor: skinColor)),
           ),
           // Hair icon at top
           Positioned(
@@ -137,11 +165,7 @@ class _AvatarBody extends StatelessWidget {
             left: 0,
             right: 0,
             child: Center(
-              child: Icon(
-                hairIcon,
-                color: hairColor,
-                size: innerSize * 0.32,
-              ),
+              child: Icon(hairIcon, color: hairColor, size: innerSize * 0.32),
             ),
           ),
           // Accessory
@@ -213,7 +237,10 @@ class _PlaceholderAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: color.withValues(alpha: 0.15),
-        border: Border.all(color: color.withValues(alpha: 0.5), width: size * 0.025),
+        border: Border.all(
+          color: color.withValues(alpha: 0.5),
+          width: size * 0.025,
+        ),
       ),
       child: Icon(
         Icons.person,
