@@ -15,6 +15,7 @@ import 'package:mathlearning/features/adaptive_practice/services/practice_sessio
 import 'package:mathlearning/features/learning_map/widgets/daily_chest_reward_sheet.dart';
 import 'package:mathlearning/features/learning_map/widgets/chest_open_animation.dart';
 import 'package:mathlearning/features/learning_map/widgets/cosmetic_fragment_card.dart';
+import 'package:mathlearning/features/learning_map/widgets/cosmetic_unlock_celebration.dart';
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/services/api_service.dart';
@@ -467,6 +468,7 @@ void main() {
     VoidCallback? onContinue,
     VoidCallback? onViewCollection,
     bool startOpen = true,
+    int? fragmentCountForTesting,
   }) {
     final xpKey = xpTargetKey ?? GlobalKey();
     final coinKey = coinTargetKey ?? GlobalKey();
@@ -489,6 +491,7 @@ void main() {
                   onContinue: onContinue ?? () {},
                   onViewCollection: onViewCollection,
                   startOpen: startOpen,
+                  fragmentCountForTesting: fragmentCountForTesting,
                 ),
               ),
             ),
@@ -566,14 +569,16 @@ void main() {
     expect(find.text('Rare fragment!'), findsOneWidget);
     expect(find.text('Nova Trail'), findsOneWidget);
 
-    // Tomorrow teaser always present.
+    // Tomorrow teaser references item name when ≥60% collected
+    // ('Nova Trail Fragment' hashes to collected=3 → item-specific copy).
     expect(find.text('Tomorrow'), findsOneWidget);
+    expect(find.text('Tomorrow: chance to finish Nova Trail'), findsOneWidget);
 
     // Drain remaining sequence timers.
     await pumpMs(tester, 1500);
   });
 
-  testWidgets('claim button reads "Claim rewards!" and is disabled until done', (
+  testWidgets('claim button reads "Grab it!" and is disabled until done', (
     tester,
   ) async {
     const reward = DailyChestReward(
@@ -585,8 +590,8 @@ void main() {
     await tester.pumpWidget(_buildSheet(reward: reward));
     await tester.pump();
 
-    // Button text is "Claim rewards!" from the start.
-    expect(find.text('Claim rewards!'), findsOneWidget);
+    // Button text is "Grab it!" from the start.
+    expect(find.text('Grab it!'), findsOneWidget);
 
     // Button is disabled (sequence not done).
     final btn = tester.widget<FilledButton>(find.byType(FilledButton));
@@ -621,9 +626,9 @@ void main() {
     expect(find.text('Rare'), findsOneWidget);
     // Progress pips now show "X/5 collected".
     expect(find.textContaining('/5 collected'), findsOneWidget);
-    // Unlock hint copy.
+    // Unlock hint copy — 'Collect X to unlock' replaced by progress bar.
     expect(find.textContaining('more to unlock'), findsOneWidget);
-    expect(find.text('Collect 5 to unlock this item'), findsOneWidget);
+    expect(find.text('Collect 5 to unlock'), findsNothing);
   });
 
   testWidgets('daily chest reward sheet applies XP then coins after flights', (
@@ -694,7 +699,8 @@ void main() {
 
       expect(find.text('3/5 collected'), findsOneWidget);
       expect(find.text('2 more to unlock'), findsOneWidget);
-      expect(find.text('Collect 5 to unlock this item'), findsOneWidget);
+      // Progress bar visible; no 'Collect X to unlock' copy.
+      expect(find.text('Collect 5 to unlock'), findsNothing);
       // No completion CTA.
       expect(find.text('View collection'), findsNothing);
     });
@@ -711,8 +717,63 @@ void main() {
 
       expect(find.text('5/5 collected'), findsOneWidget);
       expect(find.textContaining('more to unlock'), findsNothing);
-      expect(find.text('Collect 5 to unlock this item'), findsNothing);
+      expect(find.text('Collect 5 to unlock'), findsNothing);
       expect(find.text('Item unlocked! 🎉'), findsOneWidget);
+    });
+
+    testWidgets('shows "Almost there!" when ≥60% fragments collected', (
+      tester,
+    ) async {
+      // 4/5: 1 remaining.
+      await tester.pumpWidget(buildCard(collected: 4, total: 5));
+      await tester.pump();
+      expect(find.text('Almost there!'), findsOneWidget);
+      expect(find.text('1 more to unlock'), findsOneWidget);
+
+      // 3/5: 2 remaining.
+      await tester.pumpWidget(buildCard(collected: 3, total: 5));
+      await tester.pump();
+      expect(find.text('Almost there!'), findsOneWidget);
+      expect(find.text('2 more to unlock'), findsOneWidget);
+
+      // 1/5: 4 remaining — no 'Almost there!'.
+      await tester.pumpWidget(buildCard(collected: 1, total: 5));
+      await tester.pump();
+      expect(find.text('Almost there!'), findsNothing);
+      expect(find.text('4 more to unlock'), findsOneWidget);
+    });
+
+    testWidgets('trail fragment renders _TrailPreview via CustomPaint', (
+      tester,
+    ) async {
+      // 'Nova Trail' → _CosmeticItemType.trail → _TrailPreview → CustomPaint.
+      await tester.pumpWidget(buildCard(collected: 2, total: 5));
+      await tester.pump();
+      expect(find.byType(CustomPaint), findsAtLeastNWidgets(1));
+    });
+
+    testWidgets('burst fragment renders _BurstPreview via CustomPaint', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(16),
+              child: CosmeticFragmentCard(
+                fragmentName: 'Nova Burst',
+                collected: 2,
+                total: 5,
+                rarity: FragmentRarity.epic,
+                animate: false,
+                heading: 'Epic find!',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(CustomPaint), findsAtLeastNWidgets(1));
     });
 
     testWidgets('shows View collection button only when complete and callback given', (
@@ -732,7 +793,35 @@ void main() {
       await tester.tap(find.text('View collection'));
       expect(tapped, isTrue);
     });
+    testWidgets('shows Equip now button when complete and onEquipNow given', (
+      tester,
+    ) async {
+      var equipped = false;
 
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(16),
+              child: CosmeticFragmentCard(
+                fragmentName: 'Nova Trail',
+                collected: 5,
+                total: 5,
+                rarity: FragmentRarity.rare,
+                animate: false,
+                heading: 'Item unlocked! \ud83c\udf89',
+                onEquipNow: () => equipped = true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Equip now'), findsOneWidget);
+      await tester.tap(find.text('Equip now'));
+      expect(equipped, isTrue);
+    });
     testWidgets('does not show View collection button when incomplete', (
       tester,
     ) async {
@@ -773,12 +862,117 @@ void main() {
     await tester.pump();
 
     // Claim button is present (still disabled until sequence done).
-    expect(find.text('Claim rewards!'), findsOneWidget);
+    expect(find.text('Grab it!'), findsOneWidget);
 
     // Drive through full sequence.
     await pumpMs(tester, 4500);
 
-    // For Nova Trail (incomplete), button label stays 'Claim rewards!'.
-    expect(find.text('Claim rewards!'), findsOneWidget);
+    // For Nova Trail (incomplete), button label stays 'Grab it!'.
+    expect(find.text('Grab it!'), findsOneWidget);
+  });
+
+  // ---------------------------------------------------------------------------
+  // CosmeticUnlockCelebration – standalone widget tests
+  // ---------------------------------------------------------------------------
+
+  group('CosmeticUnlockCelebration', () {
+    Widget buildCelebration({
+      FragmentRarity rarity = FragmentRarity.rare,
+      VoidCallback? onEquipNow,
+      VoidCallback? onViewCollection,
+    }) {
+      return MaterialApp(
+        home: Scaffold(
+          body: CosmeticUnlockCelebration(
+            itemName: 'Nova Trail',
+            rarity: rarity,
+            onEquipNow: onEquipNow,
+            onViewCollection: onViewCollection,
+          ),
+        ),
+      );
+    }
+
+    testWidgets('shows item name and UNLOCKED headline', (tester) async {
+      await tester.pumpWidget(buildCelebration());
+      await pumpMs(tester, 700); // flush 600ms sound timer + animate delays
+
+      // Headline contains item name (uppercased) and UNLOCKED!
+      expect(find.textContaining('NOVA TRAIL'), findsOneWidget);
+      expect(find.textContaining('UNLOCKED!'), findsOneWidget);
+    });
+
+    testWidgets('shows 5/5 collected pips', (tester) async {
+      await tester.pumpWidget(buildCelebration());
+      await pumpMs(tester, 700);
+
+      expect(find.text('5/5 collected'), findsOneWidget);
+    });
+
+    testWidgets('shows rarity label', (tester) async {
+      await tester.pumpWidget(buildCelebration(rarity: FragmentRarity.epic));
+      await pumpMs(tester, 700);
+
+      expect(find.text('EPIC'), findsOneWidget);
+    });
+
+    testWidgets('Equip now taps callback', (tester) async {
+      var equipped = false;
+      await tester.pumpWidget(buildCelebration(onEquipNow: () => equipped = true));
+      // pumpMs advances fake time, flushing all one-shot timers (600ms sound
+      // delay, flutter_animate entry delays) without calling pumpAndSettle
+      // (which would hang on the looping confetti/sparkle AnimationControllers).
+      await pumpMs(tester, 700);
+
+      await tester.tap(find.text('Equip now'));
+      expect(equipped, isTrue);
+    });
+
+    testWidgets('View collection taps callback', (tester) async {
+      var opened = false;
+      await tester.pumpWidget(buildCelebration(onViewCollection: () => opened = true));
+      await pumpMs(tester, 700);
+
+      await tester.tap(find.text('View collection'));
+      expect(opened, isTrue);
+    });
+
+    testWidgets('renders confetti via CustomPaint', (tester) async {
+      await tester.pumpWidget(buildCelebration());
+      await pumpMs(tester, 700);
+
+      expect(find.byType(CustomPaint), findsAtLeastNWidgets(1));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // DailyChestRewardSheet + celebration integration
+  // ---------------------------------------------------------------------------
+
+  testWidgets(
+      'sheet shows CosmeticUnlockCelebration when fragment set is complete', (
+    tester,
+  ) async {
+    const reward = DailyChestReward(
+      xp: 30,
+      coins: 12,
+      cosmeticFragment: 'Nova Trail Fragment',
+    );
+
+    await tester.pumpWidget(
+      _buildSheet(reward: reward, fragmentCountForTesting: 5),
+    );
+    await tester.pump(); // post-frame → chest opens
+
+    // Drive through XP + coins + 280ms gap + cosmetic reveal + 700ms delay.
+    await pumpMs(tester, 5000);
+
+    // CosmeticUnlockCelebration should be showing.
+    expect(find.byType(CosmeticUnlockCelebration), findsOneWidget);
+    expect(find.textContaining('UNLOCKED!'), findsOneWidget);
+    // Both the CosmeticFragmentCard (complete) and the celebration show
+    // '5/5 collected', so use findsAtLeastNWidgets(1).
+    expect(find.text('5/5 collected'), findsAtLeastNWidgets(1));
+    expect(find.text('Equip now'), findsOneWidget);
   });
 }

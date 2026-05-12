@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:mathlearning/features/learning_map/widgets/chest_open_animation.dart';
 import 'package:mathlearning/features/learning_map/widgets/cosmetic_fragment_card.dart';
+import 'package:mathlearning/features/learning_map/widgets/cosmetic_unlock_celebration.dart';
 import 'package:mathlearning/features/learning_map/widgets/daily_chest.dart';
 import 'package:mathlearning/services/sound_service.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
@@ -26,6 +27,7 @@ class DailyChestRewardSheet extends StatefulWidget {
     this.onApplyXp,
     this.onApplyCoins,
     this.onViewCollection,
+    this.fragmentCountForTesting,
     this.startOpen = false,
   });
 
@@ -38,6 +40,10 @@ class DailyChestRewardSheet extends StatefulWidget {
 
   /// Called when the user taps "View collection" after unlocking an item.
   final VoidCallback? onViewCollection;
+
+  /// Override the fragment collected count. For testing only.
+  /// When null, the count is derived from the fragment name hash.
+  final int? fragmentCountForTesting;
 
   /// Skip the chest open animation and start the reward sequence immediately.
   /// Intended for tests only.
@@ -66,7 +72,8 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   void initState() {
     super.initState();
     _rarity = _rarityFromFragment(widget.reward.cosmeticFragment);
-    _fragmentCollected = _fragmentProgress(widget.reward.cosmeticFragment);
+    _fragmentCollected = widget.fragmentCountForTesting
+        ?? _fragmentProgress(widget.reward.cosmeticFragment);
     _isFragmentComplete = _fragmentCollected >= 5;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -136,8 +143,16 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
     setState(() => _phase = _Phase.cosmeticReveal);
     unawaited(SoundService.instance.playRareFragmentReveal());
 
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
+    if (_isFragmentComplete) {
+      // Brief pause so the CosmeticFragmentCard "Unlocked!" state animates in.
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (!mounted) return;
+      await _showUnlockCelebration();
+      if (!mounted) return;
+    } else {
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+    }
     setState(() => _phase = _Phase.done);
   }
 
@@ -179,6 +194,36 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
     }
   }
 
+  void _handleClaim() {
+    if (!mounted) return;
+    unawaited(SoundService.instance.playRewardClaim());
+    Future<void>.delayed(const Duration(milliseconds: 260), () {
+      if (mounted) widget.onContinue();
+    });
+  }
+
+  Future<void> _showUnlockCelebration() {
+    final itemName = _extractCosmeticName(widget.reward.cosmeticFragment);
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.72),
+      useRootNavigator: true,
+      builder: (dialogContext) => CosmeticUnlockCelebration(
+        itemName: itemName,
+        rarity: _rarity,
+        onEquipNow: () {
+          Navigator.of(dialogContext).pop();
+          widget.onViewCollection?.call();
+        },
+        onViewCollection: () {
+          Navigator.of(dialogContext).pop();
+          widget.onViewCollection?.call();
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -212,7 +257,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Crack the chest and claim your loot',
+              _subtitleCopy,
               style: textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
@@ -269,6 +314,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
                     total: 5,
                     rarity: _rarity,
                     heading: _rarityHeading,
+                    onEquipNow: widget.onViewCollection,
                     onViewCollection: widget.onViewCollection,
                   ),
                 ],
@@ -298,7 +344,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
                           ),
                         ),
                         Text(
-                          "Tomorrow's chest is even better 👀",
+                          _tomorrowTeaser,
                           style: textTheme.bodySmall?.copyWith(
                             color: colors.onSurfaceVariant,
                           ),
@@ -312,13 +358,34 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
             const SizedBox(height: 14),
             _ClaimButton(
               enabled: sequenceDone,
-              label: _isFragmentComplete ? 'Equip later' : 'Claim rewards!',
-              onPressed: widget.onContinue,
+              label: _isFragmentComplete ? 'Done!' : 'Grab it!',
+              onPressed: _handleClaim,
             ),
           ],
         ),
       ),
     );
+  }
+
+  String get _subtitleCopy => switch (_rarity) {
+    FragmentRarity.common => 'Nice find!',
+    FragmentRarity.rare => 'Big find!',
+    FragmentRarity.epic => 'Huge find! \ud83d\udd25',
+    FragmentRarity.legendary => 'LEGENDARY! \ud83d\udca5',
+  };
+
+  String get _tomorrowTeaser {
+    // When ≥60% of the set is collected, name the item to create a comeback hook.
+    if (!_isFragmentComplete && _fragmentCollected >= 3) {
+      final name = _extractCosmeticName(widget.reward.cosmeticFragment);
+      return 'Tomorrow: chance to finish $name';
+    }
+    return switch (_rarity) {
+      FragmentRarity.common => 'Tomorrow: +200 XP chest',
+      FragmentRarity.rare => 'Tomorrow: Rare fragment chance',
+      FragmentRarity.epic => 'Tomorrow: Epic drop incoming',
+      FragmentRarity.legendary => 'Tomorrow: Legendary chest \ud83d\udc51',
+    };
   }
 
   String get _rarityHeading => _isFragmentComplete
@@ -389,11 +456,11 @@ class _RewardRow extends StatelessWidget {
   }
 }
 
-class _ClaimButton extends StatelessWidget {
+class _ClaimButton extends StatefulWidget {
   const _ClaimButton({
     required this.enabled,
     required this.onPressed,
-    this.label = 'Claim rewards!',
+    this.label = 'Grab it!',
   });
 
   final bool enabled;
@@ -401,21 +468,28 @@ class _ClaimButton extends StatelessWidget {
   final String label;
 
   @override
+  State<_ClaimButton> createState() => _ClaimButtonState();
+}
+
+class _ClaimButtonState extends State<_ClaimButton> {
+  bool _tapped = false;
+
+  @override
   Widget build(BuildContext context) {
     Widget btn = SizedBox(
       width: double.infinity,
       child: FilledButton(
-        onPressed: enabled
+        onPressed: widget.enabled
             ? () {
-                unawaited(SoundService.instance.playRewardClaim());
-                onPressed();
+                setState(() => _tapped = true);
+                widget.onPressed();
               }
             : null,
-        child: Text(label),
+        child: Text(widget.label),
       ),
     );
 
-    if (enabled) {
+    if (widget.enabled && !_tapped) {
       btn = btn
           .animate(onPlay: (c) => c.repeat(reverse: true))
           .scale(
@@ -423,6 +497,21 @@ class _ClaimButton extends StatelessWidget {
             end: const Offset(1.025, 1.025),
             duration: 700.ms,
             curve: Curves.easeInOut,
+          );
+    }
+
+    if (_tapped) {
+      btn = btn
+          .animate()
+          .shimmer(
+            duration: 260.ms,
+            color: Colors.white.withValues(alpha: 0.8),
+          )
+          .scale(
+            begin: const Offset(1.0, 1.0),
+            end: const Offset(1.04, 1.04),
+            duration: 130.ms,
+            curve: Curves.easeOut,
           );
     }
 
