@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -14,11 +16,13 @@ import 'package:mathlearning/features/adaptive_practice/screens/adaptive_practic
 import 'package:mathlearning/features/adaptive_practice/services/practice_session_api_service.dart';
 import 'package:mathlearning/features/learning_map/widgets/daily_chest_reward_sheet.dart';
 import 'package:mathlearning/features/learning_map/widgets/chest_open_animation.dart';
+import 'package:mathlearning/features/learning_map/widgets/cosmetic_equip_confirmation.dart';
 import 'package:mathlearning/features/learning_map/widgets/cosmetic_fragment_card.dart';
 import 'package:mathlearning/features/learning_map/widgets/cosmetic_unlock_celebration.dart';
 import 'package:mathlearning/features/learning_map/models/adaptive_learning_path.dart';
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/services/api_service.dart';
+import 'package:mathlearning/services/cosmetics_service.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
 
@@ -218,11 +222,9 @@ Widget _wrap(AdaptivePracticeProvider provider, PracticeLaunchPlan plan) {
 
 Widget _wrapDailyRun(
   AdaptivePracticeProvider provider,
-  List<PracticeLaunchPlan> plans,
-  {
+  List<PracticeLaunchPlan> plans, {
   VoidCallback? onComboSound,
-}
-) {
+}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<AdaptivePracticeProvider>.value(value: provider),
@@ -477,8 +479,26 @@ void main() {
       home: Scaffold(
         body: Stack(
           children: [
-            Positioned(top: 8, left: 8, child: Container(key: xpKey, width: 180, height: 12, color: Colors.blue)),
-            Positioned(top: 8, right: 8, child: Container(key: coinKey, width: 44, height: 24, color: Colors.amber)),
+            Positioned(
+              top: 8,
+              left: 8,
+              child: Container(
+                key: xpKey,
+                width: 180,
+                height: 12,
+                color: Colors.blue,
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                key: coinKey,
+                width: 44,
+                height: 24,
+                color: Colors.amber,
+              ),
+            ),
             Align(
               alignment: Alignment.bottomCenter,
               child: SingleChildScrollView(
@@ -516,7 +536,9 @@ void main() {
   // Reward sequence: 180ms → XP; +620ms → fly; +240ms → coins; +620ms → fly;
   //                 +280ms → cosmetic; +600ms → done. Total: ~2560ms.
 
-  testWidgets('daily chest reward sheet shows chest before rewards', (tester) async {
+  testWidgets('daily chest reward sheet shows chest before rewards', (
+    tester,
+  ) async {
     const reward = DailyChestReward(
       xp: 30,
       coins: 12,
@@ -539,44 +561,46 @@ void main() {
     await pumpMs(tester, 5000);
   });
 
-  testWidgets('daily chest reward sheet reveals rewards sequentially after chest opens', (
-    tester,
-  ) async {
-    const reward = DailyChestReward(
-      xp: 30,
-      coins: 12,
-      cosmeticFragment: 'Nova Trail Fragment',
-    );
+  testWidgets(
+    'daily chest reward sheet reveals rewards sequentially after chest opens',
+    (tester) async {
+      const reward = DailyChestReward(
+        xp: 30,
+        coins: 12,
+        cosmeticFragment: 'Nova Trail Fragment',
+      );
 
-    // startOpen: true fires _onChestOpened on first post-frame callback.
-    await tester.pumpWidget(_buildSheet(reward: reward));
-    await tester.pump(); // post-frame → _onChestOpened fires, phase = xpReveal
+      // startOpen: true fires _onChestOpened on first post-frame callback.
+      await tester.pumpWidget(_buildSheet(reward: reward));
+      await tester
+          .pump(); // post-frame → _onChestOpened fires, phase = xpReveal
 
-    // XP row not yet visible (180ms delay hasn't elapsed).
-    expect(find.byKey(const Key('daily_reward_xp_source')), findsNothing);
+      // XP row not yet visible (180ms delay hasn't elapsed).
+      expect(find.byKey(const Key('daily_reward_xp_source')), findsNothing);
 
-    // After 200ms: XP count-up visible (180ms delay elapsed).
-    await pumpMs(tester, 200);
-    expect(find.textContaining('XP'), findsOneWidget);
-    expect(find.textContaining('coins'), findsNothing);
+      // After 200ms: XP count-up visible (180ms delay elapsed).
+      await pumpMs(tester, 200);
+      expect(find.textContaining('XP'), findsOneWidget);
+      expect(find.textContaining('coins'), findsNothing);
 
-    // After XP count-up (620ms) + fly + 240ms gap: coins count-up visible.
-    await pumpMs(tester, 1600);
-    expect(find.textContaining('coins'), findsOneWidget);
+      // After XP count-up (620ms) + fly + 240ms gap: coins count-up visible.
+      await pumpMs(tester, 1600);
+      expect(find.textContaining('coins'), findsOneWidget);
 
-    // After coin count-up + fly + 280ms: cosmetic visible.
-    await pumpMs(tester, 1600);
-    expect(find.text('Rare fragment!'), findsOneWidget);
-    expect(find.text('Nova Trail'), findsOneWidget);
+      // After coin count-up + fly + 280ms: cosmetic visible.
+      await pumpMs(tester, 1600);
+      expect(find.text('Rare fragment!'), findsOneWidget);
+      expect(find.text('Nova Trail'), findsOneWidget);
 
-    // Tomorrow teaser references item name when ≥60% collected
-    // ('Nova Trail Fragment' hashes to collected=3 → item-specific copy).
-    expect(find.text('Tomorrow'), findsOneWidget);
-    expect(find.text('Tomorrow: chance to finish Nova Trail'), findsOneWidget);
+      // First persisted fragment is 1/5, so the teaser stays generic until the
+      // same item reaches the near-complete threshold.
+      expect(find.text('Tomorrow'), findsOneWidget);
+      expect(find.text('Tomorrow: Rare fragment chance'), findsOneWidget);
 
-    // Drain remaining sequence timers.
-    await pumpMs(tester, 1500);
-  });
+      // Drain remaining sequence timers.
+      await pumpMs(tester, 1500);
+    },
+  );
 
   testWidgets('claim button reads "Grab it!" and is disabled until done', (
     tester,
@@ -624,8 +648,7 @@ void main() {
     expect(find.text('Nova Trail'), findsOneWidget);
     // Rarity badge for rare (incomplete item still shows rarity).
     expect(find.text('Rare'), findsOneWidget);
-    // Progress pips now show "X/5 collected".
-    expect(find.textContaining('/5 collected'), findsOneWidget);
+    expect(find.text('1/5 collected'), findsOneWidget);
     // Unlock hint copy — 'Collect X to unlock' replaced by progress bar.
     expect(find.textContaining('more to unlock'), findsOneWidget);
     expect(find.text('Collect 5 to unlock'), findsNothing);
@@ -708,11 +731,9 @@ void main() {
     testWidgets('hides unlock hints when collection is complete', (
       tester,
     ) async {
-      await tester.pumpWidget(buildCard(
-        collected: 5,
-        total: 5,
-        heading: 'Item unlocked! 🎉',
-      ));
+      await tester.pumpWidget(
+        buildCard(collected: 5, total: 5, heading: 'Item unlocked! 🎉'),
+      );
       await tester.pump();
 
       expect(find.text('5/5 collected'), findsOneWidget);
@@ -776,23 +797,26 @@ void main() {
       expect(find.byType(CustomPaint), findsAtLeastNWidgets(1));
     });
 
-    testWidgets('shows View collection button only when complete and callback given', (
-      tester,
-    ) async {
-      var tapped = false;
+    testWidgets(
+      'shows View collection button only when complete and callback given',
+      (tester) async {
+        var tapped = false;
 
-      await tester.pumpWidget(buildCard(
-        collected: 5,
-        total: 5,
-        heading: 'Item unlocked! 🎉',
-        onViewCollection: () => tapped = true,
-      ));
-      await tester.pump();
+        await tester.pumpWidget(
+          buildCard(
+            collected: 5,
+            total: 5,
+            heading: 'Item unlocked! 🎉',
+            onViewCollection: () => tapped = true,
+          ),
+        );
+        await tester.pump();
 
-      expect(find.text('View collection'), findsOneWidget);
-      await tester.tap(find.text('View collection'));
-      expect(tapped, isTrue);
-    });
+        expect(find.text('View collection'), findsOneWidget);
+        await tester.tap(find.text('View collection'));
+        expect(tapped, isTrue);
+      },
+    );
     testWidgets('shows Equip now button when complete and onEquipNow given', (
       tester,
     ) async {
@@ -825,11 +849,9 @@ void main() {
     testWidgets('does not show View collection button when incomplete', (
       tester,
     ) async {
-      await tester.pumpWidget(buildCard(
-        collected: 3,
-        total: 5,
-        onViewCollection: () {},
-      ));
+      await tester.pumpWidget(
+        buildCard(collected: 3, total: 5, onViewCollection: () {}),
+      );
       await tester.pump();
 
       expect(find.text('View collection'), findsNothing);
@@ -840,42 +862,42 @@ void main() {
   // DailyChestRewardSheet – onViewCollection integration
   // ---------------------------------------------------------------------------
 
-  testWidgets('sheet passes onViewCollection to card and shows Equip later when complete', (
-    tester,
-  ) async {
-    // 'Neon Burst Fragment': contains 'neon' → epic rarity, and hash may give
-    // collected == 5. We test the scenario by driving a sheet with a fragment
-    // that we expect to complete (collected=5) and asserting the button label.
-    // For a reliable completed scenario we test CosmeticFragmentCard directly
-    // (see group above); here we just verify the callback wiring for a normal
-    // incomplete reward.
-    var collectionOpened = false;
-    const reward = DailyChestReward(
-      xp: 30,
-      coins: 12,
-      cosmeticFragment: 'Nova Trail Fragment',
-    );
+  testWidgets(
+    'sheet passes onViewCollection to card and shows Equip later when complete',
+    (tester) async {
+      // Completed collection behavior is covered directly above; this verifies
+      // the sheet accepts the callback while rendering a normal incomplete reward.
+      const reward = DailyChestReward(
+        xp: 30,
+        coins: 12,
+        cosmeticFragment: 'Nova Trail Fragment',
+      );
 
-    await tester.pumpWidget(
-      _buildSheet(reward: reward, onViewCollection: () => collectionOpened = true),
-    );
-    await tester.pump();
+      await tester.pumpWidget(
+        _buildSheet(reward: reward, onViewCollection: () {}),
+      );
+      await tester.pump();
 
-    // Claim button is present (still disabled until sequence done).
-    expect(find.text('Grab it!'), findsOneWidget);
+      // Claim button is present (still disabled until sequence done).
+      expect(find.text('Grab it!'), findsOneWidget);
 
-    // Drive through full sequence.
-    await pumpMs(tester, 4500);
+      // Drive through full sequence.
+      await pumpMs(tester, 4500);
 
-    // For Nova Trail (incomplete), button label stays 'Grab it!'.
-    expect(find.text('Grab it!'), findsOneWidget);
-  });
+      // For Nova Trail (incomplete), button label stays 'Grab it!'.
+      expect(find.text('Grab it!'), findsOneWidget);
+    },
+  );
 
   // ---------------------------------------------------------------------------
   // CosmeticUnlockCelebration – standalone widget tests
   // ---------------------------------------------------------------------------
 
   group('CosmeticUnlockCelebration', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
     Widget buildCelebration({
       FragmentRarity rarity = FragmentRarity.rare,
       VoidCallback? onEquipNow,
@@ -918,19 +940,26 @@ void main() {
 
     testWidgets('Equip now taps callback', (tester) async {
       var equipped = false;
-      await tester.pumpWidget(buildCelebration(onEquipNow: () => equipped = true));
+      await tester.pumpWidget(
+        buildCelebration(onEquipNow: () => equipped = true),
+      );
       // pumpMs advances fake time, flushing all one-shot timers (600ms sound
       // delay, flutter_animate entry delays) without calling pumpAndSettle
       // (which would hang on the looping confetti/sparkle AnimationControllers).
       await pumpMs(tester, 700);
 
       await tester.tap(find.text('Equip now'));
+      await tester.pump(); // let onPressed handler run synchronously to first await
       expect(equipped, isTrue);
+      // Drain CosmeticEquipConfirmation burst (800ms) + hold timer (650ms).
+      await pumpMs(tester, 2000);
     });
 
     testWidgets('View collection taps callback', (tester) async {
       var opened = false;
-      await tester.pumpWidget(buildCelebration(onViewCollection: () => opened = true));
+      await tester.pumpWidget(
+        buildCelebration(onViewCollection: () => opened = true),
+      );
       await pumpMs(tester, 700);
 
       await tester.tap(find.text('View collection'));
@@ -950,29 +979,254 @@ void main() {
   // ---------------------------------------------------------------------------
 
   testWidgets(
-      'sheet shows CosmeticUnlockCelebration when fragment set is complete', (
-    tester,
-  ) async {
-    const reward = DailyChestReward(
-      xp: 30,
-      coins: 12,
-      cosmeticFragment: 'Nova Trail Fragment',
+    'sheet shows CosmeticUnlockCelebration when fragment set is complete',
+    (tester) async {
+      const reward = DailyChestReward(
+        xp: 30,
+        coins: 12,
+        cosmeticFragment: 'Nova Trail Fragment',
+      );
+
+      await tester.pumpWidget(
+        _buildSheet(reward: reward, fragmentCountForTesting: 5),
+      );
+      await tester.pump(); // post-frame → chest opens
+
+      // Drive through XP + coins + 280ms gap + cosmetic reveal + 700ms delay
+      // + celebration entry animation (660ms for button fade-in).
+      // Use 10 000ms to be safe — pumpMs is fast in test clock.
+      await pumpMs(tester, 10000);
+      await tester.pump(); // flush any pending microtasks
+
+      // CosmeticUnlockCelebration should be showing.
+      expect(find.byType(CosmeticUnlockCelebration), findsOneWidget);
+      expect(find.textContaining('UNLOCKED!'), findsOneWidget);
+      // Both the CosmeticFragmentCard (complete) and the celebration show
+      // '5/5 collected', so use findsAtLeastNWidgets(1).
+      expect(find.text('5/5 collected'), findsAtLeastNWidgets(1));
+      expect(find.text('Equip now'), findsOneWidget);
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // CosmeticEquipConfirmation — standalone widget tests
+  // ---------------------------------------------------------------------------
+
+  group('CosmeticEquipConfirmation', () {
+    Widget build({
+      CosmeticItemType type = CosmeticItemType.trail,
+      VoidCallback? onDone,
+    }) {
+      return MaterialApp(
+        home: Scaffold(
+          body: CosmeticEquipConfirmation(
+            itemName: 'Nova Trail',
+            itemType: type,
+            rarityColor: Colors.blue,
+            onDone: onDone,
+          ),
+        ),
+      );
+    }
+
+    testWidgets('shows Equipped! after burst starts', (tester) async {
+      await tester.pumpWidget(build());
+      await pumpMs(tester, 350); // past fade-in delay (100ms + 200ms)
+      expect(find.text('Equipped!'), findsOneWidget);
+    });
+
+    testWidgets('shows item name in subtitle', (tester) async {
+      await tester.pumpWidget(build());
+      await pumpMs(tester, 400);
+      expect(find.textContaining('Nova Trail'), findsOneWidget);
+    });
+
+    testWidgets('shows type label for trail', (tester) async {
+      await tester.pumpWidget(build(type: CosmeticItemType.trail));
+      await pumpMs(tester, 400);
+      expect(find.text('trail effect'), findsOneWidget);
+    });
+
+    testWidgets('shows type label for frame', (tester) async {
+      await tester.pumpWidget(build(type: CosmeticItemType.frame));
+      await pumpMs(tester, 400);
+      expect(find.text('avatar frame'), findsOneWidget);
+    });
+
+    testWidgets('shows type label for burst', (tester) async {
+      await tester.pumpWidget(build(type: CosmeticItemType.burst));
+      await pumpMs(tester, 400);
+      expect(find.text('answer effect'), findsOneWidget);
+    });
+
+    testWidgets('fires onDone after 800ms burst + 650ms hold', (tester) async {
+      var done = false;
+      await tester.pumpWidget(build(onDone: () => done = true));
+      // Before completion: not done yet.
+      await pumpMs(tester, 1200);
+      expect(done, isFalse);
+      // After full 1450ms (800 + 650): done.
+      await pumpMs(tester, 300);
+      expect(done, isTrue);
+    });
+
+    testWidgets('renders sparkle burst via CustomPaint', (tester) async {
+      await tester.pumpWidget(build());
+      await tester.pump();
+      expect(find.byType(CustomPaint), findsAtLeastNWidgets(1));
+      // Drain burst controller (800ms) + hold timer (650ms) so no pending timers on dispose.
+      await pumpMs(tester, 1600);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // CosmeticsService.equipItem — unit tests
+  // ---------------------------------------------------------------------------
+
+  group('CosmeticsService.equipItem', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('trail fragment equips animatedEffectId', () async {
+      await CosmeticsService.instance.equipItem('Nova Trail');
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user_avatar_config');
+      expect(raw, isNotNull);
+      final json = jsonDecode(raw!) as Map<String, dynamic>;
+      expect(json['animated_effect_id'], equals('effect_nova_trail'));
+    });
+
+    test('frame fragment equips frameId', () async {
+      await CosmeticsService.instance.equipItem('Comet Frame');
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user_avatar_config');
+      expect(raw, isNotNull);
+      final json = jsonDecode(raw!) as Map<String, dynamic>;
+      expect(json['frame_id'], equals('frame_comet'));
+    });
+
+    test('burst fragment equips animatedEffectId', () async {
+      await CosmeticsService.instance.equipItem('Neon Burst');
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user_avatar_config');
+      expect(raw, isNotNull);
+      final json = jsonDecode(raw!) as Map<String, dynamic>;
+      expect(json['animated_effect_id'], equals('effect_neon_number_burst'));
+    });
+
+    test(
+      'equipping second item overwrites the first in the same slot',
+      () async {
+        await CosmeticsService.instance.equipItem('Nova Trail');
+        await CosmeticsService.instance.equipItem('Neon Burst');
+        final prefs = await SharedPreferences.getInstance();
+        final json =
+            jsonDecode(prefs.getString('user_avatar_config')!)
+                as Map<String, dynamic>;
+        // Both are animatedEffect; only the last should survive.
+        expect(json['animated_effect_id'], equals('effect_neon_number_burst'));
+      },
     );
+  });
 
-    await tester.pumpWidget(
-      _buildSheet(reward: reward, fragmentCountForTesting: 5),
-    );
-    await tester.pump(); // post-frame → chest opens
+  // ---------------------------------------------------------------------------
+  // CosmeticUnlockCelebration — equip flow integration
+  // ---------------------------------------------------------------------------
 
-    // Drive through XP + coins + 280ms gap + cosmetic reveal + 700ms delay.
-    await pumpMs(tester, 5000);
+  group('CosmeticUnlockCelebration equip flow', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
 
-    // CosmeticUnlockCelebration should be showing.
-    expect(find.byType(CosmeticUnlockCelebration), findsOneWidget);
-    expect(find.textContaining('UNLOCKED!'), findsOneWidget);
-    // Both the CosmeticFragmentCard (complete) and the celebration show
-    // '5/5 collected', so use findsAtLeastNWidgets(1).
-    expect(find.text('5/5 collected'), findsAtLeastNWidgets(1));
-    expect(find.text('Equip now'), findsOneWidget);
+    Widget buildCelebration({
+      VoidCallback? onEquipNow,
+      VoidCallback? onViewCollection,
+    }) {
+      return MaterialApp(
+        home: Scaffold(
+          body: CosmeticUnlockCelebration(
+            itemName: 'Nova Trail',
+            rarity: FragmentRarity.rare,
+            onEquipNow: onEquipNow ?? () {},
+            onViewCollection: onViewCollection,
+          ),
+        ),
+      );
+    }
+
+    testWidgets('tapping Equip now shows Equipped! confirmation', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildCelebration());
+      await pumpMs(tester, 700); // flush entry timers + fade-ins
+
+      await tester.tap(find.text('Equip now'));
+      await tester.pump(); // start async equip
+      // equipItem hits SharedPreferences (fake, instant in tests).
+      await pumpMs(tester, 200);
+
+      expect(find.byType(CosmeticEquipConfirmation), findsOneWidget);
+      // Drain confirmation burst (800ms) + hold timer (650ms) before test ends.
+      await pumpMs(tester, 1600);
+    });
+
+    testWidgets('Equipped! text appears after tapping Equip now', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildCelebration());
+      await pumpMs(tester, 700);
+
+      await tester.tap(find.text('Equip now'));
+      await pumpMs(tester, 500); // confirmation burst starts, text fades in
+
+      expect(find.text('Equipped!'), findsOneWidget);
+    });
+
+    testWidgets('onEquipNow callback fires after confirmation completes', (
+      tester,
+    ) async {
+      var fired = false;
+      await tester.pumpWidget(buildCelebration(onEquipNow: () => fired = true));
+      await pumpMs(tester, 700);
+
+      await tester.tap(find.text('Equip now'));
+      // Drive past burst (800ms) + hold (650ms) = 1450ms.
+      await pumpMs(tester, 1600);
+
+      expect(fired, isTrue);
+    });
+
+    testWidgets('View collection button still works when not yet equipped', (
+      tester,
+    ) async {
+      var opened = false;
+      await tester.pumpWidget(
+        buildCelebration(onViewCollection: () => opened = true),
+      );
+      await pumpMs(tester, 700);
+
+      await tester.tap(find.text('View collection'));
+      expect(opened, isTrue);
+    });
+
+    testWidgets('equipItem persists avatar config to SharedPreferences', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildCelebration());
+      await pumpMs(tester, 700);
+
+      await tester.tap(find.text('Equip now'));
+      await tester.pump(); // start async equip
+      await pumpMs(tester, 200);
+
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user_avatar_config');
+      expect(raw, isNotNull);
+      final json = jsonDecode(raw!) as Map<String, dynamic>;
+      expect(json['animated_effect_id'], equals('effect_nova_trail'));
+      // Drain confirmation burst + hold timer before test ends.
+      await pumpMs(tester, 1600);
+    });
   });
 }

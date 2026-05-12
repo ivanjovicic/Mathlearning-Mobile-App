@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/cosmetic_fragment_progress.dart';
 import '../models/cosmetic_item.dart';
 import '../models/user_avatar.dart';
 import '../models/user_cosmetic.dart';
@@ -20,6 +21,8 @@ class CosmeticsService {
 
   static const _avatarKey = 'user_avatar_config';
   static const _inventoryKey = 'user_cosmetics_inventory';
+  static const _fragmentProgressKey = 'user_cosmetic_fragment_progress_v1';
+  static const dailyRunRequiredFragments = 5;
 
   // ─────────────────────────── CATALOG ───────────────────────────
 
@@ -37,9 +40,13 @@ class CosmeticsService {
       final response = await client.get('/api/cosmetics/inventory');
       if (response.statusCode == 200) {
         final data = response.data;
-        final items = (data['items'] as List<dynamic>? ?? [])
+        final remoteItems = (data['items'] as List<dynamic>? ?? [])
             .map((e) => UserCosmetic.fromJson(e as Map<String, dynamic>))
             .toList();
+        final items = _mergeInventory(
+          remoteItems,
+          await _loadInventoryLocally(),
+        );
         await _saveInventoryLocally(items);
         return items;
       }
@@ -74,6 +81,20 @@ class CosmeticsService {
     }
     // First time: give the user starter items
     return _starterInventory();
+  }
+
+  List<UserCosmetic> _mergeInventory(
+    List<UserCosmetic> primary,
+    List<UserCosmetic> secondary,
+  ) {
+    final byItemId = <String, UserCosmetic>{};
+    for (final item in secondary) {
+      byItemId[item.itemId] = item;
+    }
+    for (final item in primary) {
+      byItemId[item.itemId] = item;
+    }
+    return byItemId.values.toList();
   }
 
   /// Returns a set of starter cosmetic items for new users.
@@ -178,6 +199,143 @@ class CosmeticsService {
     return UserAvatar.defaults(userId);
   }
 
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ DAILY RUN FRAGMENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  Future<DailyRunCosmeticGrantResult> grantDailyRunFragment({
+    required String fragmentName,
+    int fragmentAmount = 1,
+  }) async {
+    final item = dailyRunItemForFragment(fragmentName);
+    final now = DateTime.now();
+    final progressMap = await _loadFragmentProgressMap();
+    final current =
+        progressMap[item.id] ??
+        CosmeticFragmentProgress(
+          itemId: item.id,
+          collectedFragments: 0,
+          requiredFragments: dailyRunRequiredFragments,
+          updatedAt: now,
+        );
+    final inventory = await _loadInventoryLocally();
+    final alreadyOwned = inventory.any((entry) => entry.itemId == item.id);
+    final previous = alreadyOwned
+        ? current.requiredFragments
+        : current.collectedFragments
+              .clamp(0, current.requiredFragments)
+              .toInt();
+    final nextCount = alreadyOwned
+        ? current.requiredFragments
+        : (previous + fragmentAmount)
+              .clamp(0, current.requiredFragments)
+              .toInt();
+    final didUnlock =
+        !alreadyOwned &&
+        previous < current.requiredFragments &&
+        nextCount >= current.requiredFragments;
+
+    UserCosmetic? unlockedCosmetic;
+    if (didUnlock) {
+      unlockedCosmetic = _buildUnlockedCosmetic(
+        itemId: item.id,
+        sourceType: 'daily_run_fragment',
+        sourceEvent: _normalizedFragmentKey(fragmentName),
+        now: now,
+      );
+      inventory.add(unlockedCosmetic);
+      await _saveInventoryLocally(inventory);
+    }
+
+    final updated = CosmeticFragmentProgress(
+      itemId: item.id,
+      collectedFragments: nextCount,
+      requiredFragments: current.requiredFragments,
+      updatedAt: now,
+      unlockedAt: didUnlock
+          ? now
+          : alreadyOwned
+          ? current.unlockedAt ?? now
+          : current.unlockedAt,
+    );
+    progressMap[item.id] = updated;
+    await _saveFragmentProgressMap(progressMap);
+
+    return DailyRunCosmeticGrantResult(
+      item: item,
+      progress: updated,
+      previousFragments: previous,
+      didUnlock: didUnlock,
+      unlockedCosmetic: unlockedCosmetic,
+    );
+  }
+
+  Future<List<CosmeticFragmentProgress>> loadFragmentProgress() async {
+    final map = await _loadFragmentProgressMap();
+    return map.values.toList(growable: false);
+  }
+
+  Future<bool> ownsItemLocally(String itemId) async {
+    final inventory = await _loadInventoryLocally();
+    return inventory.any((entry) => entry.itemId == itemId);
+  }
+
+  CosmeticItem dailyRunItemForFragment(String fragmentName) {
+    final itemId = dailyRunItemIdForFragment(fragmentName);
+    return getCatalog().firstWhere((item) => item.id == itemId);
+  }
+
+  String dailyRunItemIdForFragment(String fragmentName) {
+    final normalized = _normalizedFragmentKey(fragmentName);
+    if (normalized.contains('neon') || normalized.contains('burst')) {
+      return 'effect_neon_number_burst';
+    }
+    if (normalized.contains('comet') || normalized.contains('frame')) {
+      return 'frame_comet';
+    }
+    return 'effect_nova_trail';
+  }
+
+  Future<Map<String, CosmeticFragmentProgress>>
+  _loadFragmentProgressMap() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_fragmentProgressKey);
+      if (raw == null || raw.isEmpty) {
+        return {};
+      }
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return {
+          for (final entry in decoded)
+            if (entry is Map)
+              _fragmentProgressFromMap(entry).itemId: _fragmentProgressFromMap(
+                entry,
+              ),
+        };
+      }
+    } catch (e) {
+      debugPrint('[CosmeticsService] load fragment progress failed: $e');
+    }
+    return {};
+  }
+
+  CosmeticFragmentProgress _fragmentProgressFromMap(
+    Map<dynamic, dynamic> entry,
+  ) {
+    return CosmeticFragmentProgress.fromJson(Map<String, dynamic>.from(entry));
+  }
+
+  Future<void> _saveFragmentProgressMap(
+    Map<String, CosmeticFragmentProgress> progress,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final items = progress.values.map((entry) => entry.toJson()).toList();
+      await prefs.setString(_fragmentProgressKey, jsonEncode(items));
+    } catch (e) {
+      debugPrint('[CosmeticsService] save fragment progress failed: $e');
+    }
+  }
+
   // ────────────────────── UNLOCK ITEM ────────────────────────────
 
   /// Grants the user a cosmetic item (called by unlock triggers).
@@ -219,6 +377,59 @@ class CosmeticsService {
       debugPrint('[CosmeticsService] unlock server call failed: $e');
     }
     return newItem;
+  }
+
+  /// Equips the cosmetic item matching [fragmentName] into the correct
+  /// [UserAvatar] slot and persists locally. No backend call — sync happens
+  /// the next time the user saves their avatar via [updateAvatarConfig].
+  ///
+  /// Slot mapping:
+  ///   `frame_*`  → [UserAvatar.frameId]
+  ///   `effect_*` → [UserAvatar.animatedEffectId]
+  ///   anything else → [UserAvatar.accessoryId]
+  Future<void> equipItem(String fragmentName) async {
+    final itemId = dailyRunItemIdForFragment(fragmentName);
+    final userId = AuthService.instance.userId ?? 'local';
+    final current = await _loadAvatarLocally(userId);
+
+    final UserAvatar updated;
+    if (itemId.startsWith('frame_')) {
+      updated = current.copyWith(frameId: itemId);
+    } else if (itemId.startsWith('effect_')) {
+      updated = current.copyWith(animatedEffectId: itemId);
+    } else if (itemId.startsWith('acc_')) {
+      updated = current.copyWith(accessoryId: itemId);
+    } else {
+      updated = current.copyWith(accessoryId: itemId);
+    }
+
+    await _saveAvatarLocally(updated);
+  }
+
+  UserCosmetic _buildUnlockedCosmetic({
+    required String itemId,
+    required String sourceType,
+    required DateTime now,
+    String? sourceEvent,
+  }) {
+    final userId = AuthService.instance.userId ?? 'local';
+    return UserCosmetic(
+      id: '${userId}_${itemId}_${now.millisecondsSinceEpoch}',
+      userId: userId,
+      itemId: itemId,
+      unlockedAt: now,
+      sourceType: sourceType,
+      sourceEvent: sourceEvent,
+    );
+  }
+
+  String _normalizedFragmentKey(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(' fragment', '')
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
   }
 
   // ─────────────────────── STATIC CATALOG ────────────────────────
@@ -439,6 +650,15 @@ class CosmeticsService {
         createdAt: now,
       ),
       CosmeticItem(
+        id: 'frame_comet',
+        name: 'Comet Frame',
+        category: CosmeticCategory.avatarFrame,
+        rarity: CosmeticRarity.rare,
+        unlockCondition: 'Collect 5 Comet Frame fragments from Daily Run',
+        assetKey: 'frame_comet',
+        createdAt: now,
+      ),
+      CosmeticItem(
         id: 'frame_blue_glow',
         name: 'Plavi sjaj',
         category: CosmeticCategory.avatarFrame,
@@ -512,6 +732,26 @@ class CosmeticsService {
         rarity: CosmeticRarity.epic,
         unlockCondition: 'Dostignuti nivo 40',
         assetKey: 'bg_circuit',
+        createdAt: now,
+      ),
+
+      // â”€â”€ DAILY RUN EFFECTS â”€â”€
+      CosmeticItem(
+        id: 'effect_nova_trail',
+        name: 'Nova Trail',
+        category: CosmeticCategory.animatedEffect,
+        rarity: CosmeticRarity.rare,
+        unlockCondition: 'Collect 5 Nova Trail fragments from Daily Run',
+        assetKey: 'effect_nova_trail',
+        createdAt: now,
+      ),
+      CosmeticItem(
+        id: 'effect_neon_number_burst',
+        name: 'Neon Number Burst',
+        category: CosmeticCategory.animatedEffect,
+        rarity: CosmeticRarity.epic,
+        unlockCondition: 'Collect 5 Neon Number Burst fragments from Daily Run',
+        assetKey: 'effect_neon_number_burst',
         createdAt: now,
       ),
     ];

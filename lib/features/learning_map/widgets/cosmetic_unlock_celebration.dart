@@ -4,7 +4,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import 'package:mathlearning/features/learning_map/widgets/cosmetic_equip_confirmation.dart';
 import 'package:mathlearning/features/learning_map/widgets/cosmetic_fragment_card.dart';
+import 'package:mathlearning/services/cosmetics_service.dart';
 import 'package:mathlearning/services/sound_service.dart';
 
 // ---------------------------------------------------------------------------
@@ -22,10 +24,10 @@ class _Particle {
     required this.isRect,
   });
 
-  final double x;        // base x [0..1]
-  final double phase;    // time offset [0..1]
-  final double speedY;   // fall speed multiplier
-  final double drift;    // horizontal sway amplitude [fraction of width]
+  final double x; // base x [0..1]
+  final double phase; // time offset [0..1]
+  final double speedY; // fall speed multiplier
+  final double drift; // horizontal sway amplitude [fraction of width]
   final Color color;
   final double size;
   final double rotSpeed;
@@ -47,16 +49,19 @@ List<_Particle> _buildParticles(Color accent) {
     const Color(0xFFFF6B6B), // coral
     const Color(0xFF6BCEFF), // sky
   ];
-  return List.generate(26, (i) => _Particle(
-    x: _lcg(i * 7, 0.0, 1.0),
-    phase: _lcg(i * 13, 0.0, 1.0),
-    speedY: _lcg(i * 17, 0.35, 0.9),
-    drift: _lcg(i * 23, 0.015, 0.065),
-    color: palette[i % palette.length],
-    size: _lcg(i * 31, 4.0, 11.0),
-    rotSpeed: _lcg(i * 37, 0.5, 3.0),
-    isRect: i % 3 != 0,
-  ));
+  return List.generate(
+    26,
+    (i) => _Particle(
+      x: _lcg(i * 7, 0.0, 1.0),
+      phase: _lcg(i * 13, 0.0, 1.0),
+      speedY: _lcg(i * 17, 0.35, 0.9),
+      drift: _lcg(i * 23, 0.015, 0.065),
+      color: palette[i % palette.length],
+      size: _lcg(i * 31, 4.0, 11.0),
+      rotSpeed: _lcg(i * 37, 0.5, 3.0),
+      isRect: i % 3 != 0,
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +78,8 @@ class _ConfettiPainter extends CustomPainter {
     for (final p in particles) {
       final progress = (t + p.phase) % 1.0;
       final y = progress * size.height * (1 / p.speedY);
-      final x = p.x * size.width +
+      final x =
+          p.x * size.width +
           math.sin((t + p.phase) * 2 * math.pi * 2) * p.drift * size.width;
       final paint = Paint()..color = p.color;
 
@@ -166,8 +172,10 @@ class _SparkleRingPainter extends CustomPainter {
     for (var i = 0; i < count; i++) {
       final angle = (i / count + t) * 2 * math.pi;
       final pos = center + Offset(math.cos(angle), math.sin(angle)) * radius;
-      final opacity = ((math.sin(angle * 2 + t * math.pi * 4) + 1) / 2)
-          .clamp(0.25, 1.0);
+      final opacity = ((math.sin(angle * 2 + t * math.pi * 4) + 1) / 2).clamp(
+        0.25,
+        1.0,
+      );
       canvas.drawCircle(
         pos,
         4.5,
@@ -215,6 +223,9 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
   late final AnimationController _sparkleCtrl;
   late final AnimationController _entryCtrl;
 
+  bool _equipping = false;
+  bool _equipped = false;
+
   @override
   void initState() {
     super.initState();
@@ -247,6 +258,18 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
     _sparkleCtrl.dispose();
     _entryCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleEquip() async {
+    if (_equipping || _equipped) return;
+    setState(() => _equipping = true);
+    widget.onEquipNow?.call();
+    await CosmeticsService.instance.equipItem(widget.itemName);
+    if (!mounted) return;
+    setState(() {
+      _equipping = false;
+      _equipped = true;
+    });
   }
 
   Color _rarityColor(ColorScheme scheme) => switch (widget.rarity) {
@@ -283,10 +306,9 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
         animation: _entryCtrl,
         builder: (_, child) => Transform.scale(
           scale: Tween<double>(begin: 0.86, end: 1.0)
-              .animate(CurvedAnimation(
-                parent: _entryCtrl,
-                curve: Curves.easeOutBack,
-              ))
+              .animate(
+                CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutBack),
+              )
               .value,
           child: Opacity(
             opacity: CurvedAnimation(
@@ -377,30 +399,30 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
 
                       // Rarity badge.
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: rarityColor,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: rarityColor.withValues(alpha: 0.55),
-                              blurRadius: 10,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
                             ),
-                          ],
-                        ),
-                        child: Text(
-                          rarityLabel,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      )
+                            decoration: BoxDecoration(
+                              color: rarityColor,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: rarityColor.withValues(alpha: 0.55),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              rarityLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          )
                           .animate(onPlay: (c) => c.repeat(reverse: true))
                           .scale(
                             begin: const Offset(1.0, 1.0),
@@ -413,20 +435,20 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
 
                       // Big unlock headline.
                       Text(
-                        _unlockHeadline,
-                        textAlign: TextAlign.center,
-                        style: textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: rarityColor,
-                          height: 1.15,
-                          shadows: [
-                            Shadow(
-                              color: rarityColor.withValues(alpha: 0.60),
-                              blurRadius: 16,
+                            _unlockHeadline,
+                            textAlign: TextAlign.center,
+                            style: textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: rarityColor,
+                              height: 1.15,
+                              shadows: [
+                                Shadow(
+                                  color: rarityColor.withValues(alpha: 0.60),
+                                  blurRadius: 16,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
+                          )
                           .animate()
                           .fadeIn(duration: 260.ms, delay: 180.ms)
                           .slideY(
@@ -473,48 +495,76 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
 
                       const SizedBox(height: 20),
 
-                      // CTAs.
-                      if (widget.onEquipNow != null)
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: widget.onEquipNow,
-                            icon: const Icon(Icons.checkroom_rounded, size: 18),
-                            label: const Text('Equip now'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: rarityColor,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ),
+                      // CTAs — replaced by equip confirmation once equipped.
+                      if (_equipped)
+                        CosmeticEquipConfirmation(
+                          itemName: widget.itemName,
+                          itemType: cosmeticItemType(widget.itemName),
+                          rarityColor: rarityColor,
+                          onDone: null,
                         )
-                            .animate(delay: 440.ms)
-                            .fadeIn(duration: 220.ms)
-                            .slideY(begin: 0.12, end: 0, duration: 260.ms),
+                      else ...[
+                        if (widget.onEquipNow != null)
+                          SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  onPressed: _equipping ? null : _handleEquip,
+                                  icon: _equipping
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.checkroom_rounded,
+                                          size: 18,
+                                        ),
+                                  label: Text(
+                                    _equipping ? 'Equipping…' : 'Equip now',
+                                  ),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: rarityColor,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .animate(delay: 440.ms)
+                              .fadeIn(duration: 220.ms)
+                              .slideY(begin: 0.12, end: 0, duration: 260.ms),
 
-                      if (widget.onEquipNow != null && widget.onViewCollection != null)
-                        const SizedBox(height: 8),
+                        if (widget.onEquipNow != null &&
+                            widget.onViewCollection != null)
+                          const SizedBox(height: 8),
 
-                      if (widget.onViewCollection != null)
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: widget.onViewCollection,
-                            icon: const Icon(
-                              Icons.collections_bookmark_rounded,
-                              size: 16,
-                            ),
-                            label: const Text('View collection'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: rarityColor,
-                              side: BorderSide(
-                                color: rarityColor.withValues(alpha: 0.55),
-                              ),
-                            ),
-                          ),
-                        )
-                            .animate(delay: 500.ms)
-                            .fadeIn(duration: 220.ms)
-                            .slideY(begin: 0.12, end: 0, duration: 260.ms),
+                        if (widget.onViewCollection != null)
+                          SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: widget.onViewCollection,
+                                  icon: const Icon(
+                                    Icons.collections_bookmark_rounded,
+                                    size: 16,
+                                  ),
+                                  label: const Text('View collection'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: rarityColor,
+                                    side: BorderSide(
+                                      color: rarityColor.withValues(
+                                        alpha: 0.55,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .animate(delay: 500.ms)
+                              .fadeIn(duration: 220.ms)
+                              .slideY(begin: 0.12, end: 0, duration: 260.ms),
+                      ],
                     ],
                   ),
                 ),
