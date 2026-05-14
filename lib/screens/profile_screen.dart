@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/cosmetic_target.dart';
 import '../models/social_cosmetic_loadout.dart';
 import '../navigation/app_routes.dart';
 import '../navigation/navigation_extensions.dart';
@@ -8,14 +9,20 @@ import '../services/user_service.dart';
 import '../state/avatar_provider.dart';
 import '../state/auth_provider.dart';
 import '../state/badge_provider.dart';
+import '../state/chase_race_provider.dart';
+import '../state/cosmetic_target_provider.dart';
 import '../state/progress_provider.dart';
+import '../state/weekly_featured_provider.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/animated_xp_bar.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/cosmetic_visuals.dart';
+import '../widgets/chase_race_panel.dart';
+import '../widgets/cosmetic_target_chip.dart';
 import '../widgets/social_cosmetic_avatar.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
 import '../widgets/ui/app_section.dart';
+import '../widgets/weekly_featured_flair_chip.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -28,6 +35,13 @@ class ProfileScreen extends StatelessWidget {
     final badges = context.watch<BadgeProvider>().badges;
     final auth = context.watch<AuthProvider>();
     final avatar = context.watch<AvatarProvider>();
+    final target = _maybeWatch<CosmeticTargetProvider>(context)?.target;
+    final weekly = _maybeWatch<WeeklyFeaturedProvider>(context);
+    if (weekly != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        weekly.refreshCompletionFromInventory(avatar.inventory);
+      });
+    }
     final socialLoadout = SocialCosmeticLoadout.fromLocal(
       userId: auth.userId ?? 'local',
       avatar: avatar.avatarConfig,
@@ -115,6 +129,14 @@ class ProfileScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _ProfileHeader(username: auth.username, progress: progress),
+            if (weekly?.completedActiveSet == true &&
+                weekly?.activeSet != null) ...[
+              const SizedBox(height: 10),
+              WeeklyFeaturedFlairChip(
+                label: weekly!.activeSet!.profileFlair,
+                maxWidth: 240,
+              ),
+            ],
             const SizedBox(height: 16),
             const ThemeAccessibilityMiniPreview(
               title: 'Profil: pregled pristupacnosti',
@@ -128,7 +150,11 @@ class ProfileScreen extends StatelessWidget {
                 userId: auth.userId ?? 'local',
                 displayName: auth.username ?? 'Korisnik',
                 loadout: socialLoadout,
+                target: target,
               ),
+            ),
+            _ChaseRaceSectionForProfile(
+              userId: auth.userId ?? 'local',
             ),
             AppSection(
               title: 'Brze opcije',
@@ -357,6 +383,14 @@ class ProfileScreen extends StatelessWidget {
     return level * 100 + xp ~/ 10;
   }
 
+  T? _maybeWatch<T>(BuildContext context) {
+    try {
+      return context.watch<T>();
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _showEditProfileDialog(BuildContext context) {
     final userService = UserService.instance;
     final displayNameController = TextEditingController();
@@ -447,16 +481,102 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
+/// Shows the current user's chase race rank on their profile.
+/// Only rendered when there is an active race with competitors.
+class _ChaseRaceSectionForProfile extends StatelessWidget {
+  const _ChaseRaceSectionForProfile({required this.userId});
+
+  final String userId;
+
+  @override
+  Widget build(BuildContext context) {
+    ChaseRaceProvider provider;
+    try {
+      provider = context.watch<ChaseRaceProvider>();
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
+
+    final race = provider.race;
+    if (race == null || !race.hasCompetitors) return const SizedBox.shrink();
+
+    final myEntry = provider.myEntry;
+    if (myEntry == null) return const SizedBox.shrink();
+
+    final color = CosmeticVisuals.rarityColor(race.itemRarity);
+    final isFirst = provider.isFirstFinisher(userId);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: AppSection(
+        title: 'Chase Race',
+        padding: EdgeInsets.zero,
+        child: Container(
+          key: const Key('profile_chase_race_section'),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: 0.28)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.emoji_events_rounded, color: color, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      race.itemName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isFirst
+                          ? 'First to Unlock! 🏆'
+                          : 'Race rank: #${myEntry.rank} of ${race.participants.length}',
+                      key: const Key('profile_race_rank_label'),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color:
+                            Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                key: const Key('profile_view_race_button'),
+                onPressed: () => showChaseRaceSheet(context),
+                style: TextButton.styleFrom(foregroundColor: color),
+                child: const Text('View race'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CosmeticShowcase extends StatelessWidget {
   const _CosmeticShowcase({
     required this.userId,
     required this.displayName,
     required this.loadout,
+    this.target,
   });
 
   final String userId;
   final String displayName;
   final SocialCosmeticLoadout loadout;
+  final CosmeticTarget? target;
 
   @override
   Widget build(BuildContext context) {
@@ -498,7 +618,10 @@ class _CosmeticShowcase extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     if (loadout.hasEquippedCosmetics)
-                      _EquippedItemLabels(loadout: loadout)
+                      Semantics(
+                        label: _equippedSummary(loadout),
+                        child: _EquippedItemLabels(loadout: loadout),
+                      )
                     else
                       Text(
                         'Unlock and equip frames, trails, and gear to show off here.',
@@ -512,6 +635,10 @@ class _CosmeticShowcase extends StatelessWidget {
             ],
           ),
         ),
+        if (target != null) ...[
+          const SizedBox(height: 10),
+          CosmeticTargetChip(target: target!),
+        ],
         const SizedBox(height: 12),
         Text(
           'Recent unlocks',
@@ -521,7 +648,7 @@ class _CosmeticShowcase extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         RecentUnlocksStrip(
-          unlocks: loadout.recentUnlocks,
+          unlocks: loadout.recentRareUnlocks,
           emptyText:
               'No cosmetic unlocks yet. Daily Run chests can change that.',
         ),
@@ -575,8 +702,7 @@ class _EquippedItemLabels extends StatelessWidget {
             Text(
               label.name,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: rarityColor ??
-                    theme.colorScheme.onSurfaceVariant,
+                color: rarityColor ?? theme.colorScheme.onSurfaceVariant,
                 fontWeight: rarityColor != null
                     ? FontWeight.w700
                     : FontWeight.normal,

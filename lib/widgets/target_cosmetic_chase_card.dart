@@ -7,8 +7,10 @@ import '../models/cosmetic_target.dart';
 import '../models/social_cosmetic_loadout.dart';
 import '../navigation/navigation_extensions.dart';
 import '../services/cosmetics_service.dart';
+import '../state/chase_race_provider.dart';
 import '../state/cosmetic_target_provider.dart';
 import '../state/season_provider.dart';
+import 'chase_race_panel.dart';
 import '../theme/app_scale.dart';
 import 'avatar_widget.dart';
 import 'cosmetic_visuals.dart';
@@ -48,7 +50,7 @@ class TargetCosmeticChaseCard extends StatelessWidget {
             ?.isSeasonFeaturedItem(activeTarget.targetCosmeticItemId) ??
         false;
 
-    return Container(
+    final card = Container(
       key: const Key('daily_run_target_header'),
       width: double.infinity,
       margin: margin,
@@ -212,6 +214,20 @@ class TargetCosmeticChaseCard extends StatelessWidget {
         ],
       ),
     ).animate().fadeIn(duration: 220.ms).slideY(begin: 0.10);
+
+    // Race panel is visible only when ChaseRaceProvider reports a real race
+    // with competitors. It handles its own visibility internally.
+    final hasRaceProvider = _maybeWatch<ChaseRaceProvider>(context) != null;
+    if (!hasRaceProvider) return card;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        card,
+        const ChaseRacePanel(),
+      ],
+    );
   }
 
   T? _maybeWatch<T>(BuildContext context) {

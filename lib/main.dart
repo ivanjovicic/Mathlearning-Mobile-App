@@ -24,6 +24,7 @@ import 'state/cosmetic_preview_provider.dart';
 import 'state/learning_path_provider.dart';
 import 'state/daily_run_provider.dart';
 import 'state/cosmetic_target_provider.dart';
+import 'state/chase_race_provider.dart';
 import 'state/weekly_featured_provider.dart';
 import 'state/season_provider.dart';
 import 'features/learning_map/providers/learning_map_provider.dart';
@@ -238,6 +239,18 @@ class MathLearningApp extends StatelessWidget {
           update: (_, auth, previous) {
             final provider = previous ?? SeasonProvider();
             provider.configureUser(auth.isAuthenticated ? auth.userId : null);
+            return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider2<AuthProvider, CosmeticTargetProvider,
+            ChaseRaceProvider>(
+          create: (_) => ChaseRaceProvider(),
+          update: (_, auth, targetProvider, previous) {
+            final provider = previous ?? ChaseRaceProvider();
+            provider.configureUser(
+              auth.isAuthenticated ? auth.userId : null,
+            );
+            provider.updateTarget(targetProvider.target);
             return provider;
           },
         ),
