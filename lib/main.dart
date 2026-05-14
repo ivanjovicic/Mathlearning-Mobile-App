@@ -20,8 +20,12 @@ import 'state/streak_freeze_provider.dart';
 import 'state/user_profile_provider.dart';
 import 'state/adaptive_provider.dart';
 import 'state/avatar_provider.dart';
+import 'state/cosmetic_preview_provider.dart';
 import 'state/learning_path_provider.dart';
 import 'state/daily_run_provider.dart';
+import 'state/cosmetic_target_provider.dart';
+import 'state/weekly_featured_provider.dart';
+import 'state/season_provider.dart';
 import 'features/learning_map/providers/learning_map_provider.dart';
 import 'features/learning_map/services/learning_map_service.dart';
 
@@ -169,6 +173,30 @@ class MathLearningApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(create: (_) => DailyRunProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, CosmeticTargetProvider>(
+          create: (_) => CosmeticTargetProvider()..configureUser(null),
+          update: (_, auth, previous) {
+            final provider = previous ?? CosmeticTargetProvider();
+            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
+            return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, CosmeticPreviewProvider>(
+          create: (_) => CosmeticPreviewProvider()..configureUser(null),
+          update: (_, auth, previous) {
+            final provider = previous ?? CosmeticPreviewProvider();
+            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
+            return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, WeeklyFeaturedProvider>(
+          create: (_) => WeeklyFeaturedProvider()..configureUser(null),
+          update: (_, auth, previous) {
+            final provider = previous ?? WeeklyFeaturedProvider();
+            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
+            return provider;
+          },
+        ),
         ChangeNotifierProxyProvider<ProgressProvider, AdaptiveProvider>(
           create: (_) =>
               AdaptiveProvider(adaptiveService: _adaptiveLearningService),
@@ -202,6 +230,14 @@ class MathLearningApp extends StatelessWidget {
                 previous ??
                 LearningPathProvider(service: _adaptiveLearningService);
             provider.updateFromProgress(progress);
+            return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, SeasonProvider>(
+          create: (_) => SeasonProvider()..configureUser(null),
+          update: (_, auth, previous) {
+            final provider = previous ?? SeasonProvider();
+            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
             return provider;
           },
         ),

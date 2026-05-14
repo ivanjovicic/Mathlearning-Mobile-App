@@ -27,9 +27,13 @@ import 'package:mathlearning/services/connectivity_service.dart';
 import 'package:mathlearning/state/auth_provider.dart';
 import 'package:mathlearning/state/avatar_provider.dart';
 import 'package:mathlearning/state/coin_provider.dart';
+import 'package:mathlearning/state/cosmetic_target_provider.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
 import 'package:mathlearning/state/streak_freeze_provider.dart';
+import 'package:mathlearning/state/weekly_featured_provider.dart';
+import 'package:mathlearning/state/season_provider.dart';
+import 'package:mathlearning/widgets/weekly_featured_banner.dart';
 
 class LearningMapScreen extends StatefulWidget {
   const LearningMapScreen({super.key, required this.userId, this.focusNodeId});
@@ -50,6 +54,9 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   );
   final GlobalKey _coinHudTargetKey = GlobalKey(
     debugLabel: 'learning_map_coin_hud',
+  );
+  final GlobalKey _targetChaseCardKey = GlobalKey(
+    debugLabel: 'learning_map_target_chase_card',
   );
   MapCompletionFeedback? _mapCompletionFeedback;
   bool _captureScheduled = false;
@@ -174,11 +181,18 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: const WeeklyFeaturedBanner(),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                     child: DailyRunCard(
                       isCompleted: dailyRun.isCompleted,
                       chestState: dailyRun.chestState,
                       onStart: _startDailyRun,
                       onOpenChest: _openDailyChest,
+                      chaseCardKey: _targetChaseCardKey,
                     ),
                   ),
                 ),
@@ -541,6 +555,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
       return;
     }
 
+    if (!mounted) return;
     switch (reward.type) {
       case DailyRewardType.xp:
         final progress = context.read<ProgressProvider>();
@@ -548,6 +563,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
         unawaited(progress.persistLocalProgress());
         break;
       case DailyRewardType.streakBoost:
+        if (!mounted) return;
         await context.read<StreakFreezeProvider>().add(
           reward.streakBoosts ?? 1,
         );
@@ -559,10 +575,23 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
 
   Future<void> _openDailyChest() async {
     final dailyRun = context.read<DailyRunProvider>();
-    final reward = await dailyRun.openChest();
+    final weeklyFeatured = _maybeRead<WeeklyFeaturedProvider>(context);
+    final baseReward = await dailyRun.openChest();
+    final reward = baseReward == null
+        ? null
+        : weeklyFeatured?.applyFeaturedBoost(baseReward) ?? baseReward;
     if (reward == null || !mounted) {
       return;
     }
+
+    // Award season XP for completing a daily run.
+    final seasonProvider = _maybeRead<SeasonProvider>(context);
+    final multiplier = dailyRun.displayedXpMultiplier;
+    if (seasonProvider != null) {
+      await seasonProvider.awardDailyRunXp(multiplier);
+    }
+    final seasonXpGained = seasonProvider?.takePendingXpGain();
+    final milestoneReached = seasonProvider?.takePendingMilestoneReached();
 
     if (!mounted) {
       return;
@@ -586,10 +615,18 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
           reward: reward,
           xpTargetKey: _xpHudTargetKey,
           coinTargetKey: _coinHudTargetKey,
+          targetCardKey: _targetChaseCardKey,
+          seasonXpGained: seasonXpGained,
+          milestoneReached: milestoneReached,
           onGrantCosmeticFragment: (fragmentName) {
             return context.read<AvatarProvider>().grantDailyRunFragment(
               fragmentName,
             );
+          },
+          onApplyTargetProgress: (result) {
+            return _maybeRead<CosmeticTargetProvider>(
+              context,
+            )?.applyDailyRunGrant(result);
           },
           onEquipNow: (item) async {
             await context.read<AvatarProvider>().equipItem(item);
@@ -618,6 +655,14 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Tomorrow\'s chest is even better 👀')),
     );
+  }
+
+  T? _maybeRead<T>(BuildContext context) {
+    try {
+      return context.read<T>();
+    } catch (_) {
+      return null;
+    }
   }
 }
 
