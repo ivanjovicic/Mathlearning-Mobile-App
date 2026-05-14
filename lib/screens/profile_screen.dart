@@ -12,6 +12,8 @@ import '../state/badge_provider.dart';
 import '../state/chase_race_provider.dart';
 import '../state/cosmetic_target_provider.dart';
 import '../state/progress_provider.dart';
+import '../state/player_identity_provider.dart';
+import '../state/season_provider.dart';
 import '../state/weekly_featured_provider.dart';
 import '../utils/overlay_safety.dart';
 import '../widgets/animated_xp_bar.dart';
@@ -21,6 +23,7 @@ import '../widgets/chase_race_panel.dart';
 import '../widgets/cosmetic_target_chip.dart';
 import '../widgets/social_cosmetic_avatar.dart';
 import '../widgets/theme_accessibility_mini_preview.dart';
+import '../widgets/identity_showcase_section.dart';
 import '../widgets/ui/app_section.dart';
 import '../widgets/weekly_featured_flair_chip.dart';
 
@@ -40,6 +43,23 @@ class ProfileScreen extends StatelessWidget {
     if (weekly != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         weekly.refreshCompletionFromInventory(avatar.inventory);
+      });
+    }
+    final season = _maybeWatch<SeasonProvider>(context);
+    final identity = _maybeWatch<PlayerIdentityProvider>(context);
+    if (identity != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        identity.refresh(
+          inventory: avatar.inventory,
+          catalog: avatar.catalog,
+          currentStreak: progress.streak,
+          totalAttempts: progress.totalAttempts,
+          seasonCompletionPercent: season?.completionPercent ?? 0,
+          completedSeasonName:
+              (season?.completionPercent ?? 0) >= 100 ? season?.season?.name : null,
+          completedSeasonId:
+              (season?.completionPercent ?? 0) >= 100 ? season?.season?.seasonId : null,
+        );
       });
     }
     final socialLoadout = SocialCosmeticLoadout.fromLocal(
@@ -156,6 +176,16 @@ class ProfileScreen extends StatelessWidget {
             _ChaseRaceSectionForProfile(
               userId: auth.userId ?? 'local',
             ),
+            if (identity != null) ...[
+              const SizedBox(height: 16),
+              AppSection(
+                title: 'Player Identity',
+                padding: const EdgeInsets.only(bottom: 16),
+                child: IdentityShowcaseSection(
+                  userId: auth.userId ?? 'local',
+                ),
+              ),
+            ],
             AppSection(
               title: 'Brze opcije',
               padding: const EdgeInsets.only(bottom: 16),

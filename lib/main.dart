@@ -25,6 +25,7 @@ import 'state/learning_path_provider.dart';
 import 'state/daily_run_provider.dart';
 import 'state/cosmetic_target_provider.dart';
 import 'state/chase_race_provider.dart';
+import 'state/player_identity_provider.dart';
 import 'state/weekly_featured_provider.dart';
 import 'state/season_provider.dart';
 import 'features/learning_map/providers/learning_map_provider.dart';
@@ -251,6 +252,29 @@ class MathLearningApp extends StatelessWidget {
               auth.isAuthenticated ? auth.userId : null,
             );
             provider.updateTarget(targetProvider.target);
+            return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider4<AuthProvider, AvatarProvider,
+            ProgressProvider, SeasonProvider, PlayerIdentityProvider>(
+          create: (_) => PlayerIdentityProvider(),
+          update: (_, auth, avatar, progress, season, previous) {
+            final provider = previous ?? PlayerIdentityProvider();
+            provider.configureUser(
+              auth.isAuthenticated ? auth.userId : null,
+            );
+            provider.refresh(
+              inventory: avatar.inventory,
+              catalog: avatar.catalog,
+              currentStreak: progress.streak,
+              totalAttempts: progress.totalAttempts,
+              seasonCompletionPercent: season.completionPercent,
+              completedSeasonName:
+                  season.completionPercent >= 100 ? season.season?.name : null,
+              completedSeasonId: season.completionPercent >= 100
+                  ? season.season?.seasonId
+                  : null,
+            );
             return provider;
           },
         ),

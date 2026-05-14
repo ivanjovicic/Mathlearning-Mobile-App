@@ -3,9 +3,14 @@ import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:provider/provider.dart';
 
 import '../models/leaderboard_models.dart';
+import '../models/social_cosmetic_loadout.dart';
 import '../navigation/navigation_extensions.dart';
+import '../state/avatar_provider.dart';
 import '../state/auth_provider.dart';
+import '../state/cosmetic_target_provider.dart';
 import '../state/leaderboard_provider.dart';
+import '../state/player_identity_provider.dart';
+import '../state/weekly_featured_provider.dart';
 import '../theme/app_scale.dart';
 import '../theme/tokens/spacing_tokens.dart';
 import '../widgets/animated_leaderboard_item.dart';
@@ -146,6 +151,23 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final currentUserId = context.select<LeaderboardProvider, int?>(
       (value) => value.currentUserId,
     );
+    final currentUserLoadout = _currentUserLocalLoadout(context);
+    final currentUserTarget = _maybeWatch<CosmeticTargetProvider>(
+      context,
+    )?.target;
+    final weekly = _maybeWatch<WeeklyFeaturedProvider>(context);
+    final avatarProvider = _maybeWatch<AvatarProvider>(context);
+    if (weekly != null && avatarProvider != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        weekly.refreshCompletionFromInventory(avatarProvider.inventory);
+      });
+    }
+    final weeklyCompletionLabel =
+        weekly?.completedActiveSet == true && weekly?.activeSet != null
+        ? weekly!.activeSet!.leaderboardAccentLabel
+        : null;
+    final playerTitle =
+        _maybeWatch<PlayerIdentityProvider>(context)?.featuredTitle;
     final isLoadingRivals = context.select<LeaderboardProvider, bool>(
       (value) => value.isLoadingRivals,
     );
@@ -243,6 +265,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                     isCurrentUser: item.userId == currentUserId,
                                     previousRank: previousRank,
                                     subtitle: '${item.score} XP',
+                                    currentUserLoadout: currentUserLoadout,
+                                    currentUserTarget: currentUserTarget,
+                                    weeklyFeaturedCompletionLabel:
+                                        weeklyCompletionLabel,
+                                    playerTitle: item.userId == currentUserId
+                                        ? playerTitle
+                                        : null,
                                   ),
                                 ),
                               );
@@ -258,6 +287,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                 child: MiniLeaderboard(
                                   entries: rivals,
                                   currentUserId: currentUserId,
+                                  currentUserLoadout: currentUserLoadout,
+                                  currentUserTarget: currentUserTarget,
+                                  weeklyFeaturedCompletionLabel:
+                                      weeklyCompletionLabel,
                                   isLoading: isLoadingRivals,
                                   errorMessage: rivalsError?.toString(),
                                   onRetry: () => context
@@ -282,6 +315,30 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         ],
       ),
     );
+  }
+
+  SocialCosmeticLoadout? _currentUserLocalLoadout(BuildContext context) {
+    final auth = _maybeWatch<AuthProvider>(context);
+    final avatar = _maybeWatch<AvatarProvider>(context);
+    if (avatar == null) return null;
+
+    final loadout = SocialCosmeticLoadout.fromLocal(
+      userId: auth?.userId ?? 'local',
+      avatar: avatar.avatarConfig,
+      inventory: avatar.inventory,
+      catalog: avatar.catalog,
+    );
+    return loadout.hasEquippedCosmetics || loadout.hasRecentRareUnlock
+        ? loadout
+        : null;
+  }
+
+  T? _maybeWatch<T>(BuildContext context) {
+    try {
+      return context.watch<T>();
+    } catch (_) {
+      return null;
+    }
   }
 }
 
