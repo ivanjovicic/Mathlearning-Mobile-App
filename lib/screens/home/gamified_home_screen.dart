@@ -41,10 +41,8 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
       if (!mounted) return;
 
       final progress = Provider.of<ProgressProvider>(context, listen: false);
-      final auth = Provider.of<AuthProvider>(context, listen: false);
       final coinProvider = Provider.of<CoinProvider>(context, listen: false);
 
-      progress.token = auth.token;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         coinProvider.loadCoinsAndHints();
@@ -65,10 +63,7 @@ class _GamifiedHomeScreenState extends State<GamifiedHomeScreen> {
         );
       };
 
-      await progress.loadProgress();
-      await progress.rollDailyStreakIfNeeded();
-      if (!mounted) return;
-      await progress.loadTopics();
+      await progress.loadHomeData();
       setState(() => _error = null);
     } catch (e) {
       if (!mounted) return;
@@ -509,8 +504,9 @@ class _LearningPathBanner extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final provider = context.watch<LearningPathProvider>();
     final recommended = provider.recommended;
-    final String title =
-        recommended != null ? recommended.topicName : 'Start your path';
+    final String title = recommended != null
+        ? recommended.topicName
+        : 'Start your path';
     final String subtitle = recommended != null
         ? (recommended.recommendationReason ?? 'Continue where you left off')
         : 'Build skills step by step';
@@ -519,8 +515,7 @@ class _LearningPathBanner extends StatelessWidget {
       onTap: () => context.goLearnMap(focusNodeId: recommended?.id),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [cs.primaryContainer, cs.secondaryContainer],
@@ -528,9 +523,7 @@ class _LearningPathBanner extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: cs.primary.withValues(alpha: 0.25),
-          ),
+          border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
         ),
         child: Row(
           children: [

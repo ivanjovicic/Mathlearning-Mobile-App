@@ -5,9 +5,6 @@ import '../l10n/app_i18n.dart';
 import '../navigation/app_routes.dart';
 import '../navigation/navigation_extensions.dart';
 import '../state/auth_provider.dart';
-import '../state/leaderboard_provider.dart';
-import '../state/progress_provider.dart';
-import '../state/quiz_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,20 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (success && mounted) {
-      final progressProvider = Provider.of<ProgressProvider>(
-        context,
-        listen: false,
-      );
-      final leaderboardProvider = Provider.of<LeaderboardProvider>(
-        context,
-        listen: false,
-      );
-      final quizProvider = Provider.of<QuizProvider>(context, listen: false);
-
-      progressProvider.token = authProvider.token;
-      leaderboardProvider.token = authProvider.token;
-      quizProvider.token = authProvider.token;
-
       context.goAfterAuthSuccess();
     } else if (mounted) {
       ScaffoldMessenger.of(

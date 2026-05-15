@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_profile.dart';
-import '../services/api_service.dart';
+import '../services/user_api_service.dart';
 
 class UserService {
   static UserService? _instance;
@@ -8,7 +8,7 @@ class UserService {
 
   UserService._();
 
-  final ApiService _apiService = ApiService();
+  final UserApiService _apiService = UserApiService();
   UserProfile? _currentProfile;
 
   /// Get current user profile (cached or from API)

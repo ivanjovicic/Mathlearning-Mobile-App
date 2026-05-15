@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/leaderboard_models.dart';
-import '../services/api_service.dart';
+import '../services/leaderboard_api_service.dart';
 
 enum LeaderboardScope { global, school, faculty, friends }
 
@@ -23,12 +23,15 @@ extension LeaderboardScopeX on LeaderboardScope {
 }
 
 class LeaderboardProvider extends ChangeNotifier {
-  LeaderboardProvider({ApiService? api}) : api = api ?? ApiService();
+  LeaderboardProvider({LeaderboardApiService? api})
+    : api = api ?? LeaderboardApiService();
 
-  final ApiService api;
+  final LeaderboardApiService api;
 
   String? token;
+  bool _isDemoMode = false;
   String? _lastToken;
+  bool _lastDemoMode = false;
   LeaderboardPeriod _currentPeriod = LeaderboardPeriod.week;
 
   final Map<LeaderboardScope, LeaderboardPagingController<LeaderboardItem>>
@@ -115,10 +118,12 @@ class LeaderboardProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void onTokenUpdated(String? newToken) {
-    if (_lastToken == newToken) return;
+  void onTokenUpdated(String? newToken, {bool isDemoMode = false}) {
+    if (_lastToken == newToken && _lastDemoMode == isDemoMode) return;
     _lastToken = newToken;
+    _lastDemoMode = isDemoMode;
     token = newToken;
+    _isDemoMode = isDemoMode;
     resetAll();
   }
 
@@ -224,7 +229,7 @@ class LeaderboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (token?.startsWith('demo_') == true) {
+      if (_isDemoMode) {
         paging.hasLoadedOnce = true;
         paging.isLoading = false;
         paging.hasMore = false;
@@ -283,7 +288,7 @@ class LeaderboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (token?.startsWith('demo_') == true) {
+      if (_isDemoMode) {
         _schoolPaging.hasLoadedOnce = true;
         _schoolPaging.isLoading = false;
         _schoolPaging.hasMore = false;
@@ -332,15 +337,13 @@ class LeaderboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (token?.startsWith('demo_') == true) {
+      if (_isDemoMode) {
         _rivals = const <RivalLeaderboardEntry>[];
         _loadedRivalsPeriod = resolvedPeriod;
         return;
       }
 
-      final data = await api.fetchLeaderboardRivals(
-        period: resolvedPeriod.apiValue,
-      );
+      final data = await api.fetchRivals(period: resolvedPeriod.apiValue);
 
       _rivals = data ?? const <RivalLeaderboardEntry>[];
       _loadedRivalsPeriod = resolvedPeriod;

@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mathlearning/models/leaderboard_models.dart';
-import 'package:mathlearning/services/api_service.dart';
+import 'package:mathlearning/services/leaderboard_api_service.dart';
 import 'package:mathlearning/state/leaderboard_provider.dart';
 
-class _FakeLeaderboardApiService implements ApiService {
+class _FakeLeaderboardApiService extends LeaderboardApiService {
   LeaderboardResponse? leaderboardResponse;
   SchoolLeaderboardFeed? schoolResponse;
   List<RivalLeaderboardEntry>? rivalsResponse;
@@ -43,7 +43,7 @@ class _FakeLeaderboardApiService implements ApiService {
   }
 
   @override
-  Future<List<RivalLeaderboardEntry>?> fetchLeaderboardRivals({
+  Future<List<RivalLeaderboardEntry>?> fetchRivals({
     required String period,
   }) async {
     lastRivalsPeriod = period;
@@ -52,9 +52,6 @@ class _FakeLeaderboardApiService implements ApiService {
     }
     return rivalsResponse;
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {

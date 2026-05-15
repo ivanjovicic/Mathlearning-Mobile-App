@@ -23,6 +23,7 @@ void main() {
   Future<void> pumpHomeReady(WidgetTester tester) async {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
   }
 
   void useLargeViewport(WidgetTester tester) {
@@ -30,6 +31,14 @@ void main() {
     tester.view.physicalSize = const Size(1440, 3200);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
+  ProgressProvider testProgressProvider() {
+    return ProgressProvider()..updateAuthContext(
+      token: 'demo_token_test',
+      isDemoMode: true,
+      userId: '1',
+    );
   }
 
   group('HomeScreen', () {
@@ -45,7 +54,7 @@ void main() {
             ChangeNotifierProvider(create: (_) => ThemeController()),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
             ChangeNotifierProvider<AuthProvider>.value(value: auth),
-            ChangeNotifierProvider(create: (_) => ProgressProvider()),
+            ChangeNotifierProvider(create: (_) => testProgressProvider()),
             ChangeNotifierProvider<CoinProvider>(
               create: (_) => TestCoinProvider(),
             ),
@@ -58,8 +67,9 @@ void main() {
       expect(find.text('Zdravo, Mila'), findsOneWidget);
     });
 
-    testWidgets('uses fallback student name when username is empty',
-        (tester) async {
+    testWidgets('uses fallback student name when username is empty', (
+      tester,
+    ) async {
       useLargeViewport(tester);
       final quiz = TestQuizProvider(onGetDailySrsCount: () async => 0);
       final auth = TestAuthProvider(username: null);
@@ -71,7 +81,7 @@ void main() {
             ChangeNotifierProvider(create: (_) => ThemeController()),
             ChangeNotifierProvider(create: (_) => SettingsProvider()),
             ChangeNotifierProvider<AuthProvider>.value(value: auth),
-            ChangeNotifierProvider(create: (_) => ProgressProvider()),
+            ChangeNotifierProvider(create: (_) => testProgressProvider()),
             ChangeNotifierProvider<CoinProvider>(
               create: (_) => TestCoinProvider(),
             ),
@@ -84,8 +94,9 @@ void main() {
       expect(find.text('Zdravo, ucenik'), findsOneWidget);
     });
 
-    testWidgets('shows Daily Review loading subtitle while count is pending',
-        (tester) async {
+    testWidgets('shows Daily Review loading subtitle while count is pending', (
+      tester,
+    ) async {
       useLargeViewport(tester);
       final completer = Completer<int>();
       final quiz = TestQuizProvider(onGetDailySrsCount: () => completer.future);
@@ -99,7 +110,7 @@ void main() {
             ChangeNotifierProvider<AuthProvider>(
               create: (_) => TestAuthProvider(),
             ),
-            ChangeNotifierProvider(create: (_) => ProgressProvider()),
+            ChangeNotifierProvider(create: (_) => testProgressProvider()),
             ChangeNotifierProvider<CoinProvider>(
               create: (_) => TestCoinProvider(),
             ),
@@ -112,44 +123,47 @@ void main() {
       expect(find.text('Ucitavam dnevni review...'), findsOneWidget);
     });
 
-    testWidgets('disables Daily Review card when count is 0 and shows SnackBar',
-        (tester) async {
-      useLargeViewport(tester);
-      final quiz = TestQuizProvider(onGetDailySrsCount: () async => 0);
+    testWidgets(
+      'disables Daily Review card when count is 0 and shows SnackBar',
+      (tester) async {
+        useLargeViewport(tester);
+        final quiz = TestQuizProvider(onGetDailySrsCount: () async => 0);
 
-      await tester.pumpWidget(
-        buildTestApp(
-          home: const HomeScreen(),
-          providers: [
-            ChangeNotifierProvider(create: (_) => ThemeController()),
-            ChangeNotifierProvider(create: (_) => SettingsProvider()),
-            ChangeNotifierProvider<AuthProvider>(
-              create: (_) => TestAuthProvider(),
-            ),
-            ChangeNotifierProvider(create: (_) => ProgressProvider()),
-            ChangeNotifierProvider<CoinProvider>(
-              create: (_) => TestCoinProvider(),
-            ),
-            ChangeNotifierProvider<QuizProvider>.value(value: quiz),
-          ],
-        ),
-      );
-      await pumpHomeReady(tester);
+        await tester.pumpWidget(
+          buildTestApp(
+            home: const HomeScreen(),
+            providers: [
+              ChangeNotifierProvider(create: (_) => ThemeController()),
+              ChangeNotifierProvider(create: (_) => SettingsProvider()),
+              ChangeNotifierProvider<AuthProvider>(
+                create: (_) => TestAuthProvider(),
+              ),
+              ChangeNotifierProvider(create: (_) => testProgressProvider()),
+              ChangeNotifierProvider<CoinProvider>(
+                create: (_) => TestCoinProvider(),
+              ),
+              ChangeNotifierProvider<QuizProvider>.value(value: quiz),
+            ],
+          ),
+        );
+        await pumpHomeReady(tester);
 
-      // Flush the daily review count Future.
-      await tester.pump();
-      await tester.pump();
+        // Flush the daily review count Future.
+        await tester.pump();
+        await tester.pump();
 
-      expect(find.text('Nema SRS pitanja za danas'), findsOneWidget);
+        expect(find.text('Nema SRS pitanja za danas'), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.auto_awesome));
-      await tester.pump();
+        await tester.tap(find.byIcon(Icons.auto_awesome));
+        await tester.pump();
 
-      expect(find.text('Nema pitanja za danas.'), findsOneWidget);
-    });
+        expect(find.text('Nema pitanja za danas.'), findsOneWidget);
+      },
+    );
 
-    testWidgets('shows Daily Review subtitle with count and estimate',
-        (tester) async {
+    testWidgets('shows Daily Review subtitle with count and estimate', (
+      tester,
+    ) async {
       useLargeViewport(tester);
       final quiz = TestQuizProvider(onGetDailySrsCount: () async => 4);
 
@@ -162,7 +176,7 @@ void main() {
             ChangeNotifierProvider<AuthProvider>(
               create: (_) => TestAuthProvider(),
             ),
-            ChangeNotifierProvider(create: (_) => ProgressProvider()),
+            ChangeNotifierProvider(create: (_) => testProgressProvider()),
             ChangeNotifierProvider<CoinProvider>(
               create: (_) => TestCoinProvider(),
             ),
@@ -178,8 +192,9 @@ void main() {
       expect(find.text('Danas imas 4 SRS pitanja - ~3 min'), findsOneWidget);
     });
 
-    testWidgets('tapping enabled Daily Review card navigates to route',
-        (tester) async {
+    testWidgets('tapping enabled Daily Review card navigates to route', (
+      tester,
+    ) async {
       useLargeViewport(tester);
       final quiz = TestQuizProvider(onGetDailySrsCount: () async => 2);
 
@@ -187,10 +202,7 @@ void main() {
         buildGoRouterTestApp(
           initialLocation: '/',
           routes: [
-            GoRoute(
-              path: '/',
-              builder: (context, state) => const HomeScreen(),
-            ),
+            GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
             GoRoute(
               path: '/home/daily-review',
               builder: (context, state) => const Scaffold(
@@ -204,7 +216,7 @@ void main() {
             ChangeNotifierProvider<AuthProvider>(
               create: (_) => TestAuthProvider(),
             ),
-            ChangeNotifierProvider(create: (_) => ProgressProvider()),
+            ChangeNotifierProvider(create: (_) => testProgressProvider()),
             ChangeNotifierProvider<CoinProvider>(
               create: (_) => TestCoinProvider(),
             ),

@@ -12,18 +12,40 @@ class ApiResult<T> {
   final T? data;
   final ApiError? error;
   final int? statusCode;
+  final String? errorCode;
   final bool isRateLimited;
   final Duration? retryAfter;
+  final bool isOffline;
+  final bool isAuthError;
 
   ApiResult({
     this.data,
     this.error,
     this.statusCode,
+    this.errorCode,
     this.isRateLimited = false,
     this.retryAfter,
+    this.isOffline = false,
+    this.isAuthError = false,
   });
 
-  bool get isSuccess => data != null && error == null;
+  bool get isSuccess => error == null;
+
+  factory ApiResult.success(T data, {int? statusCode}) {
+    return ApiResult<T>(data: data, statusCode: statusCode);
+  }
+
+  factory ApiResult.failure(ApiError error, {int? statusCode}) {
+    return ApiResult<T>(
+      error: error,
+      statusCode: statusCode ?? error.statusCode,
+      errorCode: error.errorCode,
+      isRateLimited: (statusCode ?? error.statusCode) == 429,
+      retryAfter: error.retryAfter,
+      isOffline: error.isOffline,
+      isAuthError: error.isAuthError,
+    );
+  }
 }
 
 class ApiError {
@@ -31,32 +53,63 @@ class ApiError {
   final StackTrace? stackTrace;
   final DioExceptionType? dioErrorType;
   final int? statusCode;
+  final String? errorCode;
   final Duration? retryAfter;
   final dynamic responseBody;
+  final bool isOffline;
+  final bool isAuthError;
 
   ApiError({
     required this.message,
     this.stackTrace,
     this.dioErrorType,
     this.statusCode,
+    this.errorCode,
     this.retryAfter,
     this.responseBody,
+    this.isOffline = false,
+    this.isAuthError = false,
   });
 }
 
 // Utility for error parsing
 ApiError parseError(DioException e) {
+  final statusCode = e.response?.statusCode;
   final retryAfter = e.response?.headers.value('retry-after');
+  final isOffline =
+      e.type == DioExceptionType.connectionError ||
+      e.type == DioExceptionType.connectionTimeout ||
+      e.type == DioExceptionType.sendTimeout ||
+      e.type == DioExceptionType.receiveTimeout ||
+      (e.type == DioExceptionType.unknown && e.response == null);
   return ApiError(
     message: e.message ?? e.toString(),
     stackTrace: e.stackTrace,
     dioErrorType: e.type,
-    statusCode: e.response?.statusCode,
+    statusCode: statusCode,
+    errorCode: _extractErrorCode(e.response?.data, statusCode),
     retryAfter: retryAfter != null
         ? Duration(seconds: int.tryParse(retryAfter) ?? 0)
         : null,
     responseBody: e.response?.data,
+    isOffline: isOffline,
+    isAuthError: statusCode == 401 || statusCode == 403,
   );
+}
+
+String? _extractErrorCode(dynamic responseBody, int? statusCode) {
+  if (responseBody is Map) {
+    final map = Map<String, dynamic>.from(responseBody);
+    final code = map['errorCode'] ?? map['code'] ?? map['error_code'];
+    if (code != null) {
+      final value = code.toString().trim();
+      if (value.isNotEmpty) return value;
+    }
+  }
+  if (statusCode != null) {
+    return 'http_$statusCode';
+  }
+  return null;
 }
 
 // Root API Client
@@ -88,7 +141,7 @@ class AuthApi {
       );
       return ApiResult(data: response.data['accessToken'] != null);
     } on DioException catch (e) {
-      return ApiResult(error: parseError(e));
+      return ApiResult.failure(parseError(e));
     }
   }
 
@@ -104,7 +157,7 @@ class AuthApi {
       );
       return ApiResult(data: response.data);
     } on DioException catch (e) {
-      return ApiResult(error: parseError(e));
+      return ApiResult.failure(parseError(e));
     }
   }
 }
@@ -126,7 +179,7 @@ class QuizApi {
       );
       return ApiResult(data: response.data);
     } on DioException catch (e) {
-      return ApiResult(error: parseError(e));
+      return ApiResult.failure(parseError(e));
     }
   }
 
@@ -148,7 +201,7 @@ class QuizApi {
       );
       return ApiResult(data: response.data);
     } on DioException catch (e) {
-      return ApiResult(error: parseError(e));
+      return ApiResult.failure(parseError(e));
     }
   }
 }
@@ -164,7 +217,7 @@ class UserApi {
       final response = await _dio.get('/api/users/profile');
       return ApiResult(data: response.data);
     } on DioException catch (e) {
-      return ApiResult(error: parseError(e));
+      return ApiResult.failure(parseError(e));
     }
   }
 
@@ -175,7 +228,7 @@ class UserApi {
       final response = await _dio.get('/api/user/profile/$userId');
       return ApiResult(data: response.data);
     } on DioException catch (e) {
-      return ApiResult(error: parseError(e));
+      return ApiResult.failure(parseError(e));
     }
   }
 
@@ -194,7 +247,7 @@ class UserApi {
       final response = await _dio.put('/api/users/profile', data: body);
       return ApiResult(data: response.data);
     } on DioException catch (e) {
-      return ApiResult(error: parseError(e));
+      return ApiResult.failure(parseError(e));
     }
   }
 }
@@ -210,11 +263,9 @@ class ProgressApi {
       final response = await _dio.get('/api/progress/overview');
       return ApiResult(data: ProgressOverview.fromJson(response.data));
     } on DioException catch (e) {
-      return ApiResult(error: parseError(e));
+      return ApiResult.failure(parseError(e));
     } catch (e, st) {
-      return ApiResult(
-        error: ApiError(message: e.toString(), stackTrace: st),
-      );
+      return ApiResult.failure(ApiError(message: e.toString(), stackTrace: st));
     }
   }
 }
@@ -270,19 +321,11 @@ class ApiService {
   ) async {
     try {
       final resp = await request();
-      return ApiResult(data: mapper(resp.data), statusCode: resp.statusCode);
+      return ApiResult.success(mapper(resp.data), statusCode: resp.statusCode);
     } on DioException catch (e) {
-      final parsed = parseError(e);
-      return ApiResult(
-        error: parsed,
-        statusCode: e.response?.statusCode,
-        isRateLimited: e.response?.statusCode == 429,
-        retryAfter: parsed.retryAfter,
-      );
+      return ApiResult.failure(parseError(e));
     } catch (e, st) {
-      return ApiResult(
-        error: ApiError(message: e.toString(), stackTrace: st),
-      );
+      return ApiResult.failure(ApiError(message: e.toString(), stackTrace: st));
     }
   }
 
@@ -823,7 +866,9 @@ class ApiService {
     );
   }
 
-  // Generic helpers
+  // Generic helpers kept only for temporary legacy compatibility.
+  // New runtime code should use domain services (ProgressApiService, etc.).
+  @Deprecated('Use typed domain API services instead of raw endpoint calls.')
   Future<Map<String, dynamic>?> get(String endpoint, [String? token]) async {
     try {
       final response = await _dio.get(endpoint);
@@ -836,6 +881,7 @@ class ApiService {
     return null;
   }
 
+  @Deprecated('Use typed domain API services instead of raw endpoint calls.')
   Future<Map<String, dynamic>?> post(
     String endpoint,
     Map data, [

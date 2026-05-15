@@ -436,16 +436,12 @@ This document lists all backend API endpoints currently used by the Flutter mobi
 
 ## Chase Race / Target Cosmetics
 
-### GET /api/chase-race/{itemId}
-- **Purpose:** Get chase race data for a target cosmetic item
-- **Auth:** Required
-- **Path Param:** `itemId` (string)
-- **Response:** Chase race participants, progress, etc.
-- **Flutter Call:** `ChaseRaceService.loadRace()` in `chase_race_service.dart`
-- **Status:** ⚠️ Uncertain - Endpoint not confirmed in backend contract
-- **Fallback:** Falls back to local cache; returns null if no cache and endpoint unavailable
-- **Notes:** No fake data is injected; uses cache-first strategy with graceful degradation
-- **TODO:** Confirm `/api/chase-race/*` endpoints are available in backend
+### /api/chase/*
+- **Purpose:** Chase race data for target cosmetics
+- **Status:** Unsupported by backend
+- **Flutter Runtime:** Not called
+- **Flutter Behavior:** ChaseRaceService.loadRace() returns unavailable/null without issuing a network request
+- **Notes:** No fake race participants are injected. UI must gracefully hide/disable chase race content until a backend contract exists.
 
 ---
 
@@ -472,23 +468,24 @@ This document lists all backend API endpoints currently used by the Flutter mobi
 ## Unsupported / Intentionally Disabled
 
 ### GET /api/adaptive/review (DEPRECATED)
-- **Status:** ❌ REPLACED - Use `/api/adaptive/reviews/due` instead
-- **Notes:** Old endpoint path; Flutter client updated to use new path in this release
+- **Status:** Replaced by /api/adaptive/reviews/due
+- **Notes:** Backend alias exists for compatibility, but Flutter should prefer the canonical /api/adaptive/reviews/due route.
 
 ### GET /api/analytics/mastery (UNAVAILABLE)
-- **Status:** ❌ Backend does not provide this endpoint
-- **Fallback:** Client returns empty list
-- **Alternative:** Use `/api/adaptive/path` for mastery-like progress data
-- **TODO:** Implement if backend adds this endpoint
+- **Status:** Backend does not provide this endpoint
+- **Flutter Runtime:** Does not call the endpoint
+- **Fallback:** Client returns an empty list from getMasteryForUserResult()
+- **Alternative:** Use /api/adaptive/path for mastery-like progress data
+- **TODO:** Implement a real backend contract if product needs mastery analytics.
 
-### GET /api/leaderboard/rivals (DEPRECATED)
-- **Status:** ❌ REPLACED - Use `/api/leaderboard/friends` instead
-- **Notes:** Renamed for clarity; both return friend leaderboard data
+### GET /api/leaderboard/rivals (COMPATIBILITY ALIAS)
+- **Status:** Supported as a backend compatibility alias
+- **Notes:** Returns the friends-style leaderboard shape. Canonical product naming may still prefer friends, but Flutter can safely call this alias.
 
-### GET /api/chase/* (UNCONFIRMED)
-- **Status:** ⚠️ Endpoint availability unconfirmed
-- **Flutter Behavior:** Graceful fallback to local cache
-- **TODO:** Confirm backend implements `/api/chase-race/{itemId}`
+### GET /api/chase/* (UNAVAILABLE)
+- **Status:** Backend does not provide chase race endpoints
+- **Flutter Runtime:** Does not call these endpoints
+- **Flutter Behavior:** Feature returns unavailable/null and never fabricates success
 
 ---
 
@@ -497,7 +494,7 @@ This document lists all backend API endpoints currently used by the Flutter mobi
 ### Endpoint Path Updates
 - `/api/users/{userId}/profile` → `/api/user/profile/{userId}` ✅
 - `/api/adaptive/review` → `/api/adaptive/reviews/due` ✅
-- `/api/leaderboard/rivals` → `/api/leaderboard/friends` ✅
+- /api/leaderboard/rivals remains available as a backend compatibility alias returning friends-style leaderboard data
 
 ### Payload/Parameter Updates
 - `POST /api/adaptive/session/start`: Removed topicId/topic from request (not supported by backend yet)
@@ -505,8 +502,8 @@ This document lists all backend API endpoints currently used by the Flutter mobi
 - `GET /api/leaderboard/schools/history/{schoolId}`: Changed from `from`/`to` dates to `period` + `take` count
 
 ### Backend Gaps Handled
-- `/api/analytics/mastery`: Returns empty list (endpoint unavailable)
-- `/api/chase-race/*`: Graceful cache fallback (endpoint unconfirmed)
+- /api/analytics/mastery: Not called by runtime code; returns empty list fallback in client method
+- /api/chase/*: Not called by runtime code; feature reports unavailable/null
 
 ---
 

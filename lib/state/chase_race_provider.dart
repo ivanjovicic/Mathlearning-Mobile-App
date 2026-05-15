@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
 import '../models/chase_race.dart';
@@ -19,11 +17,11 @@ import '../services/chase_race_service.dart';
 ///   local [CosmeticTarget] data (merged via [_mergeCurrentUser]).
 ///
 /// Lifecycle: call [configureUser] when auth changes, [updateTarget] when the
-/// chase target changes (wire both via a [ChangeNotifierProxyProvider2] in
-/// main.dart).
+/// chase target changes, and [loadRaceForTarget] from an orchestrator/listener
+/// outside `ProxyProvider.update`.
 class ChaseRaceProvider extends ChangeNotifier {
   ChaseRaceProvider({ChaseRaceService? service})
-      : _service = service ?? ChaseRaceService.instance;
+    : _service = service ?? ChaseRaceService.instance;
 
   final ChaseRaceService _service;
 
@@ -50,8 +48,9 @@ class ChaseRaceProvider extends ChangeNotifier {
 
   /// Call when auth state changes. Resets race if the user switches.
   void configureUser(String? userId) {
-    final safeId =
-        userId == null || userId.trim().isEmpty ? 'local' : userId.trim();
+    final safeId = userId == null || userId.trim().isEmpty
+        ? 'local'
+        : userId.trim();
     if (_userId == safeId) return;
     _userId = safeId;
     _race = null;
@@ -60,10 +59,29 @@ class ChaseRaceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Called from the ProxyProvider update callback (sync). Triggers an async
-  /// race load when the target changes.
+  /// Called from wiring code to keep target snapshot in sync.
+  /// Does not trigger network work directly.
   void updateTarget(CosmeticTarget? target) {
-    unawaited(loadRaceForTarget(target));
+    final userId = _userId;
+    if (userId == null || target == null) {
+      if (_race != null || _isLoading || _loadedItemId != null) {
+        _race = null;
+        _isLoading = false;
+        _loadedItemId = null;
+        notifyListeners();
+      }
+      return;
+    }
+
+    if (target.targetCosmeticItemId == _loadedItemId && !_isLoading) {
+      _mergeLocalProgress(target, userId);
+      return;
+    }
+
+    if (_race?.itemId != target.targetCosmeticItemId) {
+      _race = null;
+      notifyListeners();
+    }
   }
 
   /// Loads (or refreshes) the race for [target].
@@ -144,8 +162,9 @@ class ChaseRaceProvider extends ChangeNotifier {
     // above someone who didn't gain anything today.
     if (me.todayGained > 0) {
       final passed = race.participants
-          .where((e) =>
-              e.userId != userId && e.rank > myRank && e.todayGained == 0)
+          .where(
+            (e) => e.userId != userId && e.rank > myRank && e.todayGained == 0,
+          )
           .firstOrNull;
       if (passed != null) {
         messages.add('You passed ${passed.displayName} today!');
@@ -154,8 +173,10 @@ class ChaseRaceProvider extends ChangeNotifier {
 
     // "X is 1 fragment away!" — truthful fact about a competitor.
     final almostDone = race.participants
-        .where((e) =>
-            e.userId != userId && !e.isComplete && e.remainingFragments == 1)
+        .where(
+          (e) =>
+              e.userId != userId && !e.isComplete && e.remainingFragments == 1,
+        )
         .firstOrNull;
     if (almostDone != null) {
       messages.add('${almostDone.displayName} is 1 fragment away!');
@@ -163,8 +184,9 @@ class ChaseRaceProvider extends ChangeNotifier {
 
     // "N more run(s) to pass X" — when the gap to the person ahead is small.
     if (myRank > 1 && !me.isComplete) {
-      final ahead =
-          race.participants.where((e) => e.rank == myRank - 1).firstOrNull;
+      final ahead = race.participants
+          .where((e) => e.rank == myRank - 1)
+          .firstOrNull;
       if (ahead != null && !ahead.isComplete) {
         final gap = ahead.fragmentsOwned - me.fragmentsOwned;
         if (gap > 0 && gap <= 3) {
@@ -179,8 +201,9 @@ class ChaseRaceProvider extends ChangeNotifier {
     // above us did gain today.
     if (messages.isEmpty && me.todayGained == 0 && myRank > 1) {
       final movedAhead = race.participants
-          .where((e) =>
-              e.userId != userId && e.rank < myRank && e.todayGained > 0)
+          .where(
+            (e) => e.userId != userId && e.rank < myRank && e.todayGained > 0,
+          )
           .firstOrNull;
       if (movedAhead != null) {
         messages.add('You fell behind ${movedAhead.displayName} today.');
@@ -199,8 +222,7 @@ class ChaseRaceProvider extends ChangeNotifier {
   }
 
   /// True if [userId] is the first to have completed the current chase.
-  bool isFirstFinisher(String userId) =>
-      _race?.firstFinisher?.userId == userId;
+  bool isFirstFinisher(String userId) => _race?.firstFinisher?.userId == userId;
 
   // ── Private helpers ──────────────────────────────────────────────────────────
 

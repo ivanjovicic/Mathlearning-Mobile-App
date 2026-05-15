@@ -28,7 +28,7 @@ class CosmeticTargetProvider extends ChangeNotifier {
   CosmeticTarget? get target => _target;
   CosmeticTargetProgressEvent? get lastProgressEvent => _lastProgressEvent;
 
-  void configureUser(String? userId) {
+  void configureUser(String? userId, {bool autoLoad = true}) {
     final safeUserId = userId == null || userId.trim().isEmpty
         ? 'local'
         : userId.trim();
@@ -38,7 +38,12 @@ class CosmeticTargetProvider extends ChangeNotifier {
     _lastProgressEvent = null;
     _isLoading = true;
     notifyListeners();
-    unawaited(_loadForUser(safeUserId));
+    if (autoLoad) {
+      unawaited(_loadForUser(safeUserId));
+    } else {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> load({String? userId}) async {
@@ -118,13 +123,13 @@ class CosmeticTargetProvider extends ChangeNotifier {
       final bonusEarned = newProgress >= CosmeticTarget.kBonusProgressMax;
       final storedProgress = bonusEarned
           ? (newProgress - CosmeticTarget.kBonusProgressMax)
-              .clamp(0, CosmeticTarget.kBonusProgressMax)
-              .toInt()
+                .clamp(0, CosmeticTarget.kBonusProgressMax)
+                .toInt()
           : newProgress.clamp(0, CosmeticTarget.kBonusProgressMax).toInt();
       final newFragments = bonusEarned
           ? (current.targetFragmentsOwned + 1)
-              .clamp(0, current.targetFragmentsRequired)
-              .toInt()
+                .clamp(0, current.targetFragmentsRequired)
+                .toInt()
           : current.targetFragmentsOwned;
 
       final updated = current.copyWith(

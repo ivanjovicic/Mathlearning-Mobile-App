@@ -91,17 +91,14 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (!mounted) return;
 
       final progress = Provider.of<ProgressProvider>(context, listen: false);
-      final auth = Provider.of<AuthProvider>(context, listen: false);
       final coinProvider = Provider.of<CoinProvider>(context, listen: false);
       final leaderboard = Provider.of<LeaderboardProvider>(
         context,
         listen: false,
       );
 
-      progress.token = auth.token;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        leaderboard.onTokenUpdated(auth.token);
         coinProvider.loadCoinsAndHints();
         leaderboard.loadGlobal();
       });
@@ -121,10 +118,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         );
       };
 
-      await progress.loadProgress();
-      await progress.rollDailyStreakIfNeeded();
-      if (!mounted) return;
-      await progress.loadTopics();
+      await progress.loadHomeData();
       setState(() => _error = null);
     } catch (e) {
       if (!mounted) return;

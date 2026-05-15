@@ -32,7 +32,6 @@ class AuthProvider extends ChangeNotifier {
         '[AUTH_PROVIDER] autoLogin result: success=$success demo=$isDemoMode user=$username',
       );
       if (success) {
-        await OfflineManager.instance.syncPendingData();
         notifyListeners();
         return true;
       }

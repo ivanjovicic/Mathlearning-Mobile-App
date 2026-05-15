@@ -34,14 +34,19 @@ class DailyReturnProvider extends ChangeNotifier {
   double get streakMultiplier => _state?.streakMultiplier ?? 1.0;
   bool get hasDoubleFragmentDay => _state?.hasDoubleFragmentDay ?? false;
 
-  void configureUser(String? userId) {
+  void configureUser(String? userId, {bool autoLoad = true}) {
     final safeUserId = _safeUserId(userId);
     if (_userId == safeUserId && _loaded) return;
     _userId = safeUserId;
     _loaded = false;
     _loading = true;
     notifyListeners();
-    unawaited(load(userId: safeUserId));
+    if (autoLoad) {
+      unawaited(load(userId: safeUserId));
+    } else {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> load({

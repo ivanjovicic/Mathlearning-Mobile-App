@@ -23,7 +23,7 @@ class WeeklyFeaturedProvider extends ChangeNotifier {
   WeeklyFeaturedCosmeticSet? get activeSet => _state?.activeSet;
   bool get completedActiveSet => _state?.isActiveSetCompleted ?? false;
 
-  void configureUser(String? userId) {
+  void configureUser(String? userId, {bool autoLoad = true}) {
     final safeUserId = userId == null || userId.trim().isEmpty
         ? 'local'
         : userId.trim();
@@ -31,7 +31,12 @@ class WeeklyFeaturedProvider extends ChangeNotifier {
     _userId = safeUserId;
     _isLoading = true;
     notifyListeners();
-    unawaited(load(userId: safeUserId));
+    if (autoLoad) {
+      unawaited(load(userId: safeUserId));
+    } else {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> load({String? userId, DateTime? now}) async {

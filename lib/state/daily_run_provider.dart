@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/user_scoped_storage.dart';
 
 enum DailyRunStage { warmUp, challenge, finalGate }
 
@@ -74,7 +75,7 @@ class DailyChestReward {
 }
 
 class DailyRunProvider extends ChangeNotifier {
-  static const _storagePrefix = 'daily_run.state.v1.';
+  static const _legacyStoragePrefix = 'daily_run.state.v1.';
   static const _requiredRewardSteps = <DailyChestRewardStep>{
     DailyChestRewardStep.xp,
     DailyChestRewardStep.coins,
@@ -139,10 +140,13 @@ class DailyRunProvider extends ChangeNotifier {
   }
 
   Future<void> load(String userId) async {
-    _userId = userId;
+    final scopedUserId = UserScopedStorage.normalizeUserId(userId);
+    _userId = scopedUserId;
     final now = DateTime.now();
     final storage = await SharedPreferences.getInstance();
-    final raw = storage.getString(_storageKey(userId, now));
+    final key = _storageKey(scopedUserId, now);
+    final legacyKey = _legacyStorageKey(scopedUserId, now);
+    final raw = storage.getString(key) ?? storage.getString(legacyKey);
     if (raw == null) {
       _resetForNewDay(notify: false);
       notifyListeners();
@@ -183,6 +187,13 @@ class DailyRunProvider extends ChangeNotifier {
       }
     } catch (_) {
       _resetForNewDay(notify: false);
+    }
+
+    // Migrate legacy key to the new user-scoped hierarchy.
+    if (storage.getString(key) == null &&
+        storage.getString(legacyKey) != null) {
+      await storage.setString(key, raw);
+      await storage.remove(legacyKey);
     }
 
     notifyListeners();
@@ -535,7 +546,15 @@ class DailyRunProvider extends ChangeNotifier {
     final day = _dateOnly(when);
     final month = day.month.toString().padLeft(2, '0');
     final date = day.day.toString().padLeft(2, '0');
-    return '$_storagePrefix$userId.${day.year}-$month-$date';
+    final dayKey = '${day.year}-$month-$date';
+    return UserScopedStorage.scopedKey(userId, 'daily_run', dayKey);
+  }
+
+  String _legacyStorageKey(String userId, DateTime when) {
+    final day = _dateOnly(when);
+    final month = day.month.toString().padLeft(2, '0');
+    final date = day.day.toString().padLeft(2, '0');
+    return '$_legacyStoragePrefix$userId.${day.year}-$month-$date';
   }
 
   DateTime _dateOnly(DateTime value) {

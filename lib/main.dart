@@ -29,6 +29,7 @@ import 'state/chase_race_provider.dart';
 import 'state/player_identity_provider.dart';
 import 'state/weekly_featured_provider.dart';
 import 'state/season_provider.dart';
+import 'state/session_coordinator.dart';
 import 'features/learning_map/providers/learning_map_provider.dart';
 import 'features/learning_map/services/learning_map_service.dart';
 
@@ -121,54 +122,9 @@ class MathLearningApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => HeatmapProvider()),
-        ChangeNotifierProxyProvider<AuthProvider, LeaderboardProvider>(
-          create: (_) => LeaderboardProvider(),
-          update: (context, auth, previous) {
-            final provider = previous ?? LeaderboardProvider();
-            provider.onTokenUpdated(auth.token);
-            return provider;
-          },
-        ),
-        ChangeNotifierProxyProvider<AuthProvider, UserProfileProvider>(
-          create: (_) => UserProfileProvider(),
-          update: (context, auth, previous) {
-            final provider = previous ?? UserProfileProvider();
-            final userId = auth.userId;
-            if (!auth.isAuthenticated || userId == null) {
-              provider.lastUserId = null;
-              provider.clear();
-              return provider;
-            }
-
-            if (provider.lastUserId != userId) {
-              provider.lastUserId = userId;
-              provider.clear();
-              provider.load(forceRefresh: true);
-              return provider;
-            }
-
-            if (provider.profile == null && !provider.isLoading) {
-              provider.load();
-            } else {
-              // no-op
-            }
-            return provider;
-          },
-        ),
-        ChangeNotifierProxyProvider<AuthProvider, SettingsProvider>(
-          create: (_) => SettingsProvider(),
-          update: (_, auth, previous) {
-            final provider = previous ?? SettingsProvider();
-            final uid = auth.isAuthenticated ? auth.userId : null;
-            if (uid != null && provider.currentUserId != uid) {
-              provider.setUserId(uid);
-              provider.syncFromBackend(uid);
-            } else if (!auth.isAuthenticated) {
-              provider.setUserId(null);
-            }
-            return provider;
-          },
-        ),
+        ChangeNotifierProvider(create: (_) => LeaderboardProvider()),
+        ChangeNotifierProvider(create: (_) => UserProfileProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => OnboardingProvider()),
         ChangeNotifierProvider(
           create: (_) => LearningMapProvider(
@@ -176,41 +132,18 @@ class MathLearningApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(create: (_) => DailyRunProvider()),
-        ChangeNotifierProxyProvider<AuthProvider, CosmeticTargetProvider>(
-          create: (_) => CosmeticTargetProvider()..configureUser(null),
-          update: (_, auth, previous) {
-            final provider = previous ?? CosmeticTargetProvider();
-            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
-            return provider;
-          },
-        ),
-        ChangeNotifierProxyProvider<AuthProvider, CosmeticPreviewProvider>(
-          create: (_) => CosmeticPreviewProvider()..configureUser(null),
-          update: (_, auth, previous) {
-            final provider = previous ?? CosmeticPreviewProvider();
-            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
-            return provider;
-          },
-        ),
-        ChangeNotifierProxyProvider<AuthProvider, WeeklyFeaturedProvider>(
-          create: (_) => WeeklyFeaturedProvider()..configureUser(null),
-          update: (_, auth, previous) {
-            final provider = previous ?? WeeklyFeaturedProvider();
-            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
-            return provider;
-          },
-        ),
-        ChangeNotifierProxyProvider4<
-          AuthProvider,
+        ChangeNotifierProvider(create: (_) => CosmeticTargetProvider()),
+        ChangeNotifierProvider(create: (_) => CosmeticPreviewProvider()),
+        ChangeNotifierProvider(create: (_) => WeeklyFeaturedProvider()),
+        ChangeNotifierProxyProvider3<
           ProgressProvider,
           StreakFreezeProvider,
           WeeklyFeaturedProvider,
           DailyReturnProvider
         >(
-          create: (_) => DailyReturnProvider()..configureUser(null),
-          update: (_, auth, progress, streakFreeze, weeklyFeatured, previous) {
+          create: (_) => DailyReturnProvider(),
+          update: (_, progress, streakFreeze, weeklyFeatured, previous) {
             final provider = previous ?? DailyReturnProvider();
-            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
             provider.rebuild(
               progress: progress,
               streakFreeze: streakFreeze,
@@ -230,20 +163,7 @@ class MathLearningApp extends StatelessWidget {
             return provider;
           },
         ),
-        ChangeNotifierProxyProvider<AuthProvider, AvatarProvider>(
-          create: (_) => AvatarProvider(),
-          update: (context, auth, previous) {
-            final provider = previous ?? AvatarProvider();
-            if (auth.isAuthenticated) {
-              if (provider.avatarConfig == null && !provider.isLoading) {
-                provider.load();
-              }
-            } else {
-              provider.clear();
-            }
-            return provider;
-          },
-        ),
+        ChangeNotifierProvider(create: (_) => AvatarProvider()),
         ChangeNotifierProxyProvider<ProgressProvider, LearningPathProvider>(
           create: (_) =>
               LearningPathProvider(service: _adaptiveLearningService),
@@ -255,38 +175,17 @@ class MathLearningApp extends StatelessWidget {
             return provider;
           },
         ),
-        ChangeNotifierProxyProvider<AuthProvider, SeasonProvider>(
-          create: (_) => SeasonProvider()..configureUser(null),
-          update: (_, auth, previous) {
-            final provider = previous ?? SeasonProvider();
-            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
-            return provider;
-          },
-        ),
-        ChangeNotifierProxyProvider2<
-          AuthProvider,
-          CosmeticTargetProvider,
-          ChaseRaceProvider
-        >(
-          create: (_) => ChaseRaceProvider(),
-          update: (_, auth, targetProvider, previous) {
-            final provider = previous ?? ChaseRaceProvider();
-            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
-            provider.updateTarget(targetProvider.target);
-            return provider;
-          },
-        ),
-        ChangeNotifierProxyProvider4<
-          AuthProvider,
+        ChangeNotifierProvider(create: (_) => SeasonProvider()),
+        ChangeNotifierProvider(create: (_) => ChaseRaceProvider()),
+        ChangeNotifierProxyProvider3<
           AvatarProvider,
           ProgressProvider,
           SeasonProvider,
           PlayerIdentityProvider
         >(
           create: (_) => PlayerIdentityProvider(),
-          update: (_, auth, avatar, progress, season, previous) {
+          update: (_, avatar, progress, season, previous) {
             final provider = previous ?? PlayerIdentityProvider();
-            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
             provider.refresh(
               inventory: avatar.inventory,
               catalog: avatar.catalog,
@@ -319,37 +218,115 @@ class _AppRoot extends StatefulWidget {
 class _AppRootState extends State<_AppRoot> {
   late final GoRouter _router;
   late final ProviderNavigationState _navigationState;
+  final SessionCoordinator _sessionCoordinator = SessionCoordinator();
   bool _routerInitialized = false;
+  bool _sessionWired = false;
+  AuthProvider? _authProvider;
+  CosmeticTargetProvider? _targetProvider;
+  String? _lastChaseTargetKey;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(AuthService.instance.initialize());
-      unawaited(OfflineManager.instance.initialize());
-      unawaited(context.read<AuthProvider>().autoLogin());
-      unawaited(BugReportService.instance.syncPendingReports());
-      unawaited(NotificationService.instance.initialize());
+      final authProvider = context.read<AuthProvider>();
+      unawaited(_bootstrapApp(authProvider));
     });
+  }
+
+  Future<void> _bootstrapApp(AuthProvider authProvider) async {
+    try {
+      await AuthService.instance.initialize();
+      await OfflineManager.instance.initialize();
+
+      final loggedIn = await authProvider.autoLogin();
+      if (loggedIn) {
+        await OfflineManager.instance.syncPendingData();
+        await BugReportService.instance.syncPendingReports();
+      }
+    } catch (error, stackTrace) {
+      debugPrint('[Bootstrap] startup auth/offline sync failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      await NotificationService.instance.initialize();
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_routerInitialized) return;
-    _navigationState = ProviderNavigationState(
-      authProvider: context.read<AuthProvider>(),
-      onboardingProvider: context.read<OnboardingProvider>(),
-    );
-    _router = AppRouter.createRouter(navigationState: _navigationState);
-    _routerInitialized = true;
+    if (!_routerInitialized) {
+      _navigationState = ProviderNavigationState(
+        authProvider: context.read<AuthProvider>(),
+        onboardingProvider: context.read<OnboardingProvider>(),
+      );
+      _router = AppRouter.createRouter(navigationState: _navigationState);
+      _routerInitialized = true;
+    }
+
+    if (_sessionWired) return;
+    _authProvider = context.read<AuthProvider>();
+    _targetProvider = context.read<CosmeticTargetProvider>();
+    _authProvider!.addListener(_onAuthChanged);
+    _targetProvider!.addListener(_onTargetChanged);
+    _sessionWired = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_syncSession());
+      _onTargetChanged();
+    });
   }
 
   @override
   void dispose() {
+    _authProvider?.removeListener(_onAuthChanged);
+    _targetProvider?.removeListener(_onTargetChanged);
     _router.dispose();
     _navigationState.dispose();
     super.dispose();
+  }
+
+  void _onAuthChanged() {
+    unawaited(_syncSession());
+  }
+
+  Future<void> _syncSession() async {
+    if (!mounted) return;
+    await _sessionCoordinator.synchronize(
+      auth: context.read<AuthProvider>(),
+      progress: context.read<ProgressProvider>(),
+      quiz: context.read<QuizProvider>(),
+      leaderboard: context.read<LeaderboardProvider>(),
+      userProfile: context.read<UserProfileProvider>(),
+      settings: context.read<SettingsProvider>(),
+      avatar: context.read<AvatarProvider>(),
+      cosmeticTarget: context.read<CosmeticTargetProvider>(),
+      cosmeticPreview: context.read<CosmeticPreviewProvider>(),
+      weeklyFeatured: context.read<WeeklyFeaturedProvider>(),
+      dailyReturn: context.read<DailyReturnProvider>(),
+      season: context.read<SeasonProvider>(),
+      chaseRace: context.read<ChaseRaceProvider>(),
+      playerIdentity: context.read<PlayerIdentityProvider>(),
+      streakFreeze: context.read<StreakFreezeProvider>(),
+      adaptive: context.read<AdaptiveProvider>(),
+    );
+    _onTargetChanged();
+  }
+
+  void _onTargetChanged() {
+    if (!mounted) return;
+    final target = context.read<CosmeticTargetProvider>().target;
+    final chase = context.read<ChaseRaceProvider>();
+    final targetKey = target == null
+        ? ''
+        : '${target.targetCosmeticItemId}|'
+              '${target.targetFragmentsOwned}|'
+              '${target.targetFragmentsRequired}|'
+              '${target.bonusProgress}';
+    if (_lastChaseTargetKey == targetKey) return;
+    _lastChaseTargetKey = targetKey;
+    chase.updateTarget(target);
+    unawaited(chase.loadRaceForTarget(target));
   }
 
   @override

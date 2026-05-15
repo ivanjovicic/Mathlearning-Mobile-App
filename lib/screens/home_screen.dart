@@ -80,10 +80,8 @@ class _HomeScreenState extends State<HomeScreen>
       if (!mounted) return;
 
       final progress = Provider.of<ProgressProvider>(context, listen: false);
-      final auth = Provider.of<AuthProvider>(context, listen: false);
       final coinProvider = Provider.of<CoinProvider>(context, listen: false);
 
-      progress.token = auth.token;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         coinProvider.loadCoinsAndHints();
@@ -102,10 +100,7 @@ class _HomeScreenState extends State<HomeScreen>
         );
       };
 
-      await progress.loadProgress();
-      await progress.rollDailyStreakIfNeeded();
-      if (!mounted) return;
-      await progress.loadTopics();
+      await progress.loadHomeData();
       setState(() {
         _error = null;
       });
@@ -286,343 +281,359 @@ class _HomeScreenState extends State<HomeScreen>
               child: Padding(
                 padding: EdgeInsets.all(AppSpacing.base),
                 child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Align(
-                  alignment: Alignment.topRight,
-                  child: OfflineStatusWidget(),
-                ),
-                SizedBox(height: AppSpacing.sm),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        t.hello(
-                          username?.isNotEmpty == true
-                              ? username!
-                              : t.fallbackStudent,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: colorScheme.onSurface,
-                          fontSize: AppScale.font(22, min: 20, max: 30),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    const Align(
+                      alignment: Alignment.topRight,
+                      child: OfflineStatusWidget(),
                     ),
+                    SizedBox(height: AppSpacing.sm),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton(
-                          onPressed: context.openBadges,
-                          icon: Icon(
-                            Icons.workspace_premium_outlined,
-                            size: AppScale.icon(24, min: 22, max: 30),
+                        Expanded(
+                          child: Text(
+                            t.hello(
+                              username?.isNotEmpty == true
+                                  ? username!
+                                  : t.fallbackStudent,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: colorScheme.onSurface,
+                              fontSize: AppScale.font(22, min: 20, max: 30),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          color: colorScheme.onSurface,
-                          tooltip: context.safeTooltip(t.badges),
                         ),
-                        IconButton(
-                          onPressed: context.goHeatmap,
-                          icon: Icon(
-                            Icons.calendar_month,
-                            size: AppScale.icon(24, min: 22, max: 30),
-                          ),
-                          color: colorScheme.onSurface,
-                          tooltip: context.safeTooltip(t.activity),
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: context.openBadges,
+                              icon: Icon(
+                                Icons.workspace_premium_outlined,
+                                size: AppScale.icon(24, min: 22, max: 30),
+                              ),
+                              color: colorScheme.onSurface,
+                              tooltip: context.safeTooltip(t.badges),
+                            ),
+                            IconButton(
+                              onPressed: context.goHeatmap,
+                              icon: Icon(
+                                Icons.calendar_month,
+                                size: AppScale.icon(24, min: 22, max: 30),
+                              ),
+                              color: colorScheme.onSurface,
+                              tooltip: context.safeTooltip(t.activity),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-                SizedBox(height: AppSpacing.md),
-                Wrap(
-                  spacing: AppSpacing.md,
-                  runSpacing: AppSpacing.md,
-                  children: [
-                    _buildStatChip(
-                      icon: Icons.local_fire_department,
-                      value: t.streakDays(progress.streak),
-                      backgroundColor: colorScheme.secondaryContainer
-                          .withValues(alpha: 0.5),
-                      foregroundColor: colorScheme.onSecondaryContainer,
-                    ),
-                    Consumer<CoinProvider>(
-                      builder: (context, coinProvider, child) {
-                        return _buildStatChip(
-                          icon: Icons.monetization_on,
-                          value: t.coins(coinProvider.coins),
-                          backgroundColor: colorScheme.tertiaryContainer
+                    SizedBox(height: AppSpacing.md),
+                    Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.md,
+                      children: [
+                        _buildStatChip(
+                          icon: Icons.local_fire_department,
+                          value: t.streakDays(progress.streak),
+                          backgroundColor: colorScheme.secondaryContainer
                               .withValues(alpha: 0.5),
-                          foregroundColor: colorScheme.onTertiaryContainer,
-                        );
-                      },
+                          foregroundColor: colorScheme.onSecondaryContainer,
+                        ),
+                        Consumer<CoinProvider>(
+                          builder: (context, coinProvider, child) {
+                            return _buildStatChip(
+                              icon: Icons.monetization_on,
+                              value: t.coins(coinProvider.coins),
+                              backgroundColor: colorScheme.tertiaryContainer
+                                  .withValues(alpha: 0.5),
+                              foregroundColor: colorScheme.onTertiaryContainer,
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                SizedBox(height: AppSpacing.sectionSpacing),
-                if (hasStreakFreezeProvider) const StreakBadgePresenter(),
-                SizedBox(height: AppSpacing.base),
-                Text(
-                  t.level(progress.level),
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: AppScale.font(26, min: 24, max: 34),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: AppSpacing.xs + AppSpacing.sm / 2),
-                Text(
-                  "${progress.xp} / ${progress.xpToNextLevel} XP",
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: AppScale.font(16, min: 14, max: 22),
-                  ),
-                ),
-                SizedBox(height: AppSpacing.md),
-                AnimatedXpBar(
-                  currentXp: progress.xp,
-                  maxXp: progress.xpToNextLevel,
-                ),
-                SizedBox(height: AppSpacing.sm),
-                AstraXPBar(
-                  progress: progress.xpToNextLevel == 0
-                      ? 0
-                      : progress.xp / progress.xpToNextLevel,
-                ),
-                SizedBox(height: AppSpacing.xs + AppSpacing.sm / 2),
-                Text(
-                  t.nextLevelHint,
-                  style: TextStyle(
-                    color: colorScheme.onSurface.withValues(alpha: 0.75),
-                    fontSize: AppScale.font(12, min: 11, max: 16),
-                  ),
-                ),
-                SizedBox(height: AppSpacing.base),
-                AppSection(
-                  title: recommendedTopic != null
-                      ? t.continueLearning
-                      : t.readyForNewRound,
-                  padding: EdgeInsets.only(bottom: AppSpacing.base),
-                  child: _buildContinueCard(
-                    title: recommendedTopic != null
-                        ? t.continueLearning
-                        : t.readyForNewRound,
-                    subtitle: recommendedTopic?.name ?? t.pickTopicAndStart,
-                    onTap: () {
-                      context.pushQuiz(topicId: _resolveQuizTopicId(progress));
-                    },
-                  ),
-                ),
-                _LearningPathBanner(),
-                SizedBox(height: AppSpacing.md),
-                AppSection(
-                  title: "Daily Review",
-                  padding: EdgeInsets.only(bottom: AppSpacing.md),
-                  child: FutureBuilder<int>(
-                    future: _dailyReviewCountFuture,
-                    builder: (context, snapshot) {
-                      final count = snapshot.data ?? 0;
-                      final isLoading =
-                          snapshot.connectionState == ConnectionState.waiting ||
-                          _isRefreshingDailyReview;
-                      final subtitle = isLoading
-                          ? "Ucitavam dnevni review..."
-                          : _formatDailyReviewSubtitle(count);
-                      final isEnabled = !isLoading && count > 0;
-
-                      final card = _buildDailyReviewCard(
-                        title: "Daily Review",
-                        subtitle: subtitle,
-                        enabled: isEnabled,
-                        onTap: isEnabled
-                            ? () async {
-                                _safeSelectionHaptic();
-                                await const DailyReviewRoute().push(context);
-                                if (!mounted) return;
-                                _refreshDailyReviewCount();
-                              }
-                            : null,
-                        onDisabledTap: !isEnabled
-                            ? () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Nema pitanja za danas."),
-                                  ),
-                                );
-                              }
-                            : null,
-                        onRefresh: _isRefreshingDailyReview
-                            ? null
-                            : _refreshDailyReviewCount,
-                        subtitleLoading: isLoading,
-                      );
-
-                      if (reduceMotion) {
-                        return card;
-                      }
-
-                      return card
-                          .animate()
-                          .fadeIn(duration: 250.ms)
-                          .scale(duration: 300.ms, curve: Curves.easeOutBack)
-                          .then()
-                          .shimmer(
-                            duration: 1200.ms,
-                            color: colorScheme.secondary.withValues(alpha: 0.6),
+                    SizedBox(height: AppSpacing.sectionSpacing),
+                    if (hasStreakFreezeProvider) const StreakBadgePresenter(),
+                    SizedBox(height: AppSpacing.base),
+                    Text(
+                      t.level(progress.level),
+                      style: TextStyle(
+                        color: colorScheme.onSurface,
+                        fontSize: AppScale.font(26, min: 24, max: 34),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: AppSpacing.xs + AppSpacing.sm / 2),
+                    Text(
+                      "${progress.xp} / ${progress.xpToNextLevel} XP",
+                      style: TextStyle(
+                        color: colorScheme.onSurface,
+                        fontSize: AppScale.font(16, min: 14, max: 22),
+                      ),
+                    ),
+                    SizedBox(height: AppSpacing.md),
+                    AnimatedXpBar(
+                      currentXp: progress.xp,
+                      maxXp: progress.xpToNextLevel,
+                    ),
+                    SizedBox(height: AppSpacing.sm),
+                    AstraXPBar(
+                      progress: progress.xpToNextLevel == 0
+                          ? 0
+                          : progress.xp / progress.xpToNextLevel,
+                    ),
+                    SizedBox(height: AppSpacing.xs + AppSpacing.sm / 2),
+                    Text(
+                      t.nextLevelHint,
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withValues(alpha: 0.75),
+                        fontSize: AppScale.font(12, min: 11, max: 16),
+                      ),
+                    ),
+                    SizedBox(height: AppSpacing.base),
+                    AppSection(
+                      title: recommendedTopic != null
+                          ? t.continueLearning
+                          : t.readyForNewRound,
+                      padding: EdgeInsets.only(bottom: AppSpacing.base),
+                      child: _buildContinueCard(
+                        title: recommendedTopic != null
+                            ? t.continueLearning
+                            : t.readyForNewRound,
+                        subtitle: recommendedTopic?.name ?? t.pickTopicAndStart,
+                        onTap: () {
+                          context.pushQuiz(
+                            topicId: _resolveQuizTopicId(progress),
                           );
-                    },
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: progress.topics.isEmpty
-                        ? null
-                        : () => _openTopicPicker(progress),
-                    icon: const Icon(Icons.auto_stories),
-                    label: Text(t.chooseTopic),
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.onSurface,
+                        },
+                      ),
                     ),
-                  ),
-                ),
-                Text(
-                  t.dailyGoal(_dailyGoalTarget),
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: AppScale.font(20, min: 18, max: 28),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: AppSpacing.md),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppScale.radius(12)),
-                  child: LinearProgressIndicator(
-                    value: dailyDone / _dailyGoalTarget,
-                    backgroundColor: colorScheme.onSurface.withValues(
-                      alpha: 0.12,
-                    ),
-                    valueColor: AlwaysStoppedAnimation(colorScheme.primary),
-                    minHeight: AppScale.s(12),
-                  ),
-                ),
-                SizedBox(height: AppSpacing.sm),
-                Text(
-                  t.todayProgress(dailyDone, _dailyGoalTarget),
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: AppScale.font(13, min: 12, max: 18),
-                  ),
-                ),
-                SizedBox(height: AppScale.s(14)),
-                ThemeAccessibilityMiniPreview(
-                  title: t.homeAccessibilityPreview,
-                  compact: true,
-                ),
-                SizedBox(height: AppSpacing.base),
-                AppSection(
-                  title: t.learningTopics,
-                  padding: EdgeInsets.zero,
-                  child: const SizedBox.shrink(),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: progress.topics.length,
-                    itemBuilder: (context, i) {
-                      final topic = progress.topics[i];
-                      final locked =
-                          !topic.unlocked ||
-                          progress.level < topic.requiredLevel;
+                    _LearningPathBanner(),
+                    SizedBox(height: AppSpacing.md),
+                    AppSection(
+                      title: "Daily Review",
+                      padding: EdgeInsets.only(bottom: AppSpacing.md),
+                      child: FutureBuilder<int>(
+                        future: _dailyReviewCountFuture,
+                        builder: (context, snapshot) {
+                          final count = snapshot.data ?? 0;
+                          final isLoading =
+                              snapshot.connectionState ==
+                                  ConnectionState.waiting ||
+                              _isRefreshingDailyReview;
+                          final subtitle = isLoading
+                              ? "Ucitavam dnevni review..."
+                              : _formatDailyReviewSubtitle(count);
+                          final isEnabled = !isLoading && count > 0;
 
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(
-                            AppScale.radius(16),
-                          ),
-                          onTap: locked
-                              ? null
-                              : () {
-                                  context.pushQuiz(topicId: topic.topicId);
-                                },
-                          child: Container(
-                            margin: EdgeInsets.only(bottom: AppScale.s(14)),
-                            padding: EdgeInsets.all(AppSpacing.base),
-                            decoration: BoxDecoration(
-                              color: locked
-                                  ? colorScheme.surface.withValues(alpha: 0.55)
-                                  : colorScheme.primaryContainer.withValues(
-                                      alpha: 0.35,
-                                    ),
+                          final card = _buildDailyReviewCard(
+                            title: "Daily Review",
+                            subtitle: subtitle,
+                            enabled: isEnabled,
+                            onTap: isEnabled
+                                ? () async {
+                                    _safeSelectionHaptic();
+                                    await const DailyReviewRoute().push(
+                                      context,
+                                    );
+                                    if (!mounted) return;
+                                    _refreshDailyReviewCount();
+                                  }
+                                : null,
+                            onDisabledTap: !isEnabled
+                                ? () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Nema pitanja za danas."),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            onRefresh: _isRefreshingDailyReview
+                                ? null
+                                : _refreshDailyReviewCount,
+                            subtitleLoading: isLoading,
+                          );
+
+                          if (reduceMotion) {
+                            return card;
+                          }
+
+                          return card
+                              .animate()
+                              .fadeIn(duration: 250.ms)
+                              .scale(
+                                duration: 300.ms,
+                                curve: Curves.easeOutBack,
+                              )
+                              .then()
+                              .shimmer(
+                                duration: 1200.ms,
+                                color: colorScheme.secondary.withValues(
+                                  alpha: 0.6,
+                                ),
+                              );
+                        },
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: progress.topics.isEmpty
+                            ? null
+                            : () => _openTopicPicker(progress),
+                        icon: const Icon(Icons.auto_stories),
+                        label: Text(t.chooseTopic),
+                        style: TextButton.styleFrom(
+                          foregroundColor: colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      t.dailyGoal(_dailyGoalTarget),
+                      style: TextStyle(
+                        color: colorScheme.onSurface,
+                        fontSize: AppScale.font(20, min: 18, max: 28),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: AppSpacing.md),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppScale.radius(12)),
+                      child: LinearProgressIndicator(
+                        value: dailyDone / _dailyGoalTarget,
+                        backgroundColor: colorScheme.onSurface.withValues(
+                          alpha: 0.12,
+                        ),
+                        valueColor: AlwaysStoppedAnimation(colorScheme.primary),
+                        minHeight: AppScale.s(12),
+                      ),
+                    ),
+                    SizedBox(height: AppSpacing.sm),
+                    Text(
+                      t.todayProgress(dailyDone, _dailyGoalTarget),
+                      style: TextStyle(
+                        color: colorScheme.onSurface,
+                        fontSize: AppScale.font(13, min: 12, max: 18),
+                      ),
+                    ),
+                    SizedBox(height: AppScale.s(14)),
+                    ThemeAccessibilityMiniPreview(
+                      title: t.homeAccessibilityPreview,
+                      compact: true,
+                    ),
+                    SizedBox(height: AppSpacing.base),
+                    AppSection(
+                      title: t.learningTopics,
+                      padding: EdgeInsets.zero,
+                      child: const SizedBox.shrink(),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: progress.topics.length,
+                        itemBuilder: (context, i) {
+                          final topic = progress.topics[i];
+                          final locked =
+                              !topic.unlocked ||
+                              progress.level < topic.requiredLevel;
+
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
                               borderRadius: BorderRadius.circular(
                                 AppScale.radius(16),
                               ),
-                              border: Border.all(
-                                color: locked
-                                    ? colorScheme.outline.withValues(alpha: 0.5)
-                                    : colorScheme.primary,
-                                width: AppScale.s(2),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  locked ? Icons.lock : Icons.play_circle_fill,
+                              onTap: locked
+                                  ? null
+                                  : () {
+                                      context.pushQuiz(topicId: topic.topicId);
+                                    },
+                              child: Container(
+                                margin: EdgeInsets.only(bottom: AppScale.s(14)),
+                                padding: EdgeInsets.all(AppSpacing.base),
+                                decoration: BoxDecoration(
                                   color: locked
-                                      ? colorScheme.onSurface
-                                      : colorScheme.primary,
-                                  size: AppScale.icon(34, min: 28, max: 44),
-                                ),
-                                SizedBox(width: AppScale.s(14)),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        topic.name,
-                                        style: TextStyle(
-                                          color: locked
-                                              ? colorScheme.onSurface
-                                              : colorScheme.onSurface,
-                                          fontSize: AppScale.font(
-                                            18,
-                                            min: 16,
-                                            max: 24,
-                                          ),
-                                          fontWeight: FontWeight.w600,
+                                      ? colorScheme.surface.withValues(
+                                          alpha: 0.55,
+                                        )
+                                      : colorScheme.primaryContainer.withValues(
+                                          alpha: 0.35,
                                         ),
-                                      ),
-                                      SizedBox(height: AppSpacing.xs),
-                                      Text(
-                                        locked
-                                            ? t.unlockAtLevel(
-                                                topic.requiredLevel,
-                                              )
-                                            : t.readyForQuiz,
-                                        style: TextStyle(
-                                          color: colorScheme.onSurface,
-                                          fontSize: AppScale.font(
-                                            14,
-                                            min: 13,
-                                            max: 20,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                  borderRadius: BorderRadius.circular(
+                                    AppScale.radius(16),
+                                  ),
+                                  border: Border.all(
+                                    color: locked
+                                        ? colorScheme.outline.withValues(
+                                            alpha: 0.5,
+                                          )
+                                        : colorScheme.primary,
+                                    width: AppScale.s(2),
                                   ),
                                 ),
-                              ],
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      locked
+                                          ? Icons.lock
+                                          : Icons.play_circle_fill,
+                                      color: locked
+                                          ? colorScheme.onSurface
+                                          : colorScheme.primary,
+                                      size: AppScale.icon(34, min: 28, max: 44),
+                                    ),
+                                    SizedBox(width: AppScale.s(14)),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            topic.name,
+                                            style: TextStyle(
+                                              color: locked
+                                                  ? colorScheme.onSurface
+                                                  : colorScheme.onSurface,
+                                              fontSize: AppScale.font(
+                                                18,
+                                                min: 16,
+                                                max: 24,
+                                              ),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          SizedBox(height: AppSpacing.xs),
+                                          Text(
+                                            locked
+                                                ? t.unlockAtLevel(
+                                                    topic.requiredLevel,
+                                                  )
+                                                : t.readyForQuiz,
+                                            style: TextStyle(
+                                              color: colorScheme.onSurface,
+                                              fontSize: AppScale.font(
+                                                14,
+                                                min: 13,
+                                                max: 20,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

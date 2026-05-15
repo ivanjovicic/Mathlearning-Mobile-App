@@ -15,7 +15,7 @@ import '../services/player_identity_service.dart';
 /// from a ProxyProvider update callback).
 class PlayerIdentityProvider extends ChangeNotifier {
   PlayerIdentityProvider({PlayerIdentityService? service})
-      : _service = service ?? PlayerIdentityService.instance;
+    : _service = service ?? PlayerIdentityService.instance;
 
   final PlayerIdentityService _service;
 
@@ -66,9 +66,10 @@ class PlayerIdentityProvider extends ChangeNotifier {
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
-  void configureUser(String? userId) {
-    final safeId =
-        userId == null || userId.trim().isEmpty ? 'local' : userId.trim();
+  void configureUser(String? userId, {bool autoLoad = true}) {
+    final safeId = userId == null || userId.trim().isEmpty
+        ? 'local'
+        : userId.trim();
     if (_userId == safeId) return;
     _userId = safeId;
     _earnedTitles = const [];
@@ -82,7 +83,12 @@ class PlayerIdentityProvider extends ChangeNotifier {
     _totalAttempts = 0;
     _isLoading = true;
     notifyListeners();
-    unawaited(_loadPreferences(safeId));
+    if (autoLoad) {
+      unawaited(_loadPreferences(safeId));
+    } else {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   /// Recomputes earned titles and trophies from real data.

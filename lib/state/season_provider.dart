@@ -119,7 +119,7 @@ class SeasonProvider extends ChangeNotifier {
 
   // ── Lifecycle ──────────────────────────────────────────────────
 
-  void configureUser(String? userId) {
+  void configureUser(String? userId, {bool autoLoad = true}) {
     final safeId = userId == null || userId.trim().isEmpty
         ? 'local'
         : userId.trim();
@@ -131,7 +131,12 @@ class SeasonProvider extends ChangeNotifier {
     _pendingMilestoneReached = null;
     _isLoading = true;
     notifyListeners();
-    unawaited(_load(safeId));
+    if (autoLoad) {
+      unawaited(_load(safeId));
+    } else {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   /// Variant of [configureUser] that awaits the initial load — for tests only.

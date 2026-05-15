@@ -25,12 +25,7 @@ class LearningMapService implements LearningMapDataSource {
   Future<ApiResult<AdaptiveLearningPath>> fetchPath(String userId) async {
     final result = await _api.getAdaptivePathForUserResult(userId);
     if (result.data == null || result.error != null) {
-      return ApiResult(
-        error: result.error,
-        statusCode: result.statusCode,
-        isRateLimited: result.isRateLimited,
-        retryAfter: result.retryAfter,
-      );
+      return _mapFailure(result);
     }
 
     try {
@@ -67,12 +62,7 @@ class LearningMapService implements LearningMapDataSource {
   ) async {
     final result = await _api.getPracticeRecommendationsForUserResult(userId);
     if (result.data == null || result.error != null) {
-      return ApiResult(
-        error: result.error,
-        statusCode: result.statusCode,
-        isRateLimited: result.isRateLimited,
-        retryAfter: result.retryAfter,
-      );
+      return _mapFailure(result);
     }
 
     try {
@@ -97,12 +87,7 @@ class LearningMapService implements LearningMapDataSource {
     ApiResult<List<Map<String, dynamic>>> result,
   ) {
     if (result.data == null || result.error != null) {
-      return ApiResult(
-        error: result.error,
-        statusCode: result.statusCode,
-        isRateLimited: result.isRateLimited,
-        retryAfter: result.retryAfter,
-      );
+      return _mapFailure(result);
     }
 
     try {
@@ -119,5 +104,17 @@ class LearningMapService implements LearningMapDataSource {
         ),
       );
     }
+  }
+
+  ApiResult<T> _mapFailure<T>(ApiResult<dynamic> result) {
+    return ApiResult<T>(
+      error: result.error,
+      statusCode: result.statusCode,
+      errorCode: result.errorCode,
+      isRateLimited: result.isRateLimited,
+      retryAfter: result.retryAfter,
+      isOffline: result.isOffline,
+      isAuthError: result.isAuthError,
+    );
   }
 }

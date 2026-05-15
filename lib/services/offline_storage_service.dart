@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'user_scoped_storage.dart';
 
 class OfflineStorageService {
   static Database? _database;
@@ -39,11 +40,7 @@ class OfflineStorageService {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _dbName);
 
-    return await openDatabase(
-      path,
-      version: _version,
-      onCreate: _createDB,
-    );
+    return await openDatabase(path, version: _version, onCreate: _createDB);
   }
 
   static Future _createDB(Database db, int version) async {
@@ -87,8 +84,11 @@ class OfflineStorageService {
   }
 
   // === QUESTIONS OFFLINE CACHE ===
-  
-  static Future<void> cacheQuestions(int subtopicId, List<Map<String, dynamic>> questions) async {
+
+  static Future<void> cacheQuestions(
+    int subtopicId,
+    List<Map<String, dynamic>> questions,
+  ) async {
     if (kIsWeb) {
       // Use SharedPreferences for web
       final prefs = await SharedPreferences.getInstance();
@@ -96,14 +96,18 @@ class OfflineStorageService {
       await prefs.setString(key, jsonEncode(questions));
       return;
     }
-    
+
     final db = await database;
     if (db == null) return;
-    
+
     await db.transaction((txn) async {
       // Delete old questions for this subtopic
-      await txn.delete(_questionsTable, where: 'subtopic_id = ?', whereArgs: [subtopicId]);
-      
+      await txn.delete(
+        _questionsTable,
+        where: 'subtopic_id = ?',
+        whereArgs: [subtopicId],
+      );
+
       // Insert new questions
       for (final question in questions) {
         await txn.insert(_questionsTable, {
@@ -118,22 +122,27 @@ class OfflineStorageService {
     });
   }
 
-  static Future<List<Map<String, dynamic>>?> getCachedQuestions(int subtopicId, int count) async {
+  static Future<List<Map<String, dynamic>>?> getCachedQuestions(
+    int subtopicId,
+    int count,
+  ) async {
     if (kIsWeb) {
       // Use SharedPreferences for web
       final prefs = await SharedPreferences.getInstance();
       final key = 'cached_questions_$subtopicId';
       final questionsJson = prefs.getString(key);
       if (questionsJson != null) {
-        final questions = List<Map<String, dynamic>>.from(jsonDecode(questionsJson));
+        final questions = List<Map<String, dynamic>>.from(
+          jsonDecode(questionsJson),
+        );
         return questions.take(count).toList();
       }
       return null;
     }
-    
+
     final db = await database;
     if (db == null) return null;
-    
+
     final List<Map<String, dynamic>> maps = await db.query(
       _questionsTable,
       where: 'subtopic_id = ?',
@@ -144,17 +153,21 @@ class OfflineStorageService {
 
     if (maps.isEmpty) return null;
 
-    return maps.map((map) => {
-      'id': map['id'],
-      'text': map['text'],
-      'correctAnswerId': map['correct_answer_id'],
-      'subtopicId': map['subtopic_id'],
-      'options': jsonDecode(map['options']),
-    }).toList();
+    return maps
+        .map(
+          (map) => {
+            'id': map['id'],
+            'text': map['text'],
+            'correctAnswerId': map['correct_answer_id'],
+            'subtopicId': map['subtopic_id'],
+            'options': jsonDecode(map['options']),
+          },
+        )
+        .toList();
   }
 
   // === PENDING ANSWERS (for batch submit) ===
-  
+
   static Future<void> savePendingAnswer({
     required String quizId,
     required int questionId,
@@ -177,10 +190,10 @@ class OfflineStorageService {
       await prefs.setString('pending_answers', jsonEncode(pendingAnswers));
       return;
     }
-    
+
     final db = await database;
     if (db == null) return;
-    
+
     await db.insert(_pendingAnswersTable, {
       'quiz_id': quizId,
       'question_id': questionId,
@@ -201,10 +214,10 @@ class OfflineStorageService {
       }
       return [];
     }
-    
+
     final db = await database;
     if (db == null) return [];
-    
+
     return await db.query(_pendingAnswersTable, orderBy: 'timestamp ASC');
   }
 
@@ -215,14 +228,14 @@ class OfflineStorageService {
       await prefs.remove('pending_answers');
       return;
     }
-    
+
     final db = await database;
     if (db == null) return;
     await db.delete(_pendingAnswersTable);
   }
 
   // === USER PROGRESS CACHE ===
-  
+
   static Future<void> cacheUserProgress({
     required int level,
     required int xp,
@@ -230,53 +243,83 @@ class OfflineStorageService {
     required int totalAttempts,
     required double accuracy,
   }) async {
-    if (kIsWeb) {
-      // Use SharedPreferences for web
-      final prefs = await SharedPreferences.getInstance();
-      final progressData = {
-        'level': level,
-        'xp': xp,
-        'streak': streak,
-        'total_attempts': totalAttempts,
-        'accuracy': accuracy,
-        'last_updated': DateTime.now().millisecondsSinceEpoch,
-      };
-      await prefs.setString('user_progress', jsonEncode(progressData));
-      return;
-    }
-    
-    final db = await database;
-    if (db == null) return;
-    
-    await db.insert(
-      _userProgressTable,
-      {
-        'id': 1, // Always use ID 1 for current user
-        'level': level,
-        'xp': xp,
-        'streak': streak,
-        'total_attempts': totalAttempts,
-        'accuracy': accuracy,
-        'last_updated': DateTime.now().millisecondsSinceEpoch,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
+    await cacheUserProgressForUser(
+      userId: 'local',
+      level: level,
+      xp: xp,
+      streak: streak,
+      totalAttempts: totalAttempts,
+      accuracy: accuracy,
     );
   }
 
+  static Future<void> cacheUserProgressForUser({
+    required String userId,
+    required int level,
+    required int xp,
+    required int streak,
+    required int totalAttempts,
+    required double accuracy,
+  }) async {
+    final progressData = {
+      'level': level,
+      'xp': xp,
+      'streak': streak,
+      'total_attempts': totalAttempts,
+      'accuracy': accuracy,
+      'last_updated': DateTime.now().millisecondsSinceEpoch,
+    };
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userProgressKey(userId), jsonEncode(progressData));
+
+    if (kIsWeb || UserScopedStorage.normalizeUserId(userId) != 'local') {
+      return;
+    }
+
+    final db = await database;
+    if (db == null) return;
+    await db.insert(_userProgressTable, {
+      'id': 1, // Always use ID 1 for current user
+      'level': level,
+      'xp': xp,
+      'streak': streak,
+      'total_attempts': totalAttempts,
+      'accuracy': accuracy,
+      'last_updated': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
   static Future<Map<String, dynamic>?> getCachedUserProgress() async {
-    if (kIsWeb) {
-      // Use SharedPreferences for web
-      final prefs = await SharedPreferences.getInstance();
-      final progressJson = prefs.getString('user_progress');
-      if (progressJson != null) {
-        return Map<String, dynamic>.from(jsonDecode(progressJson));
-      }
+    return getCachedUserProgressForUser(userId: 'local');
+  }
+
+  static Future<Map<String, dynamic>?> getCachedUserProgressForUser({
+    required String userId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final normalizedUserId = UserScopedStorage.normalizeUserId(userId);
+    final scopedProgressJson = prefs.getString(_userProgressKey(userId));
+    if (scopedProgressJson != null) {
+      return Map<String, dynamic>.from(jsonDecode(scopedProgressJson));
+    }
+
+    if (normalizedUserId != 'local') {
       return null;
     }
-    
+
+    final legacyProgressJson = prefs.getString('user_progress');
+    if (legacyProgressJson != null) {
+      return Map<String, dynamic>.from(jsonDecode(legacyProgressJson));
+    }
+
+    if (kIsWeb) {
+      return null;
+    }
+
     final db = await database;
     if (db == null) return null;
-    
+
     final List<Map<String, dynamic>> maps = await db.query(
       _userProgressTable,
       where: 'id = ?',
@@ -406,10 +449,12 @@ class OfflineStorageService {
   static const String _keyCachedQuestionsV1 = 'offline_cached_questions_v1';
   static const String _keyCachedSrsDailyV1 = 'offline_cached_srs_daily_v1';
   static const String _keyCachedProgressV1 = 'offline_cached_progress_v1';
+  static const String _keyPendingProgressEvents = 'pending_progress_events_v1';
 
   // ---------- V1 Pending Answers ----------
   static Future<void> savePendingAnswersV1(
-      List<Map<String, dynamic>> list) async {
+    List<Map<String, dynamic>> list,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyPendingAnswersV1, jsonEncode(list));
   }
@@ -427,8 +472,7 @@ class OfflineStorageService {
   }
 
   // ---------- V1 Pending SRS ----------
-  static Future<void> savePendingSrsV1(
-      List<Map<String, dynamic>> list) async {
+  static Future<void> savePendingSrsV1(List<Map<String, dynamic>> list) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyPendingSrsV1, jsonEncode(list));
   }
@@ -447,7 +491,8 @@ class OfflineStorageService {
 
   // ---------- V1 Cached Questions ----------
   static Future<void> cacheQuestionsV1(
-      List<Map<String, dynamic>> questions) async {
+    List<Map<String, dynamic>> questions,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCachedQuestionsV1, jsonEncode(questions));
   }
@@ -466,7 +511,8 @@ class OfflineStorageService {
 
   // ---------- V1 Cached SRS Daily ----------
   static Future<void> cacheSrsDailyV1(
-      List<Map<String, dynamic>> questions) async {
+    List<Map<String, dynamic>> questions,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCachedSrsDailyV1, jsonEncode(questions));
   }
@@ -484,15 +530,31 @@ class OfflineStorageService {
   }
 
   // ---------- V1 Cached Progress (XP/Streak) ----------
-  static Future<void> cacheProgressV1(
-      Map<String, dynamic> progress) async {
+  static Future<void> cacheProgressV1(Map<String, dynamic> progress) async {
+    await cacheProgressV1ForUser(userId: 'local', progress: progress);
+  }
+
+  static Future<void> cacheProgressV1ForUser({
+    required String userId,
+    required Map<String, dynamic> progress,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyCachedProgressV1, jsonEncode(progress));
+    await prefs.setString(_cachedProgressV1Key(userId), jsonEncode(progress));
   }
 
   static Future<Map<String, dynamic>?> loadCachedProgressV1() async {
+    return loadCachedProgressV1ForUser(userId: 'local');
+  }
+
+  static Future<Map<String, dynamic>?> loadCachedProgressV1ForUser({
+    required String userId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyCachedProgressV1);
+    final raw =
+        prefs.getString(_cachedProgressV1Key(userId)) ??
+        (UserScopedStorage.normalizeUserId(userId) == 'local'
+            ? prefs.getString(_keyCachedProgressV1)
+            : null);
     if (raw == null) return null;
     try {
       return jsonDecode(raw) as Map<String, dynamic>;
@@ -500,4 +562,71 @@ class OfflineStorageService {
       return null;
     }
   }
+
+  // ---------- Pending Progress Events (for offline optimistic updates) ----------
+  static Future<void> cachePendingProgressEvents(
+    List<Map<String, dynamic>> events,
+  ) async {
+    await cachePendingProgressEventsForUser(userId: 'local', events: events);
+  }
+
+  static Future<void> cachePendingProgressEventsForUser({
+    required String userId,
+    required List<Map<String, dynamic>> events,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _pendingProgressEventsKey(userId);
+    if (events.isEmpty) {
+      await prefs.remove(key);
+      return;
+    }
+    await prefs.setString(key, jsonEncode(events));
+  }
+
+  static Future<List<Map<String, dynamic>>> loadPendingProgressEvents() async {
+    return loadPendingProgressEventsForUser(userId: 'local');
+  }
+
+  static Future<List<Map<String, dynamic>>> loadPendingProgressEventsForUser({
+    required String userId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw =
+        prefs.getString(_pendingProgressEventsKey(userId)) ??
+        (UserScopedStorage.normalizeUserId(userId) == 'local'
+            ? prefs.getString(_keyPendingProgressEvents)
+            : null);
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.whereType<Map<String, dynamic>>().toList(
+          growable: false,
+        );
+      }
+    } catch (_) {
+      // corrupted
+    }
+    return [];
+  }
+
+  static Future<void> clearPendingProgressEvents() async {
+    await clearPendingProgressEventsForUser(userId: 'local');
+  }
+
+  static Future<void> clearPendingProgressEventsForUser({
+    required String userId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingProgressEventsKey(userId));
+  }
+
+  static String _userProgressKey(String userId) =>
+      UserScopedStorage.scopedKey(userId, 'progress', 'snapshot');
+
+  static String _cachedProgressV1Key(String userId) =>
+      UserScopedStorage.scopedKey(userId, 'progress', 'cached_v1');
+
+  static String _pendingProgressEventsKey(String userId) =>
+      UserScopedStorage.scopedKey(userId, 'progress', 'pending_events_v1');
 }

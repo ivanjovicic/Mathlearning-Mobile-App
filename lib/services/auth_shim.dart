@@ -8,7 +8,7 @@ import 'auth/auth_client.dart';
 import 'auth/auth_repository.dart';
 import 'auth/token_storage.dart';
 import 'network/dio_factory.dart';
-import '../services/api_service.dart';
+import '../services/user_api_service.dart';
 
 /// Backwards-compatible `AuthService` wrapper expected by legacy code.
 /// Legacy-style result object expected by older callers.
@@ -31,6 +31,7 @@ class AuthService {
   String? _accessToken;
   String? _userId;
   String? _username;
+  bool _isDemoMode = false;
 
   AuthService._() {
     _dio = DioFactory.create(withAuth: false);
@@ -83,7 +84,7 @@ class AuthService {
     required String displayName,
   }) async {
     try {
-      final res = await ApiService().registerMobileUser(
+      final res = await UserApiService().registerMobileUser(
         username: username,
         email: email,
         password: password,
@@ -111,13 +112,14 @@ class AuthService {
     _accessToken = null;
     _userId = null;
     _username = null;
+    _isDemoMode = false;
   }
 
   String? get userId => _userId;
   String? get username => _username;
   String? get accessToken => _accessToken;
   bool get isLoggedIn => controller.state == AuthState.authenticated;
-  bool get isDemoMode => false;
+  bool get isDemoMode => _isDemoMode;
 
   Future<void> _refreshIdentityCache() async {
     final token = await _tokenStorage.getAccessToken();
@@ -125,20 +127,30 @@ class AuthService {
     if (token == null || token.isEmpty) {
       _userId = null;
       _username = null;
+      _isDemoMode = false;
       return;
     }
 
-    _userId = _readClaim(token, const ['sub', 'nameid', 'userId', 'uid']);
-    _username = _readClaim(token, const [
+    final payload = _decodeJwtPayload(token);
+    _userId = _readClaimFromPayload(payload, const [
+      'sub',
+      'nameid',
+      'userId',
+      'uid',
+    ]);
+    _username = _readClaimFromPayload(payload, const [
       'unique_name',
       'preferred_username',
       'username',
       'name',
     ]);
+    _isDemoMode = _readDemoModeFromPayload(payload);
   }
 
-  String? _readClaim(String jwt, List<String> keys) {
-    final payload = _decodeJwtPayload(jwt);
+  String? _readClaimFromPayload(
+    Map<String, dynamic>? payload,
+    List<String> keys,
+  ) {
     if (payload == null) {
       return null;
     }
@@ -149,6 +161,41 @@ class AuthService {
       }
     }
     return null;
+  }
+
+  bool _readDemoModeFromPayload(Map<String, dynamic>? payload) {
+    if (payload == null) {
+      return false;
+    }
+
+    bool asBool(dynamic value) {
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      if (value is String) {
+        final normalized = value.trim().toLowerCase();
+        return normalized == 'true' ||
+            normalized == '1' ||
+            normalized == 'demo';
+      }
+      return false;
+    }
+
+    if (asBool(payload['is_demo']) || asBool(payload['isDemo'])) {
+      return true;
+    }
+
+    final accountType = (payload['account_type'] ?? payload['accountType'])
+        ?.toString();
+    if (accountType != null && accountType.toLowerCase() == 'demo') {
+      return true;
+    }
+
+    final mode = payload['mode']?.toString();
+    if (mode != null && mode.toLowerCase() == 'demo') {
+      return true;
+    }
+
+    return false;
   }
 
   Map<String, dynamic>? _decodeJwtPayload(String jwt) {
