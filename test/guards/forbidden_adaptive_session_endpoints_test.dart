@@ -19,9 +19,8 @@ void main() {
       }
     }
 
-    // Allow these strings only in the legacy ApiService implementation.
-    const allowedPath = 'lib/services/api_service.dart';
-    final violations = matches.keys.where((p) => p != allowedPath).toList(growable: false);
-    expect(violations, isEmpty, reason: 'Found forbidden endpoints in: $violations. Allowed only in $allowedPath');
+    // No runtime code should reference the legacy adaptive session endpoints.
+    final violations = matches.keys.toList(growable: false);
+    expect(violations, isEmpty, reason: 'Found forbidden endpoints in: $violations. These endpoints must not be used in lib/.');
   });
 }

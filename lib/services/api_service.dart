@@ -777,72 +777,9 @@ class ApiService {
     );
   }
 
-  @Deprecated('Use PracticeSessionApiService and /api/practice/session for practice flows. /api/adaptive/session/* is legacy and scheduled for consolidation.')
-  Future<Map<String, dynamic>?> startAdaptiveSession({
-    int? topicId,
-    String? topic,
-  }) async {
-    final result = await startAdaptiveSessionResult(
-      topicId: topicId,
-      topic: topic,
-    );
-    return result.data;
-  }
-
-  @Deprecated('Use PracticeSessionApiService and /api/practice/session for practice flows. /api/adaptive/session/* is legacy and scheduled for consolidation.')
-  Future<ApiResult<Map<String, dynamic>>> startAdaptiveSessionResult({
-    int? topicId,
-    String? topic,
-  }) {
-    // TODO: Backend does not currently accept topicId/topic in request body.
-    // Topic-targeted adaptive sessions not supported yet; always start generic session.
-    final payload = <String, dynamic>{};
-    return _requestResult<Map<String, dynamic>>(
-      () => _dio.post('/api/adaptive/session/start', data: payload),
-      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
-    );
-  }
-
-  @Deprecated('Use PracticeSessionApiService and /api/practice/session for practice flows. /api/adaptive/session/* is legacy and scheduled for consolidation.')
-  Future<Map<String, dynamic>?> submitAdaptiveSessionAnswer({
-    required String adaptiveSessionId,
-    required String adaptiveSessionItemId,
-    required int questionId,
-    required String answer,
-    int? responseTimeMs,
-  }) async {
-    final result = await submitAdaptiveSessionAnswerResult(
-      adaptiveSessionId: adaptiveSessionId,
-      adaptiveSessionItemId: adaptiveSessionItemId,
-      questionId: questionId,
-      answer: answer,
-      responseTimeMs: responseTimeMs,
-    );
-    return result.data;
-  }
-
-  @Deprecated('Use PracticeSessionApiService and /api/practice/session for practice flows. /api/adaptive/session/* is legacy and scheduled for consolidation.')
-  Future<ApiResult<Map<String, dynamic>>> submitAdaptiveSessionAnswerResult({
-    required String adaptiveSessionId,
-    required String adaptiveSessionItemId,
-    required int questionId,
-    required String answer,
-    int? responseTimeMs,
-  }) {
-    final payload = <String, dynamic>{
-      'adaptiveSessionId': adaptiveSessionId,
-      'adaptiveSessionItemId': adaptiveSessionItemId,
-      'questionId': questionId,
-      'answer': answer,
-    };
-    if (responseTimeMs != null) {
-      payload['responseTimeMs'] = responseTimeMs;
-    }
-    return _requestResult<Map<String, dynamic>>(
-      () => _dio.post('/api/adaptive/session/answer', data: payload),
-      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
-    );
-  }
+  // Legacy adaptive session endpoints have been removed from runtime use.
+  // Practice session flow under `/api/practice/session/*` is canonical; callers
+  // should use `PracticeSessionApiService` instead.
 
   Future<List<Map<String, dynamic>>?> getAdaptiveReview() async {
     final result = await getAdaptiveReviewResult();

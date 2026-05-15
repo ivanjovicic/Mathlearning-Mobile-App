@@ -136,36 +136,23 @@ This document lists all backend API endpoints currently used by the Flutter mobi
   `PracticeSessionApiService` in the Flutter codebase and are the canonical implementation for
   practice rounds (start, answer, complete).
 
-- **Legacy endpoints:** The `/api/adaptive/*` endpoints (for example `/api/adaptive/session/start`,
-  `/api/adaptive/session/answer`, `/api/adaptive/reviews/due`, `/api/adaptive/path`) are legacy
-  for practice flows. They remain accessible via `ApiService` for compatibility but are marked as
-  deprecated for practice UI and scheduled for consolidation. Prefer `/api/practice/session/*`.
+- **Legacy endpoints:** The `/api/adaptive/*` endpoints (for example `/api/adaptive/reviews/due`,
+  `/api/adaptive/path`) are still used for learning-path and review data. The adaptive session
+  endpoints (`/api/adaptive/session/start` and `/api/adaptive/session/answer`) were previously
+  used by the client but have been removed from the Flutter runtime in favor of the canonical
+  practice-session flow under `/api/practice/session/*`. Client runtime should not call
+  `/api/adaptive/session/*`; these endpoints are compatibility-only on the backend.
 
 
-### POST /api/adaptive/session/start
-- **Purpose:** Start an adaptive learning session
-- **Auth:** Required
-- **Body:** Empty object `{}`
-- **Notes:** `topicId` and `topic` parameters are accepted by client but NOT sent to backend (not yet supported)
-- **Response:** Session object with `sessionId`, `questions`, `topic`, `difficulty`
-- **Flutter Call:** `ApiService.startAdaptiveSessionResult()` in `api_service.dart`
-- **Status:** ⚠️ Partial - Topic targeting not yet supported by backend
-- **TODO:** Implement topic-targeted adaptive sessions when backend supports `topicId`/`topic` in request
+### POST /api/adaptive/session/start (compatibility only)
+- **Purpose:** Start an adaptive learning session (backend compatibility)
+- **Notes:** This endpoint is compatibility-only and is no longer used by the Flutter client runtime.
+- **Client guidance:** Use `/api/practice/session/start` via `PracticeSessionApiService` for practice flows.
 
-### POST /api/adaptive/session/answer
-- **Purpose:** Submit an answer in an adaptive session
-- **Auth:** Required
-- **Body:** 
-  - `adaptiveSessionId` (string) — session ID (uses `sessionId` as fallback if not provided)
-  - `adaptiveSessionItemId` (string, optional) — specific session item ID
-  - `questionId` (integer)
-  - `answer` (string)
-  - `responseTimeMs` (integer, optional)
-- **Response:** Answer evaluation and next question
-- **Flutter Call:** `ApiService.submitAdaptiveSessionAnswerResult()` in `api_service.dart`
-- **Status:** ⚠️ Partial - Updated to match backend requirements
-- **Notes:** Method signature updated; callers passing only `sessionId` will use it as `adaptiveSessionId` fallback
-- **TODO:** Provide `adaptiveSessionItemId` from adaptive session item when available
+### POST /api/adaptive/session/answer (compatibility only)
+- **Purpose:** Submit an answer in an adaptive session (backend compatibility)
+- **Notes:** This endpoint is compatibility-only and is no longer used by the Flutter client runtime.
+- **Client guidance:** Use `/api/practice/session/{sessionId}/answer` via `PracticeSessionApiService` for practice flows.
 
 ### GET /api/adaptive/path
 - **Purpose:** Get the full adaptive learning path for the user
