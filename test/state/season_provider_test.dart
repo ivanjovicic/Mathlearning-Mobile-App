@@ -34,8 +34,9 @@ class _StubSeasonService extends SeasonService {
       SeasonProgress.empty(seasonId: seasonId, userId: userId);
 
   @override
-  Future<void> saveProgress(SeasonProgress progress) async {
+  Future<bool> saveProgress(SeasonProgress progress) async {
     _savedProgress = progress;
+    return true;
   }
 
   @override

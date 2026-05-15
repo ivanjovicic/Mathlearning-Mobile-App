@@ -584,6 +584,10 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     final dailyRun = context.read<DailyRunProvider>();
     final progressProvider = context.read<ProgressProvider>();
     final streakFreezeProvider = context.read<StreakFreezeProvider>();
+    final avatarProvider = context.read<AvatarProvider>();
+    final coinProvider = context.read<CoinProvider>();
+    final targetProvider = _maybeRead<CosmeticTargetProvider>(context);
+    final rootScaffoldMessenger = ScaffoldMessenger.of(context);
     final weeklyFeatured = _maybeRead<WeeklyFeaturedProvider>(context);
     final dailyReturn = _maybeRead<DailyReturnProvider>(context);
     final seasonProvider = _maybeRead<SeasonProvider>(context);
@@ -650,9 +654,9 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                     DailyRunCosmeticGrantResult? latest;
                     var didUnlock = false;
                     for (var i = 0; i < copies; i++) {
-                      final next = await context
-                          .read<AvatarProvider>()
-                          .grantDailyRunFragment(fragmentName);
+                      final next = await avatarProvider.grantDailyRunFragment(
+                        fragmentName,
+                      );
                       first ??= next;
                       latest = next;
                       didUnlock = didUnlock || next.didUnlock;
@@ -686,9 +690,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                   expectedTransactionId: transactionId,
                   step: DailyChestRewardStep.targetChaseProgress,
                   action: () async {
-                    return _maybeRead<CosmeticTargetProvider>(
-                      context,
-                    )?.applyDailyRunGrant(result);
+                    return targetProvider?.applyDailyRunGrant(result);
                   },
                 );
           },
@@ -723,11 +725,11 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
             );
           },
           onEquipNow: (item) async {
-            await context.read<AvatarProvider>().equipItem(item);
+            await avatarProvider.equipItem(item);
             if (!mounted) return;
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('${item.name} equipped!')));
+            rootScaffoldMessenger.showSnackBar(
+              SnackBar(content: Text('${item.name} equipped!')),
+            );
           },
           onViewCollection: openCollectionFromSheet,
           onApplyXp: (amount) async {
@@ -735,9 +737,8 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
               expectedTransactionId: transactionId,
               step: DailyChestRewardStep.xp,
               action: () async {
-                final progress = context.read<ProgressProvider>();
-                progress.addXP(amount);
-                await progress.persistLocalProgress();
+                progressProvider.addXP(amount);
+                await progressProvider.persistLocalProgress();
               },
             );
           },
@@ -746,7 +747,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
               expectedTransactionId: transactionId,
               step: DailyChestRewardStep.coins,
               action: () async {
-                context.read<CoinProvider>().addCoins(amount);
+                coinProvider.addCoins(amount);
               },
             );
           },

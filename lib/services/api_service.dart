@@ -638,8 +638,6 @@ class ApiService {
     required int schoolId,
     required String period,
     int take = 30,
-    @Deprecated('Use take parameter instead') DateTime? from,
-    @Deprecated('Use take parameter instead') DateTime? to,
   }) async {
     try {
       final query = <String, dynamic>{'period': period, 'take': take};
@@ -695,8 +693,8 @@ class ApiService {
     int page = 1,
     int pageSize = 5,
   }) {
-    // TODO: Backend does not provide /api/analytics/mastery endpoint yet.
-    // Returning empty list to prevent errors. Consider using /api/adaptive/path for mastery-like data.
+    // TODO: Backend mastery endpoint is not implemented; using empty fallback
+    // until product contract is defined.
     return Future<ApiResult<List<Map<String, dynamic>>>>.value(
       ApiResult(data: const <Map<String, dynamic>>[], statusCode: 200),
     );

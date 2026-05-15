@@ -207,7 +207,12 @@ class SeasonProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-    await _service.saveProgress(updated);
+    final persisted = await _service.saveProgress(updated);
+    if (!persisted) {
+      debugPrint(
+        '[SeasonProvider] awardDailyRunXp: failed to persist progress',
+      );
+    }
   }
 
   // ── Milestone claiming ─────────────────────────────────────────
@@ -256,7 +261,10 @@ class SeasonProvider extends ChangeNotifier {
     );
     _progress = updated;
     notifyListeners();
-    await _service.saveProgress(updated);
+    final persisted = await _service.saveProgress(updated);
+    if (!persisted) {
+      debugPrint('[SeasonProvider] claimMilestone: failed to persist progress');
+    }
 
     return SeasonMilestoneClaimResult(milestone: milestone, success: true);
   }

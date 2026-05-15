@@ -10,6 +10,16 @@ Status: Updated for backend contract compatibility
 
 This document lists all backend API endpoints currently used by the Flutter mobile client. Each endpoint is grouped by feature and includes HTTP method, path, query/body parameters, and backend compatibility status.
 
+## Final Flutter Runtime Notes (May 15, 2026)
+
+- `GET /api/analytics/mastery` is unsupported and is not called by Flutter runtime code.
+- `/api/chase/*` is unsupported and is not called by Flutter runtime code.
+- School history requests use only `period` + `take`; Flutter does not rely on `from`/`to` date filtering.
+- Backend compatibility aliases exist, but Flutter should prefer canonical routes:
+  - `/api/user/profile/{userId}` over `/api/users/{userId}/profile`
+  - `/api/adaptive/reviews/due` over `/api/adaptive/review`
+- `/api/leaderboard/rivals` exists as a backend compatibility alias and returns the friends-style leaderboard shape.
+
 ---
 
 ## Auth
@@ -517,3 +527,4 @@ This document lists all backend API endpoints currently used by the Flutter mobi
 Backend API: MathLearning Backend Team  
 Flutter Client: Mobile Development Team  
 Last Updated: May 15, 2026
+

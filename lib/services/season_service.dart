@@ -88,15 +88,17 @@ class SeasonService {
     return SeasonProgress.empty(seasonId: seasonId, userId: userId);
   }
 
-  Future<void> saveProgress(SeasonProgress progress) async {
+  Future<bool> saveProgress(SeasonProgress progress) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
         _progressKey(progress.userId, progress.seasonId),
         jsonEncode(progress.toJson()),
       );
+      return true;
     } catch (e) {
       debugPrint('[SeasonService] saveProgress failed: $e');
+      return false;
     }
   }
 
