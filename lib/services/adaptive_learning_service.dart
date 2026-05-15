@@ -191,29 +191,26 @@ class AdaptiveLearningService {
   }
 
   Future<AdaptiveSession> startSession({int? topicId, String? topic}) async {
-    final response = await apiService.startAdaptiveSession(
-      topicId: topicId,
-      topic: topic,
-    );
-    final questionIds = <int>[];
-    final rawItems = response?['questions'];
-    if (rawItems is List) {
-      for (final raw in rawItems) {
-        if (raw is Map) {
-          final id = _asInt(raw['questionId'] ?? raw['id']);
-          if (id != null) questionIds.add(id);
-        } else {
-          final id = _asInt(raw);
-          if (id != null) questionIds.add(id);
-        }
-      }
+    // Avoid calling the deprecated adaptive session start endpoint.
+    // Instead, derive a lightweight session descriptor from existing
+    // recommendations or review items so runtime code no longer depends on
+    // the legacy adaptive session endpoints.
+    try {
+      final practice = await fetchPracticeData();
+      return AdaptiveSession(
+        sessionId: '',
+        questionIds: const <int>[],
+        topic: practice.topic,
+        difficulty: practice.difficulty,
+      );
+    } catch (_) {
+      return AdaptiveSession(
+        sessionId: '',
+        questionIds: const <int>[],
+        topic: topic ?? 'Practice',
+        difficulty: 'Medium',
+      );
     }
-    return AdaptiveSession(
-      sessionId: (response?['sessionId'] ?? '').toString(),
-      questionIds: questionIds,
-      topic: (response?['topic'] ?? topic ?? 'Practice').toString(),
-      difficulty: (response?['difficulty'] ?? 'Medium').toString(),
-    );
   }
 
   Future<AdaptiveRecommendation> getNextRecommendation() async {

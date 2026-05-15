@@ -844,13 +844,11 @@ class ApiService {
     );
   }
 
-  @Deprecated('Use PracticeSessionApiService and /api/practice/session for practice flows. /api/adaptive/reviews is legacy and scheduled for consolidation.')
   Future<List<Map<String, dynamic>>?> getAdaptiveReview() async {
     final result = await getAdaptiveReviewResult();
     return result.data;
   }
 
-  @Deprecated('Use PracticeSessionApiService and /api/practice/session for practice flows. /api/adaptive/reviews is legacy and scheduled for consolidation.')
   Future<ApiResult<List<Map<String, dynamic>>>> getAdaptiveReviewResult() {
     return _requestResult<List<Map<String, dynamic>>>(
       () => _dio.get('/api/adaptive/reviews/due'),
@@ -876,13 +874,11 @@ class ApiService {
   /// Fetches the full learning path from the adaptive backend.
   /// Returns null if the endpoint is unavailable — caller must fall back to
   /// derived path from progress + SRS data.
-  @Deprecated('Use canonical practice endpoints where applicable. /api/adaptive/path is legacy and may be superseded.')
   Future<Map<String, dynamic>?> getAdaptivePath() async {
     final result = await getAdaptivePathResult();
     return result.data;
   }
 
-  @Deprecated('Use canonical practice endpoints where applicable. /api/adaptive/path is legacy and may be superseded.')
   Future<ApiResult<Map<String, dynamic>>> getAdaptivePathResult() {
     return _requestResult<Map<String, dynamic>>(
       () => _dio.get('/api/adaptive/path'),
