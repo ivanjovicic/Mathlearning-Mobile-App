@@ -11,6 +11,8 @@ import 'package:mathlearning/features/learning_map/models/daily_reward.dart';
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/features/learning_map/models/practice_recommendation.dart';
 import 'package:mathlearning/features/learning_map/models/skill_node_state.dart';
+import 'package:mathlearning/models/cosmetic_fragment_progress.dart';
+import 'package:mathlearning/models/cosmetic_target.dart';
 import 'package:mathlearning/navigation/navigation_extensions.dart';
 import 'package:mathlearning/features/learning_map/providers/learning_map_provider.dart';
 import 'package:mathlearning/features/learning_map/widgets/daily_run_card.dart';
@@ -24,6 +26,7 @@ import 'package:mathlearning/features/learning_map/widgets/skill_graph_view.dart
 import 'package:mathlearning/features/learning_map/widgets/streak_card.dart';
 import 'package:mathlearning/features/learning_map/widgets/xp_level_chip.dart';
 import 'package:mathlearning/services/connectivity_service.dart';
+import 'package:mathlearning/services/cosmetics_service.dart';
 import 'package:mathlearning/state/auth_provider.dart';
 import 'package:mathlearning/state/avatar_provider.dart';
 import 'package:mathlearning/state/coin_provider.dart';
@@ -585,29 +588,27 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     final dailyReturn = _maybeRead<DailyReturnProvider>(context);
     final seasonProvider = _maybeRead<SeasonProvider>(context);
     final baseReward = await dailyRun.openChest();
+    final transactionId = dailyRun.activeRewardTransactionId;
     final featuredReward = baseReward == null
         ? null
         : weeklyFeatured?.applyFeaturedBoost(baseReward) ?? baseReward;
     final reward = featuredReward == null
         ? null
         : dailyReturn?.applyRewardModifiers(featuredReward) ?? featuredReward;
-    if (reward == null || !mounted) {
+    if (reward == null || transactionId == null || !mounted) {
       return;
     }
-    await dailyReturn?.markChestOpened(
-      wasComebackChest: reward.isComebackChest,
-      progress: progressProvider,
-      streakFreeze: streakFreezeProvider,
-      weeklyFeatured: weeklyFeatured,
+    // Persist the final reward payload onto the transaction before presenting
+    // the sheet so crash/restart resumes with the exact same values.
+    await dailyRun.setTransactionReward(
+      reward: reward,
+      expectedTransactionId: transactionId,
     );
 
-    // Award season XP for completing a daily run.
     final multiplier = dailyRun.displayedXpMultiplier;
-    if (seasonProvider != null) {
-      await seasonProvider.awardDailyRunXp(multiplier);
-    }
-    final seasonXpGained = seasonProvider?.takePendingXpGain();
-    final milestoneReached = seasonProvider?.takePendingMilestoneReached();
+    final seasonPreview = seasonProvider?.previewDailyRunXp(multiplier);
+    final seasonXpGained = seasonPreview?.xpGained;
+    final milestoneReached = seasonPreview?.milestoneReached;
 
     if (!mounted) {
       return;
@@ -634,15 +635,92 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
           targetCardKey: _targetChaseCardKey,
           seasonXpGained: seasonXpGained,
           milestoneReached: milestoneReached,
-          onGrantCosmeticFragment: (fragmentName) {
-            return context.read<AvatarProvider>().grantDailyRunFragment(
-              fragmentName,
+          onMarkRewardTransactionStarted: () {
+            return dailyRun.markRewardTransactionStarted(
+              expectedTransactionId: transactionId,
+            );
+          },
+          onGrantCosmeticFragments: (fragmentName, copies) async {
+            final result = await dailyRun
+                .applyRewardStepWithResult<DailyRunCosmeticGrantResult>(
+                  expectedTransactionId: transactionId,
+                  step: DailyChestRewardStep.cosmeticFragments,
+                  action: () async {
+                    DailyRunCosmeticGrantResult? first;
+                    DailyRunCosmeticGrantResult? latest;
+                    var didUnlock = false;
+                    for (var i = 0; i < copies; i++) {
+                      final next = await context
+                          .read<AvatarProvider>()
+                          .grantDailyRunFragment(fragmentName);
+                      first ??= next;
+                      latest = next;
+                      didUnlock = didUnlock || next.didUnlock;
+                    }
+                    final resolved = latest!;
+                    return DailyRunCosmeticGrantResult(
+                      item: resolved.item,
+                      progress: resolved.progress,
+                      previousFragments:
+                          first?.previousFragments ??
+                          resolved.previousFragments,
+                      didUnlock: didUnlock,
+                      unlockedCosmetic:
+                          first?.unlockedCosmetic ?? resolved.unlockedCosmetic,
+                    );
+                  },
+                );
+            if (result != null) {
+              return result;
+            }
+            // Step was already applied earlier in this transaction (resume path).
+            // Fetch current progress without mutating counts.
+            return CosmeticsService.instance.grantDailyRunFragment(
+              fragmentName: fragmentName,
+              fragmentAmount: 0,
             );
           },
           onApplyTargetProgress: (result) {
-            return _maybeRead<CosmeticTargetProvider>(
-              context,
-            )?.applyDailyRunGrant(result);
+            return dailyRun
+                .applyRewardStepWithResult<CosmeticTargetProgressEvent?>(
+                  expectedTransactionId: transactionId,
+                  step: DailyChestRewardStep.targetChaseProgress,
+                  action: () async {
+                    return _maybeRead<CosmeticTargetProvider>(
+                      context,
+                    )?.applyDailyRunGrant(result);
+                  },
+                );
+          },
+          onApplyPostChestRewards: () async {
+            // Post-chest effects are part of the same transaction and must
+            // complete before permanent-open is allowed.
+            await dailyRun.applyRewardStep(
+              expectedTransactionId: transactionId,
+              step: DailyChestRewardStep.seasonRewards,
+              action: () async {
+                if (seasonProvider != null) {
+                  await seasonProvider.awardDailyRunXp(multiplier);
+                }
+              },
+            );
+            await dailyRun.applyRewardStep(
+              expectedTransactionId: transactionId,
+              step: DailyChestRewardStep.dailyReturnRewards,
+              action: () async {
+                await dailyReturn?.markChestOpened(
+                  wasComebackChest: reward.isComebackChest,
+                  progress: progressProvider,
+                  streakFreeze: streakFreezeProvider,
+                  weeklyFeatured: weeklyFeatured,
+                );
+              },
+            );
+          },
+          onMarkChestPermanentlyOpened: () {
+            return dailyRun.markChestPermanentlyOpened(
+              expectedTransactionId: transactionId,
+            );
           },
           onEquipNow: (item) async {
             await context.read<AvatarProvider>().equipItem(item);
@@ -653,12 +731,24 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
           },
           onViewCollection: openCollectionFromSheet,
           onApplyXp: (amount) async {
-            final progress = context.read<ProgressProvider>();
-            progress.addXP(amount);
-            unawaited(progress.persistLocalProgress());
+            await dailyRun.applyRewardStep(
+              expectedTransactionId: transactionId,
+              step: DailyChestRewardStep.xp,
+              action: () async {
+                final progress = context.read<ProgressProvider>();
+                progress.addXP(amount);
+                await progress.persistLocalProgress();
+              },
+            );
           },
-          onApplyCoins: (amount) {
-            context.read<CoinProvider>().addCoins(amount);
+          onApplyCoins: (amount) async {
+            await dailyRun.applyRewardStep(
+              expectedTransactionId: transactionId,
+              step: DailyChestRewardStep.coins,
+              action: () async {
+                context.read<CoinProvider>().addCoins(amount);
+              },
+            );
           },
           onContinue: () => Navigator.of(sheetContext).pop(),
         );

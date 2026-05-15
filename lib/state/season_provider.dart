@@ -7,6 +7,13 @@ import '../models/season.dart';
 import '../services/cosmetics_service.dart';
 import '../services/season_service.dart';
 
+class SeasonDailyRunPreview {
+  const SeasonDailyRunPreview({required this.xpGained, this.milestoneReached});
+
+  final int xpGained;
+  final SeasonMilestone? milestoneReached;
+}
+
 /// Drives the Mini Seasons feature: loads the active season, tracks per-user
 /// season XP, handles milestone claiming, and supports season reset.
 ///
@@ -83,6 +90,33 @@ class SeasonProvider extends ChangeNotifier {
     return v;
   }
 
+  /// Predicts season rewards for a Daily Run without mutating persisted state.
+  SeasonDailyRunPreview? previewDailyRunXp(double streakMultiplier) {
+    final season = _season;
+    final userId = _userId;
+    if (season == null || userId == null) return null;
+    if (season.status(DateTime.now()) == SeasonStatus.ended) return null;
+
+    final xpGain = _service.dailyRunSeasonXp(streakMultiplier);
+    final current =
+        _progress ??
+        SeasonProgress.empty(seasonId: season.seasonId, userId: userId);
+    final prevXp = current.earnedXp;
+    final newXp = (prevXp + xpGain).clamp(0, season.totalXpGoal * 2);
+
+    SeasonMilestone? reached;
+    for (final milestone in season.milestones) {
+      if (prevXp < milestone.xpRequired &&
+          newXp >= milestone.xpRequired &&
+          !current.claimedMilestoneIds.contains(milestone.id)) {
+        reached = milestone;
+        break;
+      }
+    }
+
+    return SeasonDailyRunPreview(xpGained: xpGain, milestoneReached: reached);
+  }
+
   // ── Lifecycle ──────────────────────────────────────────────────
 
   void configureUser(String? userId) {
@@ -151,10 +185,9 @@ class SeasonProvider extends ChangeNotifier {
     if (season.status(DateTime.now()) == SeasonStatus.ended) return;
 
     final xpGain = _service.dailyRunSeasonXp(streakMultiplier);
-    final current = _progress ?? SeasonProgress.empty(
-      seasonId: season.seasonId,
-      userId: userId,
-    );
+    final current =
+        _progress ??
+        SeasonProgress.empty(seasonId: season.seasonId, userId: userId);
 
     final prevXp = current.earnedXp;
     final newXp = (prevXp + xpGain).clamp(0, season.totalXpGoal * 2);

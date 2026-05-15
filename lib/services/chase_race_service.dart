@@ -29,6 +29,8 @@ class ChaseRaceService {
   /// Loads the race for [itemId].
   ///
   /// 1. Tries `GET /api/chase-race/{itemId}` (6 s timeout).
+  ///    TODO: Backend endpoint `/api/chase-race/*` is not yet confirmed to be available.
+  ///    If unavailable, this will fall back to cache and return null if no cache exists.
   /// 2. On success, caches the raw JSON locally.
   /// 3. On failure, falls back to the last cached response.
   /// 4. If neither succeeds, returns `null`.

@@ -40,7 +40,11 @@ class DailyChestRewardSheet extends StatefulWidget {
     this.onApplyXp,
     this.onApplyCoins,
     this.onGrantCosmeticFragment,
+    this.onGrantCosmeticFragments,
     this.onApplyTargetProgress,
+    this.onMarkRewardTransactionStarted,
+    this.onApplyPostChestRewards,
+    this.onMarkChestPermanentlyOpened,
     this.onEquipNow,
     this.onViewCollection,
     this.fragmentCountForTesting,
@@ -67,10 +71,18 @@ class DailyChestRewardSheet extends StatefulWidget {
   final FutureOr<void> Function(int amount)? onApplyCoins;
   final Future<DailyRunCosmeticGrantResult> Function(String fragmentName)?
   onGrantCosmeticFragment;
+  final Future<DailyRunCosmeticGrantResult> Function(
+    String fragmentName,
+    int copies,
+  )?
+  onGrantCosmeticFragments;
   final FutureOr<CosmeticTargetProgressEvent?> Function(
     DailyRunCosmeticGrantResult result,
   )?
   onApplyTargetProgress;
+  final FutureOr<void> Function()? onMarkRewardTransactionStarted;
+  final FutureOr<void> Function()? onApplyPostChestRewards;
+  final FutureOr<void> Function()? onMarkChestPermanentlyOpened;
   final FutureOr<void> Function(CosmeticItem item)? onEquipNow;
 
   /// Called when the user taps "View collection" after unlocking an item.
@@ -103,7 +115,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
 
   late final CosmeticItem _cosmeticItem;
   late final FragmentRarity _rarity;
-  late final Future<DailyRunCosmeticGrantResult> _fragmentGrantFuture;
+  Future<DailyRunCosmeticGrantResult>? _fragmentGrantFuture;
   DailyRunCosmeticGrantResult? _fragmentGrantResult;
   CosmeticTargetProgressEvent? _targetProgressEvent;
 
@@ -115,6 +127,8 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   Color? _impactColor;
   // Guard against double-fire (startOpen AND ChestOpenAnimation both calling onOpened).
   bool _rewardSequenceStarted = false;
+  bool _isApplyingRewards = false;
+  String? _claimErrorMessage;
 
   @override
   void initState() {
@@ -123,7 +137,6 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
       widget.reward.cosmeticFragment,
     );
     _rarity = _rarityFromItem(_cosmeticItem.rarity);
-    _fragmentGrantFuture = _recordFragmentProgress();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (widget.startOpen) {
@@ -146,9 +159,30 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
   void _onChestOpened() {
     if (!mounted || _rewardSequenceStarted) return;
     _rewardSequenceStarted = true;
+    _claimErrorMessage = null;
     unawaited(SoundService.instance.playChestOpenBig());
     setState(() => _phase = _Phase.xpReveal);
-    unawaited(_runRewardSequence());
+    unawaited(_startTransactionalRewardSequence());
+  }
+
+  Future<void> _startTransactionalRewardSequence() async {
+    if (_isApplyingRewards) return;
+    _isApplyingRewards = true;
+    try {
+      await Future.sync(() => widget.onMarkRewardTransactionStarted?.call());
+      await _runRewardSequence();
+    } catch (error, stackTrace) {
+      debugPrint('Daily chest transaction failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+      setState(() {
+        _phase = _Phase.done;
+        _claimErrorMessage =
+            'Reward claim was interrupted. Retry to safely finish.';
+      });
+    } finally {
+      _isApplyingRewards = false;
+    }
   }
 
   Future<void> _runRewardSequence() async {
@@ -189,7 +223,8 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
 
     await Future<void>.delayed(const Duration(milliseconds: 280));
     if (!mounted) return;
-    final grantResult = await _fragmentGrantFuture;
+    final grantFuture = _fragmentGrantFuture ??= _recordFragmentProgress();
+    final grantResult = await grantFuture;
     if (!mounted) return;
     final applyTargetProgress = widget.onApplyTargetProgress;
     final CosmeticTargetProgressEvent? targetEvent = applyTargetProgress == null
@@ -249,6 +284,11 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
       await Future<void>.delayed(_reduceMotion ? Duration.zero : hold);
       if (!mounted) return;
     }
+
+    // Transaction closeout: all reward callbacks succeeded.
+    await Future.sync(() => widget.onApplyPostChestRewards?.call());
+    await Future.sync(() => widget.onMarkChestPermanentlyOpened?.call());
+
     setState(() => _phase = _Phase.done);
   }
 
@@ -304,8 +344,13 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
       );
     }
 
-    final grant = widget.onGrantCosmeticFragment;
     final copies = widget.reward.fragmentCopies.clamp(1, 3).toInt();
+    final grantMany = widget.onGrantCosmeticFragments;
+    if (grantMany != null) {
+      return grantMany(widget.reward.cosmeticFragment, copies);
+    }
+
+    final grant = widget.onGrantCosmeticFragment;
     DailyRunCosmeticGrantResult? first;
     DailyRunCosmeticGrantResult? latest;
     var didUnlock = false;
@@ -403,6 +448,17 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
     });
   }
 
+  void _retryClaim() {
+    if (_isApplyingRewards) return;
+    setState(() {
+      _claimErrorMessage = null;
+      if (_phase.index < _Phase.xpReveal.index) {
+        _phase = _Phase.xpReveal;
+      }
+    });
+    unawaited(_startTransactionalRewardSequence());
+  }
+
   Future<void> _showUnlockCelebration() {
     final itemName = _cosmeticItem.name;
     return showDialog<void>(
@@ -443,6 +499,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
     final coinsVisible = phase.index >= _Phase.coinsReveal.index;
     final cosmeticVisible = phase.index >= _Phase.cosmeticReveal.index;
     final sequenceDone = phase == _Phase.done;
+    final hasClaimError = _claimErrorMessage != null;
     final fragmentProgress = _fragmentGrantResult?.progress;
     final targetEvent = _targetProgressEvent;
     final targetFragmentFound = targetEvent?.targetFragmentFound == true;
@@ -634,15 +691,28 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
                   const SizedBox(height: 14),
                   if (sequenceDone && (targetEvent?.didComplete ?? false))
                     _NextChaseCta(onContinue: widget.onContinue),
+                  if (hasClaimError) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _claimErrorMessage!,
+                      key: const Key('daily_chest_claim_error'),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   _ClaimButton(
-                    enabled: sequenceDone,
-                    label: (targetEvent?.didComplete ?? false)
+                    enabled: sequenceDone || hasClaimError,
+                    label: hasClaimError
+                        ? 'Retry claim'
+                        : (targetEvent?.didComplete ?? false)
                         ? 'Continue'
                         : _isFragmentComplete
                         ? 'Done!'
                         : 'Grab it!',
-                    onPressed: _handleClaim,
+                    onPressed: hasClaimError ? _retryClaim : _handleClaim,
                   ),
                 ],
               ),

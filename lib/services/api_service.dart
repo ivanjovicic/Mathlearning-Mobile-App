@@ -172,7 +172,7 @@ class UserApi {
     String userId,
   ) async {
     try {
-      final response = await _dio.get('/api/users/$userId/profile');
+      final response = await _dio.get('/api/user/profile/$userId');
       return ApiResult(data: response.data);
     } on DioException catch (e) {
       return ApiResult(error: parseError(e));
@@ -498,7 +498,7 @@ class ApiService {
   }) async {
     try {
       final resp = await _dio.get(
-        '/api/leaderboard/rivals',
+        '/api/leaderboard/friends',
         queryParameters: <String, dynamic>{'period': period},
       );
       if (resp.data is List) {
@@ -637,17 +637,12 @@ class ApiService {
   Future<List<SchoolLeaderboardHistoryPoint>?> fetchSchoolLeaderboardHistory({
     required int schoolId,
     required String period,
-    DateTime? from,
-    DateTime? to,
+    int take = 30,
+    @Deprecated('Use take parameter instead') DateTime? from,
+    @Deprecated('Use take parameter instead') DateTime? to,
   }) async {
     try {
-      final query = <String, dynamic>{'period': period};
-      if (from != null) {
-        query['from'] = from.toUtc().toIso8601String();
-      }
-      if (to != null) {
-        query['to'] = to.toUtc().toIso8601String();
-      }
+      final query = <String, dynamic>{'period': period, 'take': take};
 
       final resp = await _dio.get(
         '/api/leaderboard/schools/history/$schoolId',
@@ -700,12 +695,10 @@ class ApiService {
     int page = 1,
     int pageSize = 5,
   }) {
-    return _requestResult<List<Map<String, dynamic>>>(
-      () => _dio.get(
-        '/api/analytics/mastery',
-        queryParameters: {'page': page, 'pageSize': pageSize},
-      ),
-      _normalizeListPayload,
+    // TODO: Backend does not provide /api/analytics/mastery endpoint yet.
+    // Returning empty list to prevent errors. Consider using /api/adaptive/path for mastery-like data.
+    return Future<ApiResult<List<Map<String, dynamic>>>>.value(
+      ApiResult(data: const <Map<String, dynamic>>[], statusCode: 200),
     );
   }
 
@@ -801,13 +794,9 @@ class ApiService {
     int? topicId,
     String? topic,
   }) {
+    // TODO: Backend does not currently accept topicId/topic in request body.
+    // Topic-targeted adaptive sessions not supported yet; always start generic session.
     final payload = <String, dynamic>{};
-    if (topicId != null) {
-      payload['topicId'] = topicId;
-    }
-    if (topic != null && topic.isNotEmpty) {
-      payload['topic'] = topic;
-    }
     return _requestResult<Map<String, dynamic>>(
       () => _dio.post('/api/adaptive/session/start', data: payload),
       (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
@@ -834,12 +823,20 @@ class ApiService {
     required int questionId,
     required String answer,
     int? responseTimeMs,
+    String? adaptiveSessionId,
+    String? adaptiveSessionItemId,
   }) {
+    // TODO: Backend requires adaptiveSessionId and adaptiveSessionItemId.
+    // If not provided, use sessionId as fallback for backward compatibility.
+    final actualSessionId = adaptiveSessionId ?? sessionId;
     final payload = <String, dynamic>{
-      'sessionId': sessionId,
+      'adaptiveSessionId': actualSessionId,
       'questionId': questionId,
       'answer': answer,
     };
+    if (adaptiveSessionItemId != null) {
+      payload['adaptiveSessionItemId'] = adaptiveSessionItemId;
+    }
     if (responseTimeMs != null) {
       payload['responseTimeMs'] = responseTimeMs;
     }
@@ -856,13 +853,18 @@ class ApiService {
 
   Future<ApiResult<List<Map<String, dynamic>>>> getAdaptiveReviewResult() {
     return _requestResult<List<Map<String, dynamic>>>(
-      () => _dio.get('/api/adaptive/review'),
+      () => _dio.get('/api/adaptive/reviews/due'),
       (data) {
         if (data is List) {
           return data.whereType<Map<String, dynamic>>().toList(growable: false);
         }
         if (data is Map<String, dynamic> && data['items'] is List) {
           return (data['items'] as List)
+              .whereType<Map<String, dynamic>>()
+              .toList(growable: false);
+        }
+        if (data is Map<String, dynamic> && data['data'] is List) {
+          return (data['data'] as List)
               .whereType<Map<String, dynamic>>()
               .toList(growable: false);
         }
