@@ -802,13 +802,15 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>?> submitAdaptiveSessionAnswer({
-    required String sessionId,
+    required String adaptiveSessionId,
+    required String adaptiveSessionItemId,
     required int questionId,
     required String answer,
     int? responseTimeMs,
   }) async {
     final result = await submitAdaptiveSessionAnswerResult(
-      sessionId: sessionId,
+      adaptiveSessionId: adaptiveSessionId,
+      adaptiveSessionItemId: adaptiveSessionItemId,
       questionId: questionId,
       answer: answer,
       responseTimeMs: responseTimeMs,
@@ -817,24 +819,18 @@ class ApiService {
   }
 
   Future<ApiResult<Map<String, dynamic>>> submitAdaptiveSessionAnswerResult({
-    required String sessionId,
+    required String adaptiveSessionId,
+    required String adaptiveSessionItemId,
     required int questionId,
     required String answer,
     int? responseTimeMs,
-    String? adaptiveSessionId,
-    String? adaptiveSessionItemId,
   }) {
-    // TODO: Backend requires adaptiveSessionId and adaptiveSessionItemId.
-    // If not provided, use sessionId as fallback for backward compatibility.
-    final actualSessionId = adaptiveSessionId ?? sessionId;
     final payload = <String, dynamic>{
-      'adaptiveSessionId': actualSessionId,
+      'adaptiveSessionId': adaptiveSessionId,
+      'adaptiveSessionItemId': adaptiveSessionItemId,
       'questionId': questionId,
       'answer': answer,
     };
-    if (adaptiveSessionItemId != null) {
-      payload['adaptiveSessionItemId'] = adaptiveSessionItemId;
-    }
     if (responseTimeMs != null) {
       payload['responseTimeMs'] = responseTimeMs;
     }
