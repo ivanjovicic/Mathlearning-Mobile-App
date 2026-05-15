@@ -131,6 +131,17 @@ This document lists all backend API endpoints currently used by the Flutter mobi
 
 ## Adaptive Learning
 
+- **Canonical practice flow:** The mobile client should prefer the practice-session endpoints under
+  `/api/practice/session/*` for the adaptive practice UI. These endpoints are exposed via
+  `PracticeSessionApiService` in the Flutter codebase and are the canonical implementation for
+  practice rounds (start, answer, complete).
+
+- **Legacy endpoints:** The `/api/adaptive/*` endpoints (for example `/api/adaptive/session/start`,
+  `/api/adaptive/session/answer`, `/api/adaptive/reviews/due`, `/api/adaptive/path`) are legacy
+  for practice flows. They remain accessible via `ApiService` for compatibility but are marked as
+  deprecated for practice UI and scheduled for consolidation. Prefer `/api/practice/session/*`.
+
+
 ### POST /api/adaptive/session/start
 - **Purpose:** Start an adaptive learning session
 - **Auth:** Required
