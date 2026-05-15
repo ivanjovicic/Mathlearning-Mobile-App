@@ -72,24 +72,24 @@ class _ChestOpenAnimationState extends State<ChestOpenAnimation>
 
   // ── derived animations ────────────────────────────────────────────────────
 
-  late final Animation<double> _shakeX = TweenSequence<double>([
-    TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 15),
-    TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 30),
-    TweenSequenceItem(tween: Tween(begin: 8.0, end: -8.0), weight: 30),
-    TweenSequenceItem(tween: Tween(begin: -8.0, end: 0.0), weight: 25),
-  ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut));
+  late final Animation<double> _shakeX = TweenSequence<double>(
+    [
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 15),
+      TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 8.0, end: -8.0), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: -8.0, end: 0.0), weight: 25),
+    ],
+  ).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut));
 
   late final Animation<double> _lidAngle = Tween<double>(
     begin: 0,
     end: -math.pi / 2.2,
   ).animate(CurvedAnimation(parent: _lidController, curve: Curves.easeOutBack));
 
-  late final Animation<double> _burstRadius = Tween<double>(
-    begin: 0,
-    end: 1,
-  ).animate(
-    CurvedAnimation(parent: _burstController, curve: Curves.easeOutCubic),
-  );
+  late final Animation<double> _burstRadius = Tween<double>(begin: 0, end: 1)
+      .animate(
+        CurvedAnimation(parent: _burstController, curve: Curves.easeOutCubic),
+      );
 
   late final Animation<double> _burstOpacity = TweenSequence<double>([
     TweenSequenceItem(
@@ -149,10 +149,8 @@ class _ChestOpenAnimationState extends State<ChestOpenAnimation>
 
     return AnimatedBuilder(
       animation: _shakeController,
-      builder: (_, child) => Transform.translate(
-        offset: Offset(_shakeX.value, 0),
-        child: child,
-      ),
+      builder: (context, child) =>
+          Transform.translate(offset: Offset(_shakeX.value, 0), child: child),
       child: SizedBox(
         width: s * 2.2,
         height: s * 2.0,
@@ -163,7 +161,7 @@ class _ChestOpenAnimationState extends State<ChestOpenAnimation>
             // ── Primary light burst ─────────────────────────────────────
             AnimatedBuilder(
               animation: _burstController,
-              builder: (_, __) {
+              builder: (context, child) {
                 return Opacity(
                   opacity: _burstOpacity.value,
                   child: Container(
@@ -173,7 +171,9 @@ class _ChestOpenAnimationState extends State<ChestOpenAnimation>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          accent.withValues(alpha: widget.isJackpot ? 0.9 : 0.7),
+                          accent.withValues(
+                            alpha: widget.isJackpot ? 0.9 : 0.7,
+                          ),
                           accent.withValues(alpha: 0.0),
                         ],
                       ),
@@ -186,7 +186,7 @@ class _ChestOpenAnimationState extends State<ChestOpenAnimation>
             if (widget.isJackpot)
               AnimatedBuilder(
                 animation: _burstController,
-                builder: (_, __) {
+                builder: (context, child) {
                   return Opacity(
                     opacity: (_burstOpacity.value * 0.5).clamp(0.0, 1.0),
                     child: Container(
@@ -210,7 +210,7 @@ class _ChestOpenAnimationState extends State<ChestOpenAnimation>
             // ── Sparkle particles ───────────────────────────────────────
             AnimatedBuilder(
               animation: _sparkleController,
-              builder: (_, __) {
+              builder: (context, child) {
                 return CustomPaint(
                   size: Size(s * 2.2, s * 2.0),
                   painter: _SparklePainter(
@@ -225,7 +225,7 @@ class _ChestOpenAnimationState extends State<ChestOpenAnimation>
             // ── Confetti rectangles ─────────────────────────────────────
             AnimatedBuilder(
               animation: _confettiController,
-              builder: (_, __) {
+              builder: (context, child) {
                 return CustomPaint(
                   size: Size(s * 2.2, s * 2.0),
                   painter: _ConfettiPainter(
@@ -295,7 +295,7 @@ class _ChestBody extends StatelessWidget {
             top: 0,
             child: AnimatedBuilder(
               animation: lidAngle,
-              builder: (_, __) {
+              builder: (context, child) {
                 return Transform(
                   transform: Matrix4.identity()
                     ..setEntry(3, 2, 0.001)
@@ -348,12 +348,48 @@ class _SparklePainter extends CustomPainter {
 
   static const _count = 20;
   static const _angles = [
-    0.000, 0.314, 0.628, 0.942, 1.257, 1.571, 1.885, 2.199, 2.513, 2.827,
-    3.142, 3.456, 3.770, 4.084, 4.398, 4.712, 5.027, 5.341, 5.655, 5.969,
+    0.000,
+    0.314,
+    0.628,
+    0.942,
+    1.257,
+    1.571,
+    1.885,
+    2.199,
+    2.513,
+    2.827,
+    3.142,
+    3.456,
+    3.770,
+    4.084,
+    4.398,
+    4.712,
+    5.027,
+    5.341,
+    5.655,
+    5.969,
   ];
   static const _rScale = [
-    1.00, 0.85, 1.10, 0.90, 1.05, 0.80, 1.15, 0.95, 1.00, 0.88,
-    1.00, 0.82, 1.12, 0.93, 1.07, 0.78, 1.18, 0.91, 0.98, 1.04,
+    1.00,
+    0.85,
+    1.10,
+    0.90,
+    1.05,
+    0.80,
+    1.15,
+    0.95,
+    1.00,
+    0.88,
+    1.00,
+    0.82,
+    1.12,
+    0.93,
+    1.07,
+    0.78,
+    1.18,
+    0.91,
+    0.98,
+    1.04,
   ];
 
   @override
@@ -369,12 +405,17 @@ class _SparklePainter extends CustomPainter {
     for (var i = 0; i < _count; i++) {
       final dist = radius * _rScale[i] * progress;
       final pSize = (baseSize + (i % 3) * 2.5) * (1.0 - progress * 0.6);
-      final baseColor =
-          (i % 3 == 0) ? accent : (i % 3 == 1) ? gold : Colors.white;
-      paint.color =
-          baseColor.withValues(alpha: opacity * (i.isEven ? 0.90 : 0.65));
+      final baseColor = (i % 3 == 0)
+          ? accent
+          : (i % 3 == 1)
+          ? gold
+          : Colors.white;
+      paint.color = baseColor.withValues(
+        alpha: opacity * (i.isEven ? 0.90 : 0.65),
+      );
       canvas.drawCircle(
-        center + Offset(math.cos(_angles[i]) * dist, math.sin(_angles[i]) * dist),
+        center +
+            Offset(math.cos(_angles[i]) * dist, math.sin(_angles[i]) * dist),
         pSize,
         paint,
       );
@@ -401,16 +442,58 @@ class _ConfettiPainter extends CustomPainter {
 
   static const _count = 16;
   static const _angles = [
-    0.196, 0.589, 0.982, 1.374, 1.767, 2.160, 2.553, 2.945,
-    3.338, 3.731, 4.123, 4.516, 4.909, 5.301, 5.694, 6.087,
+    0.196,
+    0.589,
+    0.982,
+    1.374,
+    1.767,
+    2.160,
+    2.553,
+    2.945,
+    3.338,
+    3.731,
+    4.123,
+    4.516,
+    4.909,
+    5.301,
+    5.694,
+    6.087,
   ];
   static const _rotMul = [
-    0.3, 1.1, 0.7, 1.5, 0.2, 0.9, 1.3, 0.5,
-    1.8, 0.4, 1.0, 1.6, 0.8, 1.2, 0.6, 1.9,
+    0.3,
+    1.1,
+    0.7,
+    1.5,
+    0.2,
+    0.9,
+    1.3,
+    0.5,
+    1.8,
+    0.4,
+    1.0,
+    1.6,
+    0.8,
+    1.2,
+    0.6,
+    1.9,
   ];
   static const _rScale = [
-    1.00, 0.88, 1.12, 0.95, 1.05, 0.82, 1.18, 0.92,
-    1.00, 0.90, 1.08, 0.97, 1.03, 0.85, 1.15, 0.94,
+    1.00,
+    0.88,
+    1.12,
+    0.95,
+    1.05,
+    0.82,
+    1.18,
+    0.92,
+    1.00,
+    0.90,
+    1.08,
+    0.97,
+    1.03,
+    0.85,
+    1.15,
+    0.94,
   ];
 
   @override
@@ -431,8 +514,11 @@ class _ConfettiPainter extends CustomPainter {
       final dist = radius * _rScale[i] * progress;
       final selfRot = _rotMul[i] * math.pi * 2.0 * progress;
       final pos =
-          center + Offset(math.cos(_angles[i]) * dist, math.sin(_angles[i]) * dist);
-      paint.color = palette[i % palette.length].withValues(alpha: opacity * 0.85);
+          center +
+          Offset(math.cos(_angles[i]) * dist, math.sin(_angles[i]) * dist);
+      paint.color = palette[i % palette.length].withValues(
+        alpha: opacity * 0.85,
+      );
       canvas.save();
       canvas.translate(pos.dx, pos.dy);
       canvas.rotate(selfRot);

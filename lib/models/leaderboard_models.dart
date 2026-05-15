@@ -114,6 +114,26 @@ class LeaderboardItem {
       cosmeticLoadout: socialCosmeticLoadoutFromJson(json),
     );
   }
+
+  LeaderboardItem copyWith({
+    int? rank,
+    int? userId,
+    String? displayName,
+    String? avatarUrl,
+    int? score,
+    int? streakDays,
+    SocialCosmeticLoadout? cosmeticLoadout,
+  }) {
+    return LeaderboardItem(
+      rank: rank ?? this.rank,
+      userId: userId ?? this.userId,
+      displayName: displayName ?? this.displayName,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      score: score ?? this.score,
+      streakDays: streakDays ?? this.streakDays,
+      cosmeticLoadout: cosmeticLoadout ?? this.cosmeticLoadout,
+    );
+  }
 }
 
 class RivalLeaderboardEntry extends LeaderboardItem {

@@ -168,6 +168,17 @@ class UserApi {
     }
   }
 
+  Future<ApiResult<Map<String, dynamic>>> getUserProfileById(
+    String userId,
+  ) async {
+    try {
+      final response = await _dio.get('/api/users/$userId/profile');
+      return ApiResult(data: response.data);
+    } on DioException catch (e) {
+      return ApiResult(error: parseError(e));
+    }
+  }
+
   Future<ApiResult<Map<String, dynamic>>> updateUserProfile({
     String? displayName,
     String? email,
@@ -289,6 +300,11 @@ class ApiService {
 
   Future<Map<String, dynamic>?> getUserProfile() async {
     final res = await _client.user.getUserProfile();
+    return res.data;
+  }
+
+  Future<Map<String, dynamic>?> getUserProfileById(String userId) async {
+    final res = await _client.user.getUserProfileById(userId);
     return res.data;
   }
 

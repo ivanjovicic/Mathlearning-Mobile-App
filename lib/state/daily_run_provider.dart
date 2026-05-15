@@ -25,11 +25,39 @@ class DailyChestReward {
     required this.xp,
     required this.coins,
     required this.cosmeticFragment,
+    this.fragmentCopies = 1,
+    this.modifierLabels = const <String>[],
+    this.chestQualityLabel,
+    this.isComebackChest = false,
   });
 
   final int xp;
   final int coins;
   final String cosmeticFragment;
+  final int fragmentCopies;
+  final List<String> modifierLabels;
+  final String? chestQualityLabel;
+  final bool isComebackChest;
+
+  DailyChestReward copyWith({
+    int? xp,
+    int? coins,
+    String? cosmeticFragment,
+    int? fragmentCopies,
+    List<String>? modifierLabels,
+    String? chestQualityLabel,
+    bool? isComebackChest,
+  }) {
+    return DailyChestReward(
+      xp: xp ?? this.xp,
+      coins: coins ?? this.coins,
+      cosmeticFragment: cosmeticFragment ?? this.cosmeticFragment,
+      fragmentCopies: fragmentCopies ?? this.fragmentCopies,
+      modifierLabels: modifierLabels ?? this.modifierLabels,
+      chestQualityLabel: chestQualityLabel ?? this.chestQualityLabel,
+      isComebackChest: isComebackChest ?? this.isComebackChest,
+    );
+  }
 }
 
 class DailyRunProvider extends ChangeNotifier {

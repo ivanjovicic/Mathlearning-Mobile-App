@@ -39,15 +39,15 @@ void main() {
       }
     });
 
-    test('new events are present: fast_hit, speed_streak, stage_cleared, '
-        'final_gate_unlocked, final_gate_whoosh', () {
+    test('new events are present: fastHit, speedStreak, stageCleared, '
+        'finalGateUnlocked, finalGateWhoosh', () {
       final map = _sut.eventAssetMap;
       for (final name in [
-        'fast_hit',
-        'speed_streak',
-        'stage_cleared',
-        'final_gate_unlocked',
-        'final_gate_whoosh',
+        'fastHit',
+        'speedStreak',
+        'stageCleared',
+        'finalGateUnlocked',
+        'finalGateWhoosh',
       ]) {
         expect(map.containsKey(name), isTrue, reason: '$name missing');
       }
@@ -95,30 +95,36 @@ void main() {
 
     test('play() does not throw when muted', () async {
       _sut.setMuted(true);
-      await expectLater(
-        _sut.play(SoundEffect.run_start_tick),
-        completes,
-      );
+      await expectLater(_sut.play(SoundEffect.runStartTick), completes);
     });
   });
 
   // ── Haptics gate ──────────────────────────────────────────────────────────
 
   group('haptics gate', () {
-    test('setHapticsEnabled(false) → hapticForWrongAnswer completes silently', () async {
-      _sut.setHapticsEnabled(false);
-      await expectLater(_sut.hapticForWrongAnswer(), completes);
-    });
+    test(
+      'setHapticsEnabled(false) → hapticForWrongAnswer completes silently',
+      () async {
+        _sut.setHapticsEnabled(false);
+        await expectLater(_sut.hapticForWrongAnswer(), completes);
+      },
+    );
 
-    test('setHapticsEnabled(true) → hapticForCorrectAnswer completes', () async {
-      _sut.setHapticsEnabled(true);
-      await expectLater(_sut.hapticForCorrectAnswer(), completes);
-    });
+    test(
+      'setHapticsEnabled(true) → hapticForCorrectAnswer completes',
+      () async {
+        _sut.setHapticsEnabled(true);
+        await expectLater(_sut.hapticForCorrectAnswer(), completes);
+      },
+    );
 
-    test('haptic(SoundHaptic.mediumImpact) completes with hapticsEnabled=false', () async {
-      _sut.setHapticsEnabled(false);
-      await expectLater(_sut.haptic(SoundHaptic.mediumImpact), completes);
-    });
+    test(
+      'haptic(SoundHaptic.mediumImpact) completes with hapticsEnabled=false',
+      () async {
+        _sut.setHapticsEnabled(false);
+        await expectLater(_sut.haptic(SoundHaptic.mediumImpact), completes);
+      },
+    );
   });
 
   // ── Named convenience methods ─────────────────────────────────────────────
@@ -176,41 +182,53 @@ void main() {
   // ── Reward inter-cue gap (150 ms) ─────────────────────────────────────────
 
   group('reward channel inter-cue gap', () {
-    test('second reward cue within 150 ms is dropped (completes without error)', () async {
-      // Reset last-reward timestamp by calling a non-reward event first.
-      await _sut.playRunStartTick();
+    test(
+      'second reward cue within 150 ms is dropped (completes without error)',
+      () async {
+        // Reset last-reward timestamp by calling a non-reward event first.
+        await _sut.playRunStartTick();
 
-      // Fire two reward cues with no delay — the second should be silently dropped.
-      final f1 = _sut.playChestDrop();
-      final f2 = _sut.playCoinCollect(); // < 150 ms after f1
-      await expectLater(Future.wait([f1, f2]), completes);
-    });
+        // Fire two reward cues with no delay — the second should be silently dropped.
+        final f1 = _sut.playChestDrop();
+        final f2 = _sut.playCoinCollect(); // < 150 ms after f1
+        await expectLater(Future.wait([f1, f2]), completes);
+      },
+    );
   });
 
   // ── Cooldown ──────────────────────────────────────────────────────────────
 
   group('cooldown throttling', () {
-    test('rapid successive plays of same effect complete without error', () async {
-      await _sut.playCorrectPing();
-      // Second call within cooldown should be silently swallowed.
-      await expectLater(_sut.playCorrectPing(), completes);
-    });
+    test(
+      'rapid successive plays of same effect complete without error',
+      () async {
+        await _sut.playCorrectPing();
+        // Second call within cooldown should be silently swallowed.
+        await expectLater(_sut.playCorrectPing(), completes);
+      },
+    );
 
-    test('combo_burst has 900 ms cooldown (second rapid call dropped)', () async {
-      await _sut.playComboBurst();
-      await expectLater(_sut.playComboBurst(), completes);
-    });
+    test(
+      'combo_burst has 900 ms cooldown (second rapid call dropped)',
+      () async {
+        await _sut.playComboBurst();
+        await expectLater(_sut.playComboBurst(), completes);
+      },
+    );
   });
 
   // ── Mute does not suppress haptics ───────────────────────────────────────
 
   group('mute vs haptics independence', () {
-    test('hapticForWrongAnswer() still completes even when audio is muted', () async {
-      _sut.setMuted(true);
-      _sut.setHapticsEnabled(true);
-      // Should not throw; platform may no-op haptic in test environment.
-      await expectLater(_sut.hapticForWrongAnswer(), completes);
-      _sut.setMuted(false);
-    });
+    test(
+      'hapticForWrongAnswer() still completes even when audio is muted',
+      () async {
+        _sut.setMuted(true);
+        _sut.setHapticsEnabled(true);
+        // Should not throw; platform may no-op haptic in test environment.
+        await expectLater(_sut.hapticForWrongAnswer(), completes);
+        _sut.setMuted(false);
+      },
+    );
   });
 }

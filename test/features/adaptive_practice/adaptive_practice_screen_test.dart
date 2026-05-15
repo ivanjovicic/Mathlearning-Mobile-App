@@ -147,7 +147,7 @@ class _FakeDailyRunApiService extends PracticeSessionApiService {
         'initialMastery': 0.2,
         'question': {
           'id': startCalls * 100 + 1,
-          'prompt': 'Gate ${startCalls}.1',
+          'prompt': 'Gate $startCalls.1',
           'options': ['A', 'B', 'C', 'D'],
           'difficulty': request.preferredDifficulty.apiValue,
         },
@@ -461,7 +461,7 @@ void main() {
 
   /// Helper that builds the sheet inside a Material context with HUD target keys.
   /// [startOpen] bypasses the chest animation (for reliable test timing).
-  Widget _buildSheet({
+  Widget buildSheet({
     required DailyChestReward reward,
     GlobalKey? xpTargetKey,
     GlobalKey? coinTargetKey,
@@ -546,7 +546,7 @@ void main() {
     );
 
     // Use startOpen: false to verify chest is shown before rewards.
-    await tester.pumpWidget(_buildSheet(reward: reward, startOpen: false));
+    await tester.pumpWidget(buildSheet(reward: reward, startOpen: false));
     await tester.pump(); // post-frame
 
     // Chest animation widget is present immediately.
@@ -559,6 +559,9 @@ void main() {
 
     // Drain chest animation + reward sequence timers so the test ends cleanly.
     await pumpMs(tester, 5000);
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets(
@@ -571,7 +574,7 @@ void main() {
       );
 
       // startOpen: true fires _onChestOpened on first post-frame callback.
-      await tester.pumpWidget(_buildSheet(reward: reward));
+      await tester.pumpWidget(buildSheet(reward: reward));
       await tester
           .pump(); // post-frame → _onChestOpened fires, phase = xpReveal
 
@@ -611,7 +614,7 @@ void main() {
       cosmeticFragment: 'Nova Trail Fragment',
     );
 
-    await tester.pumpWidget(_buildSheet(reward: reward));
+    await tester.pumpWidget(buildSheet(reward: reward));
     await tester.pump();
 
     // Button text is "Grab it!" from the start.
@@ -637,7 +640,7 @@ void main() {
       cosmeticFragment: 'Nova Trail Fragment',
     );
 
-    await tester.pumpWidget(_buildSheet(reward: reward));
+    await tester.pumpWidget(buildSheet(reward: reward));
     await tester.pump();
 
     // Drive through full sequence (including fly animations).
@@ -666,7 +669,7 @@ void main() {
     var appliedCoins = 0;
 
     await tester.pumpWidget(
-      _buildSheet(
+      buildSheet(
         reward: reward,
         onApplyXp: (v) => appliedXp += v,
         onApplyCoins: (v) => appliedCoins += v,
@@ -742,26 +745,37 @@ void main() {
       expect(find.text('Item unlocked! 🎉'), findsOneWidget);
     });
 
-    testWidgets('shows "Almost there!" when ≥60% fragments collected', (
-      tester,
-    ) async {
+    testWidgets('shows urgency copy when near unlock', (tester) async {
       // 4/5: 1 remaining.
       await tester.pumpWidget(buildCard(collected: 4, total: 5));
       await tester.pump();
-      expect(find.text('Almost there!'), findsOneWidget);
+      expect(find.text("One more and it's yours!"), findsOneWidget);
       expect(find.text('1 more to unlock'), findsOneWidget);
+      expect(find.byKey(const Key('fragment_progress_pip_4')), findsOneWidget);
 
       // 3/5: 2 remaining.
       await tester.pumpWidget(buildCard(collected: 3, total: 5));
       await tester.pump();
-      expect(find.text('Almost there!'), findsOneWidget);
+      expect(find.text('Almost unlocked!'), findsOneWidget);
       expect(find.text('2 more to unlock'), findsOneWidget);
 
-      // 1/5: 4 remaining — no 'Almost there!'.
+      // 1/5: 4 remaining - no near-unlock copy.
       await tester.pumpWidget(buildCard(collected: 1, total: 5));
       await tester.pump();
-      expect(find.text('Almost there!'), findsNothing);
+      expect(find.text("One more and it's yours!"), findsNothing);
+      expect(find.text('Almost unlocked!'), findsNothing);
       expect(find.text('4 more to unlock'), findsOneWidget);
+    });
+
+    testWidgets('final pip uses chain-fill animation key on completion', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildCard(collected: 5, total: 5, heading: 'NOVA TRAIL UNLOCKED!'),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const Key('fragment_final_pip_chain')), findsOneWidget);
     });
 
     testWidgets('trail fragment renders _TrailPreview via CustomPaint', (
@@ -874,7 +888,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _buildSheet(reward: reward, onViewCollection: () {}),
+        buildSheet(reward: reward, onViewCollection: () {}),
       );
       await tester.pump();
 
@@ -921,19 +935,19 @@ void main() {
 
       // Headline contains item name (uppercased) and UNLOCKED!
       expect(find.textContaining('NOVA TRAIL'), findsOneWidget);
-      expect(find.textContaining('UNLOCKED!'), findsOneWidget);
+      expect(find.textContaining('UNLOCKED!'), findsAtLeastNWidgets(1));
     });
 
     testWidgets('shows 5/5 collected pips', (tester) async {
       await tester.pumpWidget(buildCelebration());
-      await pumpMs(tester, 700);
+      await pumpMs(tester, 1200);
 
       expect(find.text('5/5 collected'), findsOneWidget);
     });
 
     testWidgets('shows rarity label', (tester) async {
       await tester.pumpWidget(buildCelebration(rarity: FragmentRarity.epic));
-      await pumpMs(tester, 700);
+      await pumpMs(tester, 1200);
 
       expect(find.text('EPIC'), findsOneWidget);
     });
@@ -946,10 +960,11 @@ void main() {
       // pumpMs advances fake time, flushing all one-shot timers (600ms sound
       // delay, flutter_animate entry delays) without calling pumpAndSettle
       // (which would hang on the looping confetti/sparkle AnimationControllers).
-      await pumpMs(tester, 700);
+      await pumpMs(tester, 1200);
 
       await tester.tap(find.text('Equip now'));
-      await tester.pump(); // let onPressed handler run synchronously to first await
+      await tester
+          .pump(); // let onPressed handler run synchronously to first await
       expect(equipped, isTrue);
       // Drain CosmeticEquipConfirmation burst (800ms) + hold timer (650ms).
       await pumpMs(tester, 2000);
@@ -960,10 +975,25 @@ void main() {
       await tester.pumpWidget(
         buildCelebration(onViewCollection: () => opened = true),
       );
-      await pumpMs(tester, 700);
+      await pumpMs(tester, 1200);
 
       await tester.tap(find.text('View collection'));
       expect(opened, isTrue);
+    });
+
+    testWidgets('CTA is delayed until the victory hold finishes', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildCelebration(onEquipNow: () {}));
+      await pumpMs(tester, 700);
+
+      expect(find.byKey(const Key('unlock_victory_hold')), findsOneWidget);
+      expect(find.text('Equip now'), findsNothing);
+
+      await pumpMs(tester, 500);
+
+      expect(find.byKey(const Key('unlock_victory_hold')), findsNothing);
+      expect(find.text('Equip now'), findsOneWidget);
     });
 
     testWidgets('renders confetti via CustomPaint', (tester) async {
@@ -988,7 +1018,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _buildSheet(reward: reward, fragmentCountForTesting: 5),
+        buildSheet(reward: reward, fragmentCountForTesting: 5),
       );
       await tester.pump(); // post-frame → chest opens
 
@@ -1000,7 +1030,7 @@ void main() {
 
       // CosmeticUnlockCelebration should be showing.
       expect(find.byType(CosmeticUnlockCelebration), findsOneWidget);
-      expect(find.textContaining('UNLOCKED!'), findsOneWidget);
+      expect(find.textContaining('UNLOCKED!'), findsAtLeastNWidgets(1));
       // Both the CosmeticFragmentCard (complete) and the celebration show
       // '5/5 collected', so use findsAtLeastNWidgets(1).
       expect(find.text('5/5 collected'), findsAtLeastNWidgets(1));
@@ -1159,7 +1189,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(buildCelebration());
-      await pumpMs(tester, 700); // flush entry timers + fade-ins
+      await pumpMs(tester, 1200); // wait for victory hold + CTA fade-ins
 
       await tester.tap(find.text('Equip now'));
       await tester.pump(); // start async equip
@@ -1175,7 +1205,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(buildCelebration());
-      await pumpMs(tester, 700);
+      await pumpMs(tester, 1200);
 
       await tester.tap(find.text('Equip now'));
       await pumpMs(tester, 500); // confirmation burst starts, text fades in
@@ -1188,7 +1218,7 @@ void main() {
     ) async {
       var fired = false;
       await tester.pumpWidget(buildCelebration(onEquipNow: () => fired = true));
-      await pumpMs(tester, 700);
+      await pumpMs(tester, 1200);
 
       await tester.tap(find.text('Equip now'));
       // Drive past burst (800ms) + hold (650ms) = 1450ms.
@@ -1204,7 +1234,7 @@ void main() {
       await tester.pumpWidget(
         buildCelebration(onViewCollection: () => opened = true),
       );
-      await pumpMs(tester, 700);
+      await pumpMs(tester, 1200);
 
       await tester.tap(find.text('View collection'));
       expect(opened, isTrue);
@@ -1214,7 +1244,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(buildCelebration());
-      await pumpMs(tester, 700);
+      await pumpMs(tester, 1200);
 
       await tester.tap(find.text('Equip now'));
       await tester.pump(); // start async equip

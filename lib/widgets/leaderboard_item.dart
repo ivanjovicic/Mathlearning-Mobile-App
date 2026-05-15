@@ -1,24 +1,35 @@
 import 'package:flutter/material.dart';
 
 import '../models/leaderboard_models.dart';
+import '../models/cosmetic_target.dart';
 import '../models/school_leaderboard_models.dart' show SchoolAggregateItem;
 import '../models/social_cosmetic_loadout.dart';
 import '../theme/app_scale.dart';
 import '../theme/theme_extensions/theme_context.dart';
 import '../theme/tokens/app_motion.dart';
+import 'cosmetic_flex_chip.dart';
+import 'cosmetic_target_chip.dart';
 import 'social_cosmetic_avatar.dart';
 import 'ui/app_badge.dart';
 import 'ui/app_card.dart';
+import 'weekly_featured_flair_chip.dart';
 
 class LeaderboardItemWidget extends StatelessWidget {
   const LeaderboardItemWidget({
     super.key,
     required this.item,
     this.isCurrentUser = false,
+    this.currentUserTarget,
+    this.weeklyFeaturedCompletionLabel,
   });
 
   final LeaderboardItem item;
   final bool isCurrentUser;
+
+  /// When [isCurrentUser] is true and this is provided, a [CosmeticTargetChip]
+  /// is shown below the cosmetic flex chip to display chase progress.
+  final CosmeticTarget? currentUserTarget;
+  final String? weeklyFeaturedCompletionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +70,33 @@ class LeaderboardItemWidget extends StatelessWidget {
                     color: colors.textSecondary,
                   ),
                 ),
+                if (item.cosmeticLoadout?.hasEquippedCosmetics == true)
+                  Padding(
+                    padding: EdgeInsets.only(top: AppScale.s(3)),
+                    child: CosmeticFlexChip(
+                      loadout: item.cosmeticLoadout!,
+                      isCurrentUser: isCurrentUser,
+                      maxWidth: 180,
+                    ),
+                  ),
+                if (isCurrentUser && currentUserTarget != null)
+                  Padding(
+                    padding: EdgeInsets.only(top: AppScale.s(3)),
+                    child: CosmeticTargetChip(
+                      target: currentUserTarget!,
+                      compact: true,
+                      maxWidth: 180,
+                    ),
+                  ),
+                if (isCurrentUser && weeklyFeaturedCompletionLabel != null)
+                  Padding(
+                    padding: EdgeInsets.only(top: AppScale.s(3)),
+                    child: WeeklyFeaturedFlairChip(
+                      label: weeklyFeaturedCompletionLabel!,
+                      compact: true,
+                      maxWidth: 180,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -122,6 +160,7 @@ class LeaderboardItemWidget extends StatelessWidget {
       avatarUrl: item.avatarUrl,
       loadout: loadout,
       size: AppScale.s(44),
+      isCurrentUser: isCurrentUser,
     );
   }
 

@@ -8,59 +8,104 @@ class SocialCosmeticUnlock {
     required this.name,
     required this.rarity,
     this.unlockedAt,
+    this.hasActualName = true,
   });
 
   final String itemId;
   final String name;
   final CosmeticRarity rarity;
   final DateTime? unlockedAt;
+  final bool hasActualName;
 
   factory SocialCosmeticUnlock.fromJson(Map<String, dynamic> json) {
+    final itemId = _asString(json['itemId'] ?? json['item_id'] ?? json['id']);
+    final actualName = _asNullableString(
+      json['name'] ?? json['itemName'] ?? json['item_name'],
+    );
     return SocialCosmeticUnlock(
-      itemId: _asString(json['itemId'] ?? json['item_id'] ?? json['id']),
-      name: _asString(json['name'] ?? json['itemName'] ?? json['item_name']),
+      itemId: itemId,
+      name: actualName ?? _friendlyName(itemId),
       rarity: CosmeticRarity.fromString(
         _asString(json['rarity'], fallback: 'common'),
       ),
       unlockedAt: DateTime.tryParse(
         _asString(json['unlockedAt'] ?? json['unlocked_at']),
       ),
+      hasActualName: actualName != null,
     );
   }
+}
+
+class SocialCosmeticFlexItem {
+  const SocialCosmeticFlexItem({
+    required this.itemId,
+    required this.name,
+    required this.rarity,
+    required this.slotLabel,
+    required this.hasActualName,
+  });
+
+  final String itemId;
+  final String name;
+  final CosmeticRarity rarity;
+  final String slotLabel;
+  final bool hasActualName;
 }
 
 class SocialCosmeticLoadout {
   const SocialCosmeticLoadout({
     this.avatarFrameId,
-    this.animatedEffectId,
-    this.accessoryId,
     this.highlightRarity,
-    this.recentUnlocks = const <SocialCosmeticUnlock>[],
-  });
+    String? trailId,
+    String? avatarGearId,
+    this.answerEffectId,
+    this.profileBackgroundId,
+    List<SocialCosmeticUnlock>? recentRareUnlocks,
+    @Deprecated('Use trailId instead.') String? animatedEffectId,
+    @Deprecated('Use avatarGearId instead.') String? accessoryId,
+    @Deprecated('Use recentRareUnlocks instead.')
+    List<SocialCosmeticUnlock>? recentUnlocks,
+  }) : trailId = trailId ?? animatedEffectId,
+       avatarGearId = avatarGearId ?? accessoryId,
+       recentRareUnlocks =
+           recentRareUnlocks ?? recentUnlocks ?? const <SocialCosmeticUnlock>[];
 
   final String? avatarFrameId;
-  final String? animatedEffectId;
-  final String? accessoryId;
+  final String? trailId;
+  final String? avatarGearId;
+  final String? answerEffectId;
+  final String? profileBackgroundId;
   final CosmeticRarity? highlightRarity;
-  final List<SocialCosmeticUnlock> recentUnlocks;
+  final List<SocialCosmeticUnlock> recentRareUnlocks;
+
+  @Deprecated('Use trailId instead.')
+  String? get animatedEffectId => trailId ?? answerEffectId;
+
+  @Deprecated('Use avatarGearId instead.')
+  String? get accessoryId => avatarGearId;
+
+  @Deprecated('Use recentRareUnlocks instead.')
+  List<SocialCosmeticUnlock> get recentUnlocks => recentRareUnlocks;
 
   bool get hasEquippedCosmetics =>
-      avatarFrameId != null || animatedEffectId != null || accessoryId != null;
+      avatarFrameId != null ||
+      trailId != null ||
+      avatarGearId != null ||
+      answerEffectId != null ||
+      profileBackgroundId != null;
 
-  bool get hasRecentRareUnlock => recentUnlocks.any(
-    (unlock) => unlock.rarity.index >= CosmeticRarity.rare.index,
-  );
+  bool get hasRecentRareUnlock => recentRareUnlocks.isNotEmpty;
 
   bool get isEmpty =>
       !hasEquippedCosmetics && !hasRecentRareUnlock && highlightRarity == null;
 
   /// Human-readable names for equipped slots, derived from item IDs.
-  /// Prefers name from recentUnlocks catalog; falls back to friendly ID.
+  /// Prefers name from recentRareUnlocks catalog; falls back to friendly ID.
   /// Returns empty list when nothing is equipped.
   List<({String name, CosmeticRarity? rarity})> get equippedItemLabels {
     final result = <({String name, CosmeticRarity? rarity})>[];
     if (avatarFrameId != null) {
-      final match = recentUnlocks
+      final match = recentRareUnlocks
           .where((u) => u.itemId == avatarFrameId)
           .firstOrNull;
       result.add((
@@ -68,31 +113,142 @@ class SocialCosmeticLoadout {
         rarity: match?.rarity,
       ));
     }
-    if (animatedEffectId != null) {
-      final match = recentUnlocks
-          .where((u) => u.itemId == animatedEffectId)
+    if (trailId != null) {
+      final match = recentRareUnlocks
+          .where((u) => u.itemId == trailId)
           .firstOrNull;
       result.add((
-        name: match?.name ?? _friendlyName(animatedEffectId!),
+        name: match?.name ?? _friendlyName(trailId!),
         rarity: match?.rarity,
       ));
     }
-    if (accessoryId != null) {
-      final match = recentUnlocks
-          .where((u) => u.itemId == accessoryId)
+    if (avatarGearId != null) {
+      final match = recentRareUnlocks
+          .where((u) => u.itemId == avatarGearId)
           .firstOrNull;
       result.add((
-        name: match?.name ?? _friendlyName(accessoryId!),
+        name: match?.name ?? _friendlyName(avatarGearId!),
+        rarity: match?.rarity,
+      ));
+    }
+    if (answerEffectId != null) {
+      final match = recentRareUnlocks
+          .where((u) => u.itemId == answerEffectId)
+          .firstOrNull;
+      result.add((
+        name: match?.name ?? _friendlyName(answerEffectId!),
+        rarity: match?.rarity,
+      ));
+    }
+    if (profileBackgroundId != null) {
+      final match = recentRareUnlocks
+          .where((u) => u.itemId == profileBackgroundId)
+          .firstOrNull;
+      result.add((
+        name: match?.name ?? _friendlyName(profileBackgroundId!),
         rarity: match?.rarity,
       ));
     }
     return result;
   }
 
+  SocialCosmeticFlexItem? get flexItem {
+    return flexItemWithCatalog(const <CosmeticItem>[]);
+  }
+
+  SocialCosmeticFlexItem? flexItemWithCatalog(List<CosmeticItem> catalog) {
+    final catalogById = {for (final item in catalog) item.id: item};
+    final candidates = <({int priority, SocialCosmeticFlexItem item})>[
+      ?_flexCandidate(
+        itemId: avatarFrameId,
+        slotLabel: 'Frame',
+        priority: 0,
+        catalogById: catalogById,
+      ),
+      ?_flexCandidate(
+        itemId: trailId,
+        slotLabel: 'Trail',
+        priority: 1,
+        catalogById: catalogById,
+      ),
+      ?_flexCandidate(
+        itemId: avatarGearId,
+        slotLabel: 'Gear',
+        priority: 2,
+        catalogById: catalogById,
+      ),
+      ?_flexCandidate(
+        itemId: answerEffectId,
+        slotLabel: 'Effect',
+        priority: 3,
+        catalogById: catalogById,
+      ),
+      ?_flexCandidate(
+        itemId: profileBackgroundId,
+        slotLabel: 'Background',
+        priority: 4,
+        catalogById: catalogById,
+      ),
+    ];
+    if (candidates.isEmpty) return null;
+
+    candidates.sort((a, b) {
+      final priority = a.priority.compareTo(b.priority);
+      if (priority != 0) return priority;
+      return b.item.rarity.index.compareTo(a.item.rarity.index);
+    });
+    return candidates.first.item;
+  }
+
+  ({int priority, SocialCosmeticFlexItem item})? _flexCandidate({
+    required String? itemId,
+    required String slotLabel,
+    required int priority,
+    required Map<String, CosmeticItem> catalogById,
+  }) {
+    if (itemId == null) return null;
+
+    return (
+      priority: priority,
+      item: _buildFlexItem(
+        itemId: itemId,
+        slotLabel: slotLabel,
+        catalogById: catalogById,
+      ),
+    );
+  }
+
+  SocialCosmeticFlexItem _buildFlexItem({
+    required String itemId,
+    required String slotLabel,
+    required Map<String, CosmeticItem> catalogById,
+  }) {
+    final unlock = recentRareUnlocks
+        .where((entry) => entry.itemId == itemId)
+        .firstOrNull;
+    final catalogItem = catalogById[itemId];
+    final rarity =
+        unlock?.rarity ??
+        catalogItem?.rarity ??
+        highlightRarity ??
+        _rarityFromItemId(itemId);
+    final actualName = unlock?.hasActualName == true
+        ? unlock!.name
+        : catalogItem?.name;
+
+    return SocialCosmeticFlexItem(
+      itemId: itemId,
+      name: actualName ?? _fallbackFlexName(rarity, slotLabel),
+      rarity: rarity,
+      slotLabel: slotLabel,
+      hasActualName: actualName != null,
+    );
+  }
+
   CosmeticRarity? get strongestRarity {
     final rarities = <CosmeticRarity>[
       ?highlightRarity,
-      for (final unlock in recentUnlocks) unlock.rarity,
+      for (final unlock in recentRareUnlocks) unlock.rarity,
     ];
     if (rarities.isEmpty) return null;
     rarities.sort((a, b) => b.index.compareTo(a.index));
@@ -102,14 +258,19 @@ class SocialCosmeticLoadout {
   UserAvatar toAvatarConfig(String userId) {
     return UserAvatar.defaults(userId).copyWith(
       frameId: avatarFrameId,
-      accessoryId: accessoryId,
-      animatedEffectId: animatedEffectId,
+      accessoryId: avatarGearId,
+      backgroundId: profileBackgroundId,
+      animatedEffectId: trailId ?? answerEffectId,
     );
   }
 
   factory SocialCosmeticLoadout.fromJson(Map<String, dynamic> json) {
     final recentRaw =
-        json['recentUnlocks'] ?? json['recent_unlocks'] ?? json['unlocks'];
+        json['recentRareUnlocks'] ??
+        json['recent_rare_unlocks'] ??
+        json['recentUnlocks'] ??
+        json['recent_unlocks'] ??
+        json['unlocks'];
     final recent = recentRaw is List
         ? recentRaw
               .map((entry) {
@@ -118,6 +279,7 @@ class SocialCosmeticLoadout {
                     itemId: entry,
                     name: _friendlyName(entry),
                     rarity: _rarityFromItemId(entry),
+                    hasActualName: false,
                   );
                 }
                 if (entry is Map) {
@@ -138,19 +300,31 @@ class SocialCosmeticLoadout {
             json['frameId'] ??
             json['frame_id'],
       ),
-      animatedEffectId: _asNullableString(
-        json['animatedEffectId'] ??
-            json['animated_effect_id'] ??
-            json['effectId'] ??
-            json['effect_id'] ??
-            json['trailId'] ??
-            json['trail_id'],
+      trailId: _asNullableString(
+        json['trailId'] ??
+            json['trail_id'] ??
+            json['animatedEffectId'] ??
+            json['animated_effect_id'],
       ),
-      accessoryId: _asNullableString(
-        json['accessoryId'] ??
+      avatarGearId: _asNullableString(
+        json['avatarGearId'] ??
+            json['avatar_gear_id'] ??
+            json['accessoryId'] ??
             json['accessory_id'] ??
             json['gearId'] ??
             json['gear_id'],
+      ),
+      answerEffectId: _asNullableString(
+        json['answerEffectId'] ??
+            json['answer_effect_id'] ??
+            json['effectId'] ??
+            json['effect_id'],
+      ),
+      profileBackgroundId: _asNullableString(
+        json['profileBackgroundId'] ??
+            json['profile_background_id'] ??
+            json['backgroundId'] ??
+            json['background_id'],
       ),
       highlightRarity:
           _rarityFromNullableString(
@@ -163,7 +337,7 @@ class SocialCosmeticLoadout {
             ),
           ) ??
           (recent.isEmpty ? null : recent.first.rarity),
-      recentUnlocks: recent,
+      recentRareUnlocks: recent,
     );
   }
 
@@ -201,53 +375,12 @@ class SocialCosmeticLoadout {
 
     return SocialCosmeticLoadout(
       avatarFrameId: avatar?.frameId,
-      animatedEffectId: avatar?.animatedEffectId,
-      accessoryId: avatar?.accessoryId,
+      trailId: avatar?.animatedEffectId,
+      avatarGearId: avatar?.accessoryId,
+      profileBackgroundId: _nonDefaultId(avatar?.backgroundId, 'bg_default'),
       highlightRarity: recent.isEmpty ? null : recent.first.rarity,
-      recentUnlocks: recent.take(5).toList(growable: false),
+      recentRareUnlocks: recent.take(5).toList(growable: false),
     );
-  }
-
-  factory SocialCosmeticLoadout.mockForLeaderboard({
-    required int rank,
-    required int userId,
-  }) {
-    if (rank == 1) {
-      return const SocialCosmeticLoadout(
-        avatarFrameId: 'frame_gold_laurel',
-        animatedEffectId: 'effect_neon_number_burst',
-        highlightRarity: CosmeticRarity.legendary,
-        recentUnlocks: [
-          SocialCosmeticUnlock(
-            itemId: 'effect_neon_number_burst',
-            name: 'Neon Number Burst',
-            rarity: CosmeticRarity.epic,
-          ),
-        ],
-      );
-    }
-    if (rank == 2) {
-      return const SocialCosmeticLoadout(
-        avatarFrameId: 'frame_olympiad',
-        accessoryId: 'acc_math_crown',
-        highlightRarity: CosmeticRarity.epic,
-      );
-    }
-    if (rank == 3 || userId % 7 == 0) {
-      return const SocialCosmeticLoadout(
-        avatarFrameId: 'frame_comet',
-        animatedEffectId: 'effect_nova_trail',
-        highlightRarity: CosmeticRarity.rare,
-        recentUnlocks: [
-          SocialCosmeticUnlock(
-            itemId: 'frame_comet',
-            name: 'Comet Frame',
-            rarity: CosmeticRarity.rare,
-          ),
-        ],
-      );
-    }
-    return const SocialCosmeticLoadout();
   }
 }
 
@@ -263,7 +396,38 @@ SocialCosmeticLoadout? socialCosmeticLoadoutFromJson(
   if (raw is Map) {
     return SocialCosmeticLoadout.fromJson(Map<String, dynamic>.from(raw));
   }
+  if (_hasLoadoutFields(json)) {
+    return SocialCosmeticLoadout.fromJson(json);
+  }
   return null;
+}
+
+bool _hasLoadoutFields(Map<String, dynamic> json) {
+  const keys = <String>{
+    'avatarFrameId',
+    'avatar_frame_id',
+    'frameId',
+    'frame_id',
+    'trailId',
+    'trail_id',
+    'avatarGearId',
+    'avatar_gear_id',
+    'answerEffectId',
+    'answer_effect_id',
+    'profileBackgroundId',
+    'profile_background_id',
+    'recentRareUnlocks',
+    'recent_rare_unlocks',
+    'animatedEffectId',
+    'animated_effect_id',
+    'accessoryId',
+    'accessory_id',
+    'gearId',
+    'gear_id',
+    'recentUnlocks',
+    'recent_unlocks',
+  };
+  return keys.any(json.containsKey);
 }
 
 String _asString(dynamic value, {String fallback = ''}) {
@@ -276,6 +440,11 @@ String? _asNullableString(dynamic value) {
   final safe = value?.toString().trim();
   if (safe == null || safe.isEmpty) return null;
   return safe;
+}
+
+String? _nonDefaultId(String? value, String defaultValue) {
+  if (value == null || value == defaultValue) return null;
+  return value;
 }
 
 CosmeticRarity? _rarityFromNullableString(String? value) {
@@ -300,7 +469,10 @@ CosmeticRarity _rarityFromItemId(String itemId) {
 
 String _friendlyName(String itemId) {
   return itemId
-      .replaceAll(RegExp(r'^(frame|effect|acc|skin|hair|clothing)_'), '')
+      .replaceAll(
+        RegExp(r'^(frame|effect|acc|skin|hair|clothing|trail|gear|bg)_'),
+        '',
+      )
       .split('_')
       .map(
         (part) => part.isEmpty
@@ -308,4 +480,8 @@ String _friendlyName(String itemId) {
             : '${part[0].toUpperCase()}${part.substring(1)}',
       )
       .join(' ');
+}
+
+String _fallbackFlexName(CosmeticRarity rarity, String slotLabel) {
+  return '${rarity.label} $slotLabel';
 }

@@ -12,8 +12,8 @@ import '../test_helper.dart';
 // ---------------------------------------------------------------------------
 class _StubSeasonService extends SeasonService {
   _StubSeasonService({required Season? season})
-      : _season = season,
-        super.test();
+    : _season = season,
+      super.test();
 
   Season? _season;
   SeasonProgress? _savedProgress;
@@ -73,7 +73,6 @@ Season _buildSeason({
   DateTime? start,
   DateTime? end,
   int totalXpGoal = 500,
-  List<SeasonMilestone>? milestones,
 }) {
   final now = DateTime.now();
   return SeasonService.buildTestSeason(
@@ -209,9 +208,7 @@ void main() {
 
     test('awardDailyRunXp does nothing for ended season', () async {
       final now = DateTime.now();
-      final ended = _buildSeason(
-        end: now.subtract(const Duration(days: 1)),
-      );
+      final ended = _buildSeason(end: now.subtract(const Duration(days: 1)));
       final provider = await _buildProvider(season: ended);
       await provider.awardDailyRunXp(1.0);
       expect(provider.earnedXp, 0);
@@ -272,9 +269,7 @@ void main() {
 
     test('claimMilestone fails for ended season', () async {
       final now = DateTime.now();
-      final ended = _buildSeason(
-        end: now.subtract(const Duration(days: 1)),
-      );
+      final ended = _buildSeason(end: now.subtract(const Duration(days: 1)));
       final provider = await _buildProvider(season: ended);
       final milestone = provider.milestones.first;
       final result = await provider.claimMilestone(milestone);
@@ -320,14 +315,8 @@ void main() {
     test('returns true only for the actual featured cosmetic id', () async {
       final season = _buildSeason(); // featured: 'frame_gold_laurel'
       final provider = await _buildProvider(season: season);
-      expect(
-        provider.isSeasonFeaturedItem('frame_gold_laurel'),
-        isTrue,
-      );
-      expect(
-        provider.isSeasonFeaturedItem('frame_comet'),
-        isFalse,
-      );
+      expect(provider.isSeasonFeaturedItem('frame_gold_laurel'), isTrue);
+      expect(provider.isSeasonFeaturedItem('frame_comet'), isFalse);
     });
 
     test('returns false for made-up item ids', () async {

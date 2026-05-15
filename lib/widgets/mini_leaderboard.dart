@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../models/cosmetic_target.dart';
 import '../models/leaderboard_models.dart';
 import '../models/social_cosmetic_loadout.dart';
+import 'cosmetic_flex_chip.dart';
+import 'cosmetic_target_chip.dart';
 import 'social_cosmetic_avatar.dart';
+import 'weekly_featured_flair_chip.dart';
 
 class MiniLeaderboard extends StatelessWidget {
   const MiniLeaderboard({
@@ -12,6 +16,9 @@ class MiniLeaderboard extends StatelessWidget {
     this.isLoading = false,
     this.errorMessage,
     this.onRetry,
+    this.currentUserLoadout,
+    this.currentUserTarget,
+    this.weeklyFeaturedCompletionLabel,
   });
 
   final List<RivalLeaderboardEntry> entries;
@@ -19,6 +26,9 @@ class MiniLeaderboard extends StatelessWidget {
   final bool isLoading;
   final String? errorMessage;
   final VoidCallback? onRetry;
+  final SocialCosmeticLoadout? currentUserLoadout;
+  final CosmeticTarget? currentUserTarget;
+  final String? weeklyFeaturedCompletionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +76,10 @@ class MiniLeaderboard extends StatelessWidget {
                         ),
                         entry: entry,
                         isCurrentUser: entry.userId == currentUserId,
+                        currentUserLoadout: currentUserLoadout,
+                        currentUserTarget: currentUserTarget,
+                        weeklyFeaturedCompletionLabel:
+                            weeklyFeaturedCompletionLabel,
                       ),
                     )
                     .toList(growable: false),
@@ -100,17 +114,29 @@ class _MiniLeaderboardRow extends StatelessWidget {
     super.key,
     required this.entry,
     required this.isCurrentUser,
+    this.currentUserLoadout,
+    this.currentUserTarget,
+    this.weeklyFeaturedCompletionLabel,
   });
 
   final RivalLeaderboardEntry entry;
   final bool isCurrentUser;
+  final SocialCosmeticLoadout? currentUserLoadout;
+  final CosmeticTarget? currentUserTarget;
+  final String? weeklyFeaturedCompletionLabel;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    // Use only real API-provided loadout. Empty loadout = honest default.
-    final loadout = entry.cosmeticLoadout ?? const SocialCosmeticLoadout();
+    final loadout =
+        isCurrentUser && currentUserLoadout?.hasEquippedCosmetics == true
+        ? currentUserLoadout!
+        : entry.cosmeticLoadout ?? const SocialCosmeticLoadout();
+    final target = isCurrentUser && currentUserTarget != null
+        ? currentUserTarget
+        : null;
+    final weeklyLabel = isCurrentUser ? weeklyFeaturedCompletionLabel : null;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
@@ -156,6 +182,7 @@ class _MiniLeaderboardRow extends StatelessWidget {
                   avatarUrl: entry.avatarUrl,
                   loadout: loadout,
                   size: 38,
+                  isCurrentUser: isCurrentUser,
                 ),
               ],
             ),
@@ -177,6 +204,34 @@ class _MiniLeaderboardRow extends StatelessWidget {
                     color: colors.onSurfaceVariant,
                   ),
                 ),
+                if (loadout.hasEquippedCosmetics)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: CosmeticFlexChip(
+                      loadout: loadout,
+                      isCurrentUser: isCurrentUser,
+                      compact: true,
+                      maxWidth: 118,
+                    ),
+                  ),
+                if (target != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: CosmeticTargetChip(
+                      target: target,
+                      compact: true,
+                      maxWidth: 118,
+                    ),
+                  ),
+                if (weeklyLabel != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: WeeklyFeaturedFlairChip(
+                      label: weeklyLabel,
+                      compact: true,
+                      maxWidth: 118,
+                    ),
+                  ),
               ],
             ),
           ),

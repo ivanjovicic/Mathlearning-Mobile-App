@@ -25,7 +25,10 @@ import 'package:mathlearning/navigation/navigation_extensions.dart';
 import 'package:mathlearning/services/api_service.dart';
 import 'package:mathlearning/services/sound_service.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
+import 'package:mathlearning/state/daily_return_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
+import 'package:mathlearning/state/streak_freeze_provider.dart';
+import 'package:mathlearning/state/weekly_featured_provider.dart';
 
 class AdaptivePracticeScreen extends StatelessWidget {
   const AdaptivePracticeScreen({
@@ -487,7 +490,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
         text,
         duration: const Duration(milliseconds: 250),
         autoHide: false,
-        soundEffect: text == 'Go!' ? null : SoundEffect.run_start_tick,
+        soundEffect: text == 'Go!' ? null : SoundEffect.runStartTick,
       );
     }
 
@@ -551,7 +554,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
         icon: icon,
         duration: const Duration(milliseconds: 780),
         showParticles: true,
-        soundEffect: SoundEffect.combo_burst,
+        soundEffect: SoundEffect.comboBurst,
       ),
     );
   }
@@ -630,7 +633,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
             'Speed streak!',
             icon: Icons.speed_rounded,
             compact: true,
-            soundEffect: SoundEffect.speed_streak,
+            soundEffect: SoundEffect.speedStreak,
           ),
         );
       } else if (wasFast) {
@@ -639,7 +642,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
             'Fast hit!',
             icon: Icons.bolt_rounded,
             compact: true,
-            soundEffect: SoundEffect.fast_hit,
+            soundEffect: SoundEffect.fastHit,
           ),
         );
       }
@@ -721,6 +724,8 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
 
     _accumulateRunStats(completion);
 
+    final dailyRun = _maybeRead<DailyRunProvider>(context);
+    final adaptivePractice = context.read<AdaptivePracticeProvider>();
     final nextStageIndex = _runStageIndex + 1;
     if (nextStageIndex < _runPlans.length) {
       if (_runStageIndex == 0) {
@@ -728,7 +733,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
           'Warm-up cleared',
           icon: Icons.check_circle_rounded,
           duration: const Duration(milliseconds: 760),
-          soundEffect: SoundEffect.stage_cleared,
+          soundEffect: SoundEffect.stageCleared,
         );
       } else if (_runStageIndex == 1) {
         await _showRunBurst(
@@ -736,7 +741,7 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
           subtitle: 'Crack the chest',
           icon: Icons.card_giftcard_rounded,
           duration: const Duration(milliseconds: 900),
-          soundEffect: SoundEffect.final_gate_unlocked,
+          soundEffect: SoundEffect.finalGateUnlocked,
         );
       }
 
@@ -744,7 +749,6 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
         _runStageIndex = nextStageIndex;
         _selectedOption = null;
       });
-      final dailyRun = _maybeRead<DailyRunProvider>(context);
       if (dailyRun != null) {
         await dailyRun.moveToStage(nextStageIndex);
       }
@@ -757,14 +761,13 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
           subtitle: 'Chest is waiting',
           icon: Icons.card_giftcard_rounded,
           duration: const Duration(milliseconds: 520),
-          soundEffect: SoundEffect.final_gate_whoosh,
+          soundEffect: SoundEffect.finalGateWhoosh,
         );
       }
-      await context.read<AdaptivePracticeProvider>().start(_currentPlan);
+      await adaptivePractice.start(_currentPlan);
       return;
     }
 
-    final dailyRun = _maybeRead<DailyRunProvider>(context);
     if (dailyRun != null) {
       await dailyRun.markCompleted();
     }
@@ -815,17 +818,18 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
     await Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
         opaque: true,
-        pageBuilder: (_, __, ___) => DailyRunCompletionPage(
-          onOpenChest: () async {
-            Navigator.of(context).pop();
-            await _syncProgressAfterCompletion(completion);
-            if (!mounted) {
-              return;
-            }
-            context.goLearnMap(focusNodeId: _currentPlan.nodeId);
-          },
-        ),
-        transitionsBuilder: (_, animation, __, child) {
+        pageBuilder: (pageContext, animation, secondaryAnimation) =>
+            DailyRunCompletionPage(
+              onOpenChest: () async {
+                Navigator.of(pageContext).pop();
+                await _syncProgressAfterCompletion(completion);
+                if (!mounted) {
+                  return;
+                }
+                _goBackToMap(_currentPlan.nodeId);
+              },
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 180),
@@ -841,14 +845,15 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
       await Navigator.of(context).push<void>(
         PageRouteBuilder<void>(
           opaque: true,
-          pageBuilder: (_, __, ___) => PracticeCelebrationPage(
-            xpEarned: completion.xpEarned,
-            correctCount: completion.correctAnswers,
-            totalQuestions: completion.answeredQuestions,
-            masteryDelta: completion.masteryDelta,
-            onContinue: () => Navigator.of(context).pop(),
-          ),
-          transitionsBuilder: (_, animation, __, child) {
+          pageBuilder: (pageContext, animation, secondaryAnimation) =>
+              PracticeCelebrationPage(
+                xpEarned: completion.xpEarned,
+                correctCount: completion.correctAnswers,
+                totalQuestions: completion.answeredQuestions,
+                masteryDelta: completion.masteryDelta,
+                onContinue: () => Navigator.of(pageContext).pop(),
+              ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
           transitionDuration: const Duration(milliseconds: 220),
@@ -870,22 +875,27 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
           summary: completion,
           onBackToMap: () async {
             await _syncProgressAfterCompletion(completion);
-            if (!mounted) return;
+            if (!context.mounted || !sheetContext.mounted) return;
             Navigator.of(sheetContext).pop();
-            context.goLearnMap(focusNodeId: _currentPlan.nodeId);
+            _goBackToMap(_currentPlan.nodeId);
           },
           onPracticeNext: nextNodeId == null
               ? null
               : () async {
                   await _syncProgressAfterCompletion(completion);
-                  if (!mounted) return;
+                  if (!context.mounted || !sheetContext.mounted) return;
                   Navigator.of(sheetContext).pop();
-                  context.goLearnMap(focusNodeId: nextNodeId);
+                  _goBackToMap(nextNodeId);
                 },
           headline: _isDailyRunMode ? 'You beat today\'s run! 🎉' : null,
         );
       },
     );
+  }
+
+  void _goBackToMap(String nodeId) {
+    if (!mounted) return;
+    context.goLearnMap(focusNodeId: nodeId);
   }
 
   Future<void> _syncProgressAfterCompletion(
@@ -895,9 +905,17 @@ class _AdaptivePracticeViewState extends State<_AdaptivePracticeView> {
     if (progress == null) {
       return;
     }
+    final dailyReturn = _maybeRead<DailyReturnProvider>(context);
+    final streakFreeze = _maybeRead<StreakFreezeProvider>(context);
+    final weeklyFeatured = _maybeRead<WeeklyFeaturedProvider>(context);
 
     try {
       await progress.applyPracticeRoundReward(xpEarned: completion.xpEarned);
+      await dailyReturn?.recordDailyRunCompleted(
+        progress: progress,
+        streakFreeze: streakFreeze,
+        weeklyFeatured: weeklyFeatured,
+      );
     } catch (error, stackTrace) {
       debugPrint('Failed to sync adaptive practice reward locally: $error');
       debugPrintStack(stackTrace: stackTrace);

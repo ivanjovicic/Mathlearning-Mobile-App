@@ -7,6 +7,7 @@ import '../state/avatar_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/cosmetic_item_card.dart';
 import '../widgets/cosmetic_visuals.dart';
+import '../widgets/weekly_featured_banner.dart';
 
 /// Full-screen avatar customisation UI.
 ///
@@ -136,6 +137,10 @@ class _AvatarCustomizationScreenState extends State<AvatarCustomizationScreen>
                 _AvatarPreviewSection(
                   previewConfig: _previewConfig,
                   provider: provider,
+                ),
+                const WeeklyFeaturedBanner(
+                  compact: true,
+                  margin: EdgeInsets.fromLTRB(12, 10, 12, 10),
                 ),
 
                 const Divider(height: 1),

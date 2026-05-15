@@ -23,6 +23,7 @@ import 'state/avatar_provider.dart';
 import 'state/cosmetic_preview_provider.dart';
 import 'state/learning_path_provider.dart';
 import 'state/daily_run_provider.dart';
+import 'state/daily_return_provider.dart';
 import 'state/cosmetic_target_provider.dart';
 import 'state/chase_race_provider.dart';
 import 'state/player_identity_provider.dart';
@@ -199,6 +200,25 @@ class MathLearningApp extends StatelessWidget {
             return provider;
           },
         ),
+        ChangeNotifierProxyProvider4<
+          AuthProvider,
+          ProgressProvider,
+          StreakFreezeProvider,
+          WeeklyFeaturedProvider,
+          DailyReturnProvider
+        >(
+          create: (_) => DailyReturnProvider()..configureUser(null),
+          update: (_, auth, progress, streakFreeze, weeklyFeatured, previous) {
+            final provider = previous ?? DailyReturnProvider();
+            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
+            provider.rebuild(
+              progress: progress,
+              streakFreeze: streakFreeze,
+              weeklyFeatured: weeklyFeatured,
+            );
+            return provider;
+          },
+        ),
         ChangeNotifierProxyProvider<ProgressProvider, AdaptiveProvider>(
           create: (_) =>
               AdaptiveProvider(adaptiveService: _adaptiveLearningService),
@@ -243,34 +263,39 @@ class MathLearningApp extends StatelessWidget {
             return provider;
           },
         ),
-        ChangeNotifierProxyProvider2<AuthProvider, CosmeticTargetProvider,
-            ChaseRaceProvider>(
+        ChangeNotifierProxyProvider2<
+          AuthProvider,
+          CosmeticTargetProvider,
+          ChaseRaceProvider
+        >(
           create: (_) => ChaseRaceProvider(),
           update: (_, auth, targetProvider, previous) {
             final provider = previous ?? ChaseRaceProvider();
-            provider.configureUser(
-              auth.isAuthenticated ? auth.userId : null,
-            );
+            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
             provider.updateTarget(targetProvider.target);
             return provider;
           },
         ),
-        ChangeNotifierProxyProvider4<AuthProvider, AvatarProvider,
-            ProgressProvider, SeasonProvider, PlayerIdentityProvider>(
+        ChangeNotifierProxyProvider4<
+          AuthProvider,
+          AvatarProvider,
+          ProgressProvider,
+          SeasonProvider,
+          PlayerIdentityProvider
+        >(
           create: (_) => PlayerIdentityProvider(),
           update: (_, auth, avatar, progress, season, previous) {
             final provider = previous ?? PlayerIdentityProvider();
-            provider.configureUser(
-              auth.isAuthenticated ? auth.userId : null,
-            );
+            provider.configureUser(auth.isAuthenticated ? auth.userId : null);
             provider.refresh(
               inventory: avatar.inventory,
               catalog: avatar.catalog,
               currentStreak: progress.streak,
               totalAttempts: progress.totalAttempts,
               seasonCompletionPercent: season.completionPercent,
-              completedSeasonName:
-                  season.completionPercent >= 100 ? season.season?.name : null,
+              completedSeasonName: season.completionPercent >= 100
+                  ? season.season?.name
+                  : null,
               completedSeasonId: season.completionPercent >= 100
                   ? season.season?.seasonId
                   : null,
@@ -356,9 +381,7 @@ class _AppRootState extends State<_AppRoot> {
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         AppScale.init(context);
-        final scaledTheme = AppTheme.enhance(
-          Theme.of(context),
-        );
+        final scaledTheme = AppTheme.enhance(Theme.of(context));
         return MediaQuery(
           data: mediaQuery.copyWith(
             disableAnimations: mediaQuery.disableAnimations || reduceMotion,

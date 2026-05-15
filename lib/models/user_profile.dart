@@ -1,3 +1,5 @@
+import 'social_cosmetic_loadout.dart';
+
 class UserProfile {
   final String id;
   final String username;
@@ -6,7 +8,10 @@ class UserProfile {
   final int coins;
   final int xp;
   final int level;
+  final bool hasXp;
+  final bool hasLevel;
   final String? avatarUrl;
+  final SocialCosmeticLoadout? cosmeticLoadout;
   final int? schoolId;
   final int? facultyId;
   final DateTime createdAt;
@@ -20,7 +25,10 @@ class UserProfile {
     required this.coins,
     required this.xp,
     required this.level,
+    this.hasXp = true,
+    this.hasLevel = true,
     this.avatarUrl,
+    this.cosmeticLoadout,
     this.schoolId,
     this.facultyId,
     required this.createdAt,
@@ -35,15 +43,21 @@ class UserProfile {
       return int.tryParse(v.toString());
     }
 
+    final xpValue = readNullableInt(json['xp']);
+    final levelValue = readNullableInt(json['level']);
+
     return UserProfile(
       id: (json['id'] ?? json['userId'])?.toString() ?? '',
       username: json['username'] ?? '',
       email: json['email'] ?? '',
       displayName: json['displayName'] ?? json['display_name'] ?? '',
       coins: json['coins'] ?? 100, // Default 100 coins for new users
-      xp: json['xp'] ?? 0,
-      level: json['level'] ?? 1,
+      xp: xpValue ?? 0,
+      level: levelValue ?? 1,
+      hasXp: json.containsKey('xp') && xpValue != null,
+      hasLevel: json.containsKey('level') && levelValue != null,
       avatarUrl: json['avatarUrl'] ?? json['avatar_url'],
+      cosmeticLoadout: socialCosmeticLoadoutFromJson(json),
       schoolId: readNullableInt(json['schoolId'] ?? json['school_id']),
       facultyId: readNullableInt(json['facultyId'] ?? json['faculty_id']),
       createdAt:
@@ -62,9 +76,28 @@ class UserProfile {
       'email': email,
       'displayName': displayName,
       'coins': coins,
-      'xp': xp,
-      'level': level,
+      if (hasXp) 'xp': xp,
+      if (hasLevel) 'level': level,
       'avatarUrl': avatarUrl,
+      'cosmeticLoadout': cosmeticLoadout == null
+          ? null
+          : {
+              'avatarFrameId': cosmeticLoadout!.avatarFrameId,
+              'trailId': cosmeticLoadout!.trailId,
+              'avatarGearId': cosmeticLoadout!.avatarGearId,
+              'answerEffectId': cosmeticLoadout!.answerEffectId,
+              'profileBackgroundId': cosmeticLoadout!.profileBackgroundId,
+              'recentRareUnlocks': cosmeticLoadout!.recentRareUnlocks
+                  .map(
+                    (unlock) => {
+                      'itemId': unlock.itemId,
+                      'name': unlock.name,
+                      'rarity': unlock.rarity.name,
+                      'unlockedAt': unlock.unlockedAt?.toIso8601String(),
+                    },
+                  )
+                  .toList(growable: false),
+            },
       'schoolId': schoolId,
       'facultyId': facultyId,
       'createdAt': createdAt.toIso8601String(),
@@ -80,6 +113,10 @@ class UserProfile {
     int? coins,
     int? xp,
     int? level,
+    bool? hasXp,
+    bool? hasLevel,
+    String? avatarUrl,
+    SocialCosmeticLoadout? cosmeticLoadout,
     int? schoolId,
     int? facultyId,
     DateTime? createdAt,
@@ -93,6 +130,10 @@ class UserProfile {
       coins: coins ?? this.coins,
       xp: xp ?? this.xp,
       level: level ?? this.level,
+      hasXp: hasXp ?? this.hasXp,
+      hasLevel: hasLevel ?? this.hasLevel,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      cosmeticLoadout: cosmeticLoadout ?? this.cosmeticLoadout,
       schoolId: schoolId ?? this.schoolId,
       facultyId: facultyId ?? this.facultyId,
       createdAt: createdAt ?? this.createdAt,

@@ -6,8 +6,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:mathlearning/features/learning_map/widgets/cosmetic_equip_confirmation.dart';
 import 'package:mathlearning/features/learning_map/widgets/cosmetic_fragment_card.dart';
+import 'package:mathlearning/models/social_cosmetic_loadout.dart';
 import 'package:mathlearning/services/cosmetics_service.dart';
 import 'package:mathlearning/services/sound_service.dart';
+import 'package:mathlearning/widgets/avatar_widget.dart';
 
 // ---------------------------------------------------------------------------
 // Confetti particle data (deterministic – no dart:math random at build time).
@@ -188,6 +190,141 @@ class _SparkleRingPainter extends CustomPainter {
   bool shouldRepaint(_SparkleRingPainter old) => old.t != t;
 }
 
+class _UnlockBloomPainter extends CustomPainter {
+  const _UnlockBloomPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width * 0.5, size.height * 0.30);
+    final radius = size.shortestSide * 0.72;
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: 0.30),
+          color.withValues(alpha: 0.12),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.46, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawCircle(center, radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(_UnlockBloomPainter oldDelegate) {
+    return oldDelegate.color != color;
+  }
+}
+
+class _AvatarAutoPreview extends StatelessWidget {
+  const _AvatarAutoPreview({required this.itemName, required this.color});
+
+  final String itemName;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('unlock_avatar_auto_preview'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.36)),
+      ),
+      child: Row(
+        children: [
+          AvatarWidget(
+            size: 48,
+            showFrame: true,
+            borderColor: color,
+            overrideConfig: _loadoutFor(
+              itemName,
+            ).toAvatarConfig('unlock-preview'),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Avatar preview',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Try it on before you equip.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  SocialCosmeticLoadout _loadoutFor(String name) {
+    final itemId = CosmeticsService.instance.dailyRunItemIdForFragment(name);
+    if (itemId.startsWith('frame_')) {
+      return SocialCosmeticLoadout(avatarFrameId: itemId);
+    }
+    if (itemId.startsWith('effect_')) {
+      if (itemId.contains('trail')) {
+        return SocialCosmeticLoadout(trailId: itemId);
+      }
+      return SocialCosmeticLoadout(answerEffectId: itemId);
+    }
+    return SocialCosmeticLoadout(avatarGearId: itemId);
+  }
+}
+
+class _VictoryHold extends StatelessWidget {
+  const _VictoryHold({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('unlock_victory_hold'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2, color: color),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'Victory moment...',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // CosmeticUnlockCelebration
 //
@@ -225,6 +362,10 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
 
   bool _equipping = false;
   bool _equipped = false;
+  bool _ctaVisible = false;
+  bool _holdStarted = false;
+  bool _reduceMotion = false;
+  Timer? _ctaTimer;
 
   @override
   void initState() {
@@ -246,14 +387,44 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
     )..forward();
 
     // Sound: rare_fragment_reveal → reward_claim with a short gap.
-    unawaited(SoundService.instance.playRareFragmentReveal());
+    unawaited(SoundService.instance.playFinalGateUnlocked());
     Future<void>.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) unawaited(SoundService.instance.playRewardClaim());
+      if (mounted) unawaited(SoundService.instance.playFinalGateWhoosh());
     });
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final nextReduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (nextReduce != _reduceMotion) {
+      _reduceMotion = nextReduce;
+      if (_reduceMotion) {
+        _confettiCtrl.stop();
+        _sparkleCtrl.stop();
+        _entryCtrl.value = 1;
+      } else {
+        if (!_confettiCtrl.isAnimating) _confettiCtrl.repeat();
+        if (!_sparkleCtrl.isAnimating) _sparkleCtrl.repeat();
+      }
+    }
+
+    if (!_holdStarted) {
+      _holdStarted = true;
+      _ctaTimer = Timer(
+        _reduceMotion ? Duration.zero : const Duration(milliseconds: 1050),
+        () {
+          if (!mounted) return;
+          setState(() => _ctaVisible = true);
+          unawaited(SoundService.instance.playRewardClaim());
+        },
+      );
+    }
+  }
+
+  @override
   void dispose() {
+    _ctaTimer?.cancel();
     _confettiCtrl.dispose();
     _sparkleCtrl.dispose();
     _entryCtrl.dispose();
@@ -281,7 +452,7 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
 
   String get _unlockHeadline {
     final upper = widget.itemName.toUpperCase();
-    return '$upper\nUNLOCKED!';
+    return '$upper UNLOCKED!';
   }
 
   @override
@@ -338,6 +509,14 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
             borderRadius: BorderRadius.circular(24),
             child: Stack(
               children: [
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      key: const Key('unlock_rarity_bloom'),
+                      painter: _UnlockBloomPainter(color: rarityColor),
+                    ),
+                  ),
+                ),
                 // ── Confetti layer ──────────────────────────────────────
                 Positioned.fill(
                   child: IgnorePointer(
@@ -356,216 +535,224 @@ class _CosmeticUnlockCelebrationState extends State<CosmeticUnlockCelebration>
                 // ── Content ─────────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Sparkle ring + preview.
-                      SizedBox(
-                        height: 148,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Sparkle orbit ring.
-                            Positioned.fill(
-                              child: IgnorePointer(
-                                child: AnimatedBuilder(
-                                  animation: _sparkleCtrl,
-                                  builder: (_, _) => CustomPaint(
-                                    painter: _SparkleRingPainter(
-                                      color: rarityColor,
-                                      t: _sparkleCtrl.value,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Item preview.
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: SizedBox(
-                                width: double.infinity,
-                                height: 110,
-                                child: _CelebrationItemPreview(
-                                  rarity: widget.rarity,
-                                  fragmentName: widget.itemName,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Rarity badge.
-                      Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: rarityColor,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: rarityColor.withValues(alpha: 0.55),
-                                  blurRadius: 10,
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              rarityLabel,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          )
-                          .animate(onPlay: (c) => c.repeat(reverse: true))
-                          .scale(
-                            begin: const Offset(1.0, 1.0),
-                            end: const Offset(1.06, 1.06),
-                            duration: 900.ms,
-                            curve: Curves.easeInOut,
-                          ),
-
-                      const SizedBox(height: 10),
-
-                      // Big unlock headline.
-                      Text(
-                            _unlockHeadline,
-                            textAlign: TextAlign.center,
-                            style: textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              color: rarityColor,
-                              height: 1.15,
-                              shadows: [
-                                Shadow(
-                                  color: rarityColor.withValues(alpha: 0.60),
-                                  blurRadius: 16,
-                                ),
-                              ],
-                            ),
-                          )
-                          .animate()
-                          .fadeIn(duration: 260.ms, delay: 180.ms)
-                          .slideY(
-                            begin: 0.12,
-                            end: 0,
-                            duration: 320.ms,
-                            delay: 180.ms,
-                            curve: Curves.easeOutBack,
-                          ),
-
-                      const SizedBox(height: 6),
-
-                      // "5/5 collected" — all pips filled.
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          for (var i = 0; i < 5; i++) ...[
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: rarityColor,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: rarityColor.withValues(alpha: 0.55),
-                                    blurRadius: 6,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (i < 4) const SizedBox(width: 6),
-                          ],
-                          const SizedBox(width: 10),
-                          Text(
-                            '5/5 collected',
-                            style: textTheme.labelSmall?.copyWith(
-                              color: rarityColor,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ).animate(delay: 320.ms).fadeIn(duration: 240.ms),
-
-                      const SizedBox(height: 20),
-
-                      // CTAs — replaced by equip confirmation once equipped.
-                      if (_equipped)
-                        CosmeticEquipConfirmation(
-                          itemName: widget.itemName,
-                          itemType: cosmeticItemType(widget.itemName),
-                          rarityColor: rarityColor,
-                          onDone: null,
-                        )
-                      else ...[
-                        if (widget.onEquipNow != null)
-                          SizedBox(
-                                width: double.infinity,
-                                child: FilledButton.icon(
-                                  onPressed: _equipping ? null : _handleEquip,
-                                  icon: _equipping
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Icon(
-                                          Icons.checkroom_rounded,
-                                          size: 18,
-                                        ),
-                                  label: Text(
-                                    _equipping ? 'Equipping…' : 'Equip now',
-                                  ),
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: rarityColor,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .animate(delay: 440.ms)
-                              .fadeIn(duration: 220.ms)
-                              .slideY(begin: 0.12, end: 0, duration: 260.ms),
-
-                        if (widget.onEquipNow != null &&
-                            widget.onViewCollection != null)
-                          const SizedBox(height: 8),
-
-                        if (widget.onViewCollection != null)
-                          SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: widget.onViewCollection,
-                                  icon: const Icon(
-                                    Icons.collections_bookmark_rounded,
-                                    size: 16,
-                                  ),
-                                  label: const Text('View collection'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: rarityColor,
-                                    side: BorderSide(
-                                      color: rarityColor.withValues(
-                                        alpha: 0.55,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Sparkle ring + preview.
+                        SizedBox(
+                          height: 148,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Sparkle orbit ring.
+                              Positioned.fill(
+                                child: IgnorePointer(
+                                  child: AnimatedBuilder(
+                                    animation: _sparkleCtrl,
+                                    builder: (_, _) => CustomPaint(
+                                      painter: _SparkleRingPainter(
+                                        color: rarityColor,
+                                        t: _sparkleCtrl.value,
                                       ),
                                     ),
                                   ),
                                 ),
-                              )
-                              .animate(delay: 500.ms)
-                              .fadeIn(duration: 220.ms)
-                              .slideY(begin: 0.12, end: 0, duration: 260.ms),
+                              ),
+                              // Item preview.
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  height: 110,
+                                  child: _CelebrationItemPreview(
+                                    rarity: widget.rarity,
+                                    fragmentName: widget.itemName,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Rarity badge.
+                        Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: rarityColor,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: rarityColor.withValues(alpha: 0.55),
+                                    blurRadius: 10,
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                rarityLabel,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            )
+                            .animate(onPlay: (c) => c.repeat(reverse: true))
+                            .scale(
+                              begin: const Offset(1.0, 1.0),
+                              end: const Offset(1.06, 1.06),
+                              duration: 900.ms,
+                              curve: Curves.easeInOut,
+                            ),
+
+                        const SizedBox(height: 10),
+
+                        // Big unlock headline.
+                        Text(
+                              _unlockHeadline,
+                              textAlign: TextAlign.center,
+                              style: textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                color: rarityColor,
+                                height: 1.15,
+                                shadows: [
+                                  Shadow(
+                                    color: rarityColor.withValues(alpha: 0.60),
+                                    blurRadius: 16,
+                                  ),
+                                ],
+                              ),
+                            )
+                            .animate()
+                            .fadeIn(duration: 260.ms, delay: 180.ms)
+                            .slideY(
+                              begin: 0.12,
+                              end: 0,
+                              duration: 320.ms,
+                              delay: 180.ms,
+                              curve: Curves.easeOutBack,
+                            ),
+
+                        const SizedBox(height: 6),
+
+                        // "5/5 collected" — all pips filled.
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (var i = 0; i < 5; i++) ...[
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: rarityColor,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: rarityColor.withValues(
+                                        alpha: 0.55,
+                                      ),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (i < 4) const SizedBox(width: 6),
+                            ],
+                            const SizedBox(width: 10),
+                            Text(
+                              '5/5 collected',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: rarityColor,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ).animate(delay: 320.ms).fadeIn(duration: 240.ms),
+
+                        const SizedBox(height: 14),
+
+                        _AvatarAutoPreview(
+                              itemName: widget.itemName,
+                              color: rarityColor,
+                            )
+                            .animate(delay: 460.ms)
+                            .fadeIn(duration: 260.ms)
+                            .slideY(begin: 0.10, end: 0, duration: 280.ms),
+
+                        const SizedBox(height: 18),
+
+                        // CTAs — replaced by equip confirmation once equipped.
+                        if (_equipped)
+                          CosmeticEquipConfirmation(
+                            itemName: widget.itemName,
+                            itemType: cosmeticItemType(widget.itemName),
+                            rarityColor: rarityColor,
+                            onDone: null,
+                          )
+                        else if (!_ctaVisible)
+                          _VictoryHold(color: rarityColor)
+                        else ...[
+                          if (widget.onEquipNow != null)
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: _equipping ? null : _handleEquip,
+                                icon: _equipping
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.checkroom_rounded,
+                                        size: 18,
+                                      ),
+                                label: Text(
+                                  _equipping ? 'Equipping…' : 'Equip now',
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: rarityColor,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          if (widget.onEquipNow != null &&
+                              widget.onViewCollection != null)
+                            const SizedBox(height: 8),
+
+                          if (widget.onViewCollection != null)
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: widget.onViewCollection,
+                                icon: const Icon(
+                                  Icons.collections_bookmark_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('View collection'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: rarityColor,
+                                  side: BorderSide(
+                                    color: rarityColor.withValues(alpha: 0.55),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ],

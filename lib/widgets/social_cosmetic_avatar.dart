@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/cosmetic_item.dart';
 import '../models/social_cosmetic_loadout.dart';
 import '../models/user_avatar.dart';
+import '../services/cosmetics_service.dart';
 import '../services/new_look_badge_service.dart';
+import '../state/cosmetic_preview_provider.dart';
 import 'avatar_widget.dart';
+import 'cosmetic_detail_sheet.dart';
 import 'cosmetic_visuals.dart';
 
 class SocialCosmeticAvatar extends StatelessWidget {
@@ -25,55 +29,78 @@ class SocialCosmeticAvatar extends StatelessWidget {
   final SocialCosmeticLoadout? loadout;
   final double size;
   final bool showRecentBadge;
+
   /// When true, checks SharedPreferences for a recent equip and shows a
   /// "NEW" badge for up to 24 hours after the user last changed their look.
   final bool isCurrentUser;
 
   @override
   Widget build(BuildContext context) {
-    final effectiveLoadout = loadout;
+    final preview = _maybeWatch<CosmeticPreviewProvider>(context);
+    final effectiveLoadout = isCurrentUser && preview?.isPreviewing == true
+        ? preview!.applyToLoadout(loadout)
+        : loadout;
+    final effectId =
+        effectiveLoadout?.trailId ?? effectiveLoadout?.answerEffectId;
     final rarity = effectiveLoadout?.strongestRarity;
     final glowColor = rarity == null || rarity == CosmeticRarity.common
         ? null
         : CosmeticVisuals.rarityColor(rarity);
+    final hasBackground = effectiveLoadout?.profileBackgroundId != null;
+    final needsExternalBackgroundWrap = hasBackground && avatarUrl != null;
+    final avatarSize = needsExternalBackgroundWrap ? size * 0.82 : size;
     final avatarConfig = effectiveLoadout?.hasEquippedCosmetics == true
         ? effectiveLoadout!.toAvatarConfig(userId)
         : null;
 
     Widget avatar = avatarUrl == null
         ? AvatarWidget(
-            size: size,
+            size: avatarSize,
             showFrame: true,
             overrideConfig: avatarConfig ?? UserAvatar.defaults(userId),
             borderColor: glowColor,
           )
         : _NetworkAvatar(
-            size: size,
+            size: avatarSize,
             avatarUrl: avatarUrl!,
             displayName: displayName,
             frameId: effectiveLoadout?.avatarFrameId,
             glowColor: glowColor,
           );
 
-    if (effectiveLoadout?.animatedEffectId != null && avatarUrl != null) {
+    if (effectId != null && avatarUrl != null) {
       avatar = Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
           avatar,
           Positioned(
-            right: -size * 0.08,
-            bottom: size * 0.02,
-            child: _EffectDot(
-              size: size * 0.28,
-              effectId: effectiveLoadout!.animatedEffectId,
-            ),
+            right: -avatarSize * 0.08,
+            bottom: avatarSize * 0.02,
+            child: _EffectDot(size: size * 0.28, effectId: effectId),
           ),
         ],
       );
     }
 
+    if (needsExternalBackgroundWrap) {
+      avatar = Container(
+        width: size,
+        height: size,
+        padding: EdgeInsets.all(size * 0.08),
+        decoration: CosmeticVisuals.backgroundDecoration(
+          effectiveLoadout!.profileBackgroundId,
+          BorderRadius.circular(size * 0.30),
+        ),
+        child: Center(child: avatar),
+      );
+    }
+
     if (showRecentBadge && effectiveLoadout?.hasRecentRareUnlock == true) {
+      final badgeItem = _badgeItem(effectiveLoadout!);
+      final badgeRarity = rarity == null || rarity == CosmeticRarity.common
+          ? CosmeticRarity.rare
+          : rarity;
       avatar = Stack(
         clipBehavior: Clip.none,
         children: [
@@ -81,7 +108,12 @@ class SocialCosmeticAvatar extends StatelessWidget {
           Positioned(
             right: -size * 0.14,
             top: -size * 0.12,
-            child: _RecentUnlockBadge(rarity: rarity ?? CosmeticRarity.rare),
+            child: _RecentUnlockBadge(
+              item: badgeItem,
+              rarity: badgeItem?.rarity ?? badgeRarity,
+              loadout: effectiveLoadout,
+              isCurrentUser: isCurrentUser,
+            ),
           ),
         ],
       );
@@ -97,6 +129,44 @@ class SocialCosmeticAvatar extends StatelessWidget {
           : '$displayName default avatar',
       child: avatar,
     );
+  }
+
+  T? _maybeWatch<T>(BuildContext context) {
+    try {
+      return context.watch<T>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  SocialCosmeticFlexItem? _badgeItem(SocialCosmeticLoadout loadout) {
+    final catalog = CosmeticsService.instance.getCatalog();
+    final unlock = loadout.recentRareUnlocks.firstOrNull;
+    if (unlock != null) {
+      final catalogItem = catalog
+          .where((entry) => entry.id == unlock.itemId)
+          .firstOrNull;
+      final name = unlock.hasActualName
+          ? unlock.name
+          : catalogItem?.name ?? unlock.name;
+      return SocialCosmeticFlexItem(
+        itemId: unlock.itemId,
+        name: name,
+        rarity: unlock.rarity,
+        slotLabel: _slotLabelFor(unlock.itemId),
+        hasActualName: unlock.hasActualName || catalogItem != null,
+      );
+    }
+    return loadout.flexItemWithCatalog(catalog);
+  }
+
+  String _slotLabelFor(String itemId) {
+    if (itemId.startsWith('frame_')) return 'Frame';
+    if (itemId.startsWith('trail_')) return 'Trail';
+    if (itemId.startsWith('effect_')) return 'Effect';
+    if (itemId.startsWith('acc_') || itemId.startsWith('gear_')) return 'Gear';
+    if (itemId.startsWith('bg_')) return 'Background';
+    return 'Cosmetic';
   }
 }
 
@@ -257,32 +327,59 @@ class _NewLookChip extends StatelessWidget {
 }
 
 class _RecentUnlockBadge extends StatelessWidget {
-  const _RecentUnlockBadge({required this.rarity});
+  const _RecentUnlockBadge({
+    required this.rarity,
+    required this.loadout,
+    required this.isCurrentUser,
+    this.item,
+  });
 
   final CosmeticRarity rarity;
+  final SocialCosmeticLoadout loadout;
+  final bool isCurrentUser;
+  final SocialCosmeticFlexItem? item;
 
   @override
   Widget build(BuildContext context) {
     final color = CosmeticVisuals.rarityColor(rarity);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.4),
-            blurRadius: 8,
-            spreadRadius: 1,
+    final label = '${rarity.label} Find';
+    final message = item == null
+        ? label
+        : '${item!.rarity.label}: ${item!.name}';
+
+    return Tooltip(
+      message: message,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: item == null
+            ? null
+            : () => showCosmeticDetailSheet(
+                context: context,
+                loadout: loadout,
+                item: item!,
+                isCurrentUser: isCurrentUser,
+              ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.4),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Text(
-        rarity.label.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w900,
-          fontSize: 9,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 9,
+            ),
+          ),
         ),
       ),
     );
@@ -369,8 +466,12 @@ class RecentUnlocksStrip extends StatelessWidget {
 
   IconData _unlockIcon(String itemId) {
     if (itemId.startsWith('frame_')) return Icons.hexagon_outlined;
+    if (itemId.startsWith('trail_')) return Icons.timeline;
     if (itemId.startsWith('effect_')) return Icons.auto_awesome;
-    if (itemId.startsWith('acc_')) return Icons.workspace_premium;
+    if (itemId.startsWith('acc_') || itemId.startsWith('gear_')) {
+      return Icons.workspace_premium;
+    }
+    if (itemId.startsWith('bg_')) return Icons.wallpaper;
     return Icons.stars;
   }
 }

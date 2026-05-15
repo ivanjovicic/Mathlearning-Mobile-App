@@ -47,13 +47,22 @@ enum CosmeticItemType { trail, frame, avatar, burst, generic }
 
 CosmeticItemType cosmeticItemType(String name) {
   final lower = name.toLowerCase();
-  if (lower.contains('trail') || lower.contains('path')) return CosmeticItemType.trail;
-  if (lower.contains('frame') || lower.contains('border')) return CosmeticItemType.frame;
-  if (lower.contains('avatar') || lower.contains('skin') || lower.contains('char')) {
+  if (lower.contains('trail') || lower.contains('path')) {
+    return CosmeticItemType.trail;
+  }
+  if (lower.contains('frame') || lower.contains('border')) {
+    return CosmeticItemType.frame;
+  }
+  if (lower.contains('avatar') ||
+      lower.contains('skin') ||
+      lower.contains('char')) {
     return CosmeticItemType.avatar;
   }
-  if (lower.contains('burst') || lower.contains('glow') || lower.contains('aura') ||
-      lower.contains('nova') || lower.contains('neon')) {
+  if (lower.contains('burst') ||
+      lower.contains('glow') ||
+      lower.contains('aura') ||
+      lower.contains('nova') ||
+      lower.contains('neon')) {
     return CosmeticItemType.burst;
   }
   return CosmeticItemType.generic;
@@ -104,7 +113,10 @@ class CosmeticFragmentCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: rarityColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: rarityColor.withValues(alpha: 0.45), width: 1.5),
+        border: Border.all(
+          color: rarityColor.withValues(alpha: 0.45),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: rarityColor.withValues(alpha: 0.30),
@@ -173,6 +185,7 @@ class CosmeticFragmentCard extends StatelessWidget {
                             collected: collected,
                             total: total,
                             color: rarityColor,
+                            animate: animate,
                           ),
                         ],
                       ),
@@ -180,11 +193,16 @@ class CosmeticFragmentCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     // Rarity badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: rarityColor.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: rarityColor.withValues(alpha: 0.4)),
+                        border: Border.all(
+                          color: rarityColor.withValues(alpha: 0.4),
+                        ),
                       ),
                       child: Text(
                         _isCompleted ? 'Unlocked' : rarity.label,
@@ -196,11 +214,13 @@ class CosmeticFragmentCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (_isCompleted && (onEquipNow != null || onViewCollection != null)) ...[
+                if (_isCompleted &&
+                    (onEquipNow != null || onViewCollection != null)) ...[
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      if (onEquipNow != null) ...[                        Expanded(
+                      if (onEquipNow != null) ...[
+                        Expanded(
                           child: FilledButton.icon(
                             onPressed: onEquipNow,
                             icon: const Icon(Icons.checkroom_rounded, size: 16),
@@ -217,11 +237,16 @@ class CosmeticFragmentCard extends StatelessWidget {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: onViewCollection,
-                            icon: const Icon(Icons.collections_bookmark_rounded, size: 16),
+                            icon: const Icon(
+                              Icons.collections_bookmark_rounded,
+                              size: 16,
+                            ),
                             label: const Text('View collection'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: rarityColor,
-                              side: BorderSide(color: rarityColor.withValues(alpha: 0.55)),
+                              side: BorderSide(
+                                color: rarityColor.withValues(alpha: 0.55),
+                              ),
                               visualDensity: VisualDensity.compact,
                             ),
                           ),
@@ -240,7 +265,12 @@ class CosmeticFragmentCard extends StatelessWidget {
       card = card
           .animate()
           .fadeIn(duration: 240.ms)
-          .slideY(begin: 0.18, end: 0, duration: 300.ms, curve: Curves.easeOutBack)
+          .slideY(
+            begin: 0.18,
+            end: 0,
+            duration: 300.ms,
+            curve: Curves.easeOutBack,
+          )
           .shimmer(
             duration: 900.ms,
             color: rarityColor.withValues(alpha: 0.22),
@@ -331,27 +361,27 @@ class _CosmeticPreviewHeroState extends State<CosmeticPreviewHero>
           Positioned.fill(
             child: switch (itemType) {
               CosmeticItemType.trail => _TrailPreview(
-                  color: rarityColor,
-                  progress: _ctrl,
-                  rarity: widget.rarity,
-                ),
+                color: rarityColor,
+                progress: _ctrl,
+                rarity: widget.rarity,
+              ),
               CosmeticItemType.frame => _FramePreview(
-                  color: rarityColor,
-                  progress: _ctrl,
-                  rarity: widget.rarity,
-                ),
+                color: rarityColor,
+                progress: _ctrl,
+                rarity: widget.rarity,
+              ),
               CosmeticItemType.avatar => _AvatarGearPreview(
-                  color: rarityColor,
-                  progress: _ctrl,
-                ),
+                color: rarityColor,
+                progress: _ctrl,
+              ),
               CosmeticItemType.burst => _BurstPreview(
-                  color: rarityColor,
-                  progress: _ctrl,
-                ),
+                color: rarityColor,
+                progress: _ctrl,
+              ),
               CosmeticItemType.generic => _GenericPreview(
-                  color: rarityColor,
-                  rarity: widget.rarity,
-                ),
+                color: rarityColor,
+                rarity: widget.rarity,
+              ),
             },
           ),
           if (widget.isCompleted)
@@ -366,9 +396,7 @@ class _CosmeticPreviewHeroState extends State<CosmeticPreviewHero>
 
     if (widget.animate && widget.isCompleted) {
       preview = preview
-          .animate(
-            onPlay: (c) => c.repeat(period: 2400.ms, reverse: true),
-          )
+          .animate(onPlay: (c) => c.repeat(period: 2400.ms, reverse: true))
           .shimmer(
             duration: 1200.ms,
             color: rarityColor.withValues(alpha: 0.28),
@@ -420,9 +448,12 @@ class _TrailPainter extends CustomPainter {
     final path = Path()
       ..moveTo(0, size.height * 0.5)
       ..cubicTo(
-        size.width * 0.25, size.height * 0.15,
-        size.width * 0.75, size.height * 0.85,
-        size.width, size.height * 0.5,
+        size.width * 0.25,
+        size.height * 0.15,
+        size.width * 0.75,
+        size.height * 0.85,
+        size.width,
+        size.height * 0.5,
       );
 
     // Faint base path line.
@@ -459,13 +490,18 @@ class _TrailPainter extends CustomPainter {
     final glowBlur = rarity._glowBlur * 0.8;
 
     canvas.drawCircle(
-      pos, 18,
+      pos,
+      18,
       Paint()
         ..color = color.withValues(alpha: 0.32)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowBlur),
     );
     canvas.drawCircle(pos, 8, Paint()..color = color);
-    canvas.drawCircle(pos, 4, Paint()..color = Colors.white.withValues(alpha: 0.85));
+    canvas.drawCircle(
+      pos,
+      4,
+      Paint()..color = Colors.white.withValues(alpha: 0.85),
+    );
   }
 
   @override
@@ -532,8 +568,11 @@ class _FramePreview extends StatelessWidget {
                     ),
                   ),
                 ),
-              Icon(Icons.person_rounded,
-                  color: color.withValues(alpha: 0.75), size: 40),
+              Icon(
+                Icons.person_rounded,
+                color: color.withValues(alpha: 0.75),
+                size: 40,
+              ),
             ],
           ),
         );
@@ -546,10 +585,7 @@ class _FramePreview extends StatelessWidget {
 // Avatar gear preview — person silhouette with glowing gear badge.
 // ---------------------------------------------------------------------------
 class _AvatarGearPreview extends StatelessWidget {
-  const _AvatarGearPreview({
-    required this.color,
-    required this.progress,
-  });
+  const _AvatarGearPreview({required this.color, required this.progress});
 
   final Color color;
   final Animation<double> progress;
@@ -580,8 +616,11 @@ class _AvatarGearPreview extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(Icons.person_rounded,
-                      color: color.withValues(alpha: 0.80), size: 40),
+                  child: Icon(
+                    Icons.person_rounded,
+                    color: color.withValues(alpha: 0.80),
+                    size: 40,
+                  ),
                 ),
                 // Gear badge — top-right corner.
                 Positioned(
@@ -600,8 +639,11 @@ class _AvatarGearPreview extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.star_rounded,
-                        color: Colors.white, size: 16),
+                    child: const Icon(
+                      Icons.star_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
                 ),
               ],
@@ -617,10 +659,7 @@ class _AvatarGearPreview extends StatelessWidget {
 // Burst preview — expanding concentric rings + check mark (answer effect).
 // ---------------------------------------------------------------------------
 class _BurstPreview extends StatelessWidget {
-  const _BurstPreview({
-    required this.color,
-    required this.progress,
-  });
+  const _BurstPreview({required this.color, required this.progress});
 
   final Color color;
   final Animation<double> progress;
@@ -636,7 +675,11 @@ class _BurstPreview extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-            child: const Icon(Icons.check_rounded, color: Colors.white, size: 22),
+            child: const Icon(
+              Icons.check_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
         ),
       ),
@@ -742,11 +785,13 @@ class _ProgressPips extends StatelessWidget {
     required this.collected,
     required this.total,
     required this.color,
+    required this.animate,
   });
 
   final int collected;
   final int total;
   final Color color;
+  final bool animate;
 
   bool get _isComplete => collected >= total;
   int get _remaining => total - collected;
@@ -765,7 +810,7 @@ class _ProgressPips extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
-              'Almost there!',
+              _remaining == 1 ? "One more and it's yours!" : 'Almost unlocked!',
               style: textTheme.labelMedium?.copyWith(
                 color: color,
                 fontWeight: FontWeight.w900,
@@ -777,19 +822,12 @@ class _ProgressPips extends StatelessWidget {
         Row(
           children: [
             for (var i = 1; i <= total; i++) ...[
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: i <= collected
-                      ? color
-                      : color.withValues(alpha: 0.22),
-                  border: Border.all(
-                    color: color.withValues(alpha: i <= collected ? 0.8 : 0.35),
-                  ),
-                ),
+              _AnimatedProgressPip(
+                index: i,
+                filled: i <= collected,
+                isFinalFilled: _isComplete && i == total,
+                color: color,
+                animate: animate,
               ),
               if (i < total) const SizedBox(width: 4),
             ],
@@ -817,6 +855,74 @@ class _ProgressPips extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _AnimatedProgressPip extends StatelessWidget {
+  const _AnimatedProgressPip({
+    required this.index,
+    required this.filled,
+    required this.isFinalFilled,
+    required this.color,
+    required this.animate,
+  });
+
+  final int index;
+  final bool filled;
+  final bool isFinalFilled;
+  final Color color;
+  final bool animate;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final pipKey = Key(
+      isFinalFilled
+          ? 'fragment_final_pip_chain'
+          : 'fragment_progress_pip_$index',
+    );
+    final beginScale = filled && animate && !reduceMotion
+        ? isFinalFilled
+              ? 0.42
+              : 0.58
+        : 1.0;
+
+    return TweenAnimationBuilder<double>(
+      key: pipKey,
+      tween: Tween<double>(begin: beginScale, end: 1),
+      duration: reduceMotion
+          ? Duration.zero
+          : Duration(milliseconds: 260 + index * 40),
+      curve: Curves.easeOutBack,
+      builder: (context, scale, child) {
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: AnimatedContainer(
+        duration: reduceMotion
+            ? Duration.zero
+            : Duration(milliseconds: 220 + index * 35),
+        curve: Curves.easeOutBack,
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: filled ? color : color.withValues(alpha: 0.22),
+          border: Border.all(
+            color: color.withValues(alpha: filled ? 0.9 : 0.35),
+          ),
+          boxShadow: filled
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: isFinalFilled ? 0.75 : 0.42),
+                    blurRadius: isFinalFilled ? 10 : 6,
+                    spreadRadius: isFinalFilled ? 1 : 0,
+                  ),
+                ]
+              : null,
+        ),
+      ),
     );
   }
 }

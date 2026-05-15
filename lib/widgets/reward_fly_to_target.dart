@@ -36,10 +36,15 @@ class RewardFlyToTarget extends StatefulWidget {
     int particleCount = 4,
   }) async {
     final overlay = Overlay.of(context, rootOverlay: true);
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final effectiveDuration = reduceMotion
+        ? const Duration(milliseconds: 120)
+        : duration;
     final start = _centerOf(sourceKey);
     final end = _centerOf(targetKey);
 
-    if (overlay == null || start == null || end == null) {
+    if (start == null || end == null) {
       return false;
     }
 
@@ -69,8 +74,8 @@ class RewardFlyToTarget extends StatefulWidget {
                 color: color,
                 icon: icon,
                 debugLabel: debugLabel,
-                duration: duration,
-                particleCount: particleCount,
+                duration: effectiveDuration,
+                particleCount: reduceMotion ? 3 : particleCount,
                 onCompleted: () => complete(true),
               ),
             ),
@@ -82,7 +87,7 @@ class RewardFlyToTarget extends StatefulWidget {
     overlay.insert(entry!);
 
     return completer.future.timeout(
-      duration + const Duration(milliseconds: 220),
+      effectiveDuration + const Duration(milliseconds: 220),
       onTimeout: () {
         complete(false);
         return false;
@@ -93,7 +98,9 @@ class RewardFlyToTarget extends StatefulWidget {
   static Offset? _centerOf(GlobalKey key) {
     final context = key.currentContext;
     final renderObject = context?.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.attached || !renderObject.hasSize) {
+    if (renderObject is! RenderBox ||
+        !renderObject.attached ||
+        !renderObject.hasSize) {
       return null;
     }
     return renderObject.localToGlobal(renderObject.size.center(Offset.zero));
@@ -105,14 +112,13 @@ class RewardFlyToTarget extends StatefulWidget {
 
 class _RewardFlyToTargetState extends State<RewardFlyToTarget>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: widget.duration,
-  )..addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        widget.onCompleted?.call();
-      }
-    });
+  late final AnimationController _controller =
+      AnimationController(vsync: this, duration: widget.duration)
+        ..addStatusListener((status) {
+          if (status == AnimationStatus.completed) {
+            widget.onCompleted?.call();
+          }
+        });
 
   late final Animation<double> _progress = CurvedAnimation(
     parent: _controller,
@@ -146,9 +152,10 @@ class _RewardFlyToTargetState extends State<RewardFlyToTarget>
           children: [
             ..._buildTrail(t),
             ..._buildParticles(t),
+            if (t > 0.72) _buildTargetImpact(t),
             Positioned(
-              left: position.dx - 14,
-              top: position.dy - 14,
+              left: position.dx - 18,
+              top: position.dy - 18,
               child: Opacity(
                 opacity: opacity.clamp(0.0, 1.0),
                 child: Transform.scale(
@@ -159,15 +166,15 @@ class _RewardFlyToTargetState extends State<RewardFlyToTarget>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: widget.color.withValues(alpha: 0.28),
-                          blurRadius: 14,
-                          spreadRadius: 2,
+                          color: widget.color.withValues(alpha: 0.44),
+                          blurRadius: 22,
+                          spreadRadius: 3,
                         ),
                       ],
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: Icon(widget.icon, color: widget.color, size: 20),
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(widget.icon, color: widget.color, size: 24),
                     ),
                   ),
                 ),
@@ -181,21 +188,27 @@ class _RewardFlyToTargetState extends State<RewardFlyToTarget>
 
   List<Widget> _buildTrail(double t) {
     final trail = <Widget>[];
-    for (var index = 1; index <= 3; index++) {
-      final trailT = math.max(0.0, t - (index * 0.09));
+    for (var index = 1; index <= 5; index++) {
+      final trailT = math.max(0.0, t - (index * 0.065));
       final offset = _positionAt(trailT);
       trail.add(
         Positioned(
-          left: offset.dx - (7 - index),
-          top: offset.dy - (7 - index),
+          left: offset.dx - (10 - index),
+          top: offset.dy - (10 - index),
           child: Opacity(
-            opacity: (0.22 - (index * 0.05)).clamp(0.04, 0.22),
+            opacity: (0.34 - (index * 0.045)).clamp(0.06, 0.34),
             child: Container(
-              width: (10 - index).toDouble(),
-              height: (10 - index).toDouble(),
+              width: (16 - index * 1.6).toDouble(),
+              height: (16 - index * 1.6).toDouble(),
               decoration: BoxDecoration(
-                color: widget.color.withValues(alpha: 0.65),
+                color: widget.color.withValues(alpha: 0.82),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.color.withValues(alpha: 0.28),
+                    blurRadius: 8,
+                  ),
+                ],
               ),
             ),
           ),
@@ -206,16 +219,16 @@ class _RewardFlyToTargetState extends State<RewardFlyToTarget>
   }
 
   List<Widget> _buildParticles(double t) {
-    final count = widget.particleCount.clamp(3, 6);
+    final count = widget.particleCount.clamp(3, 10);
     final particles = <Widget>[];
     final anchor = _positionAt(t);
-    final radius = 12 + (10 * (1 - t));
+    final radius = 16 + (16 * (1 - t));
 
     for (var index = 0; index < count; index++) {
       final angle = ((math.pi * 2) / count) * index + (t * math.pi * 1.2);
       final dx = math.cos(angle) * radius;
       final dy = math.sin(angle) * (radius * 0.72);
-      final size = 4.0 + ((count - index) * 0.6);
+      final size = 5.0 + ((count - index) * 0.7);
       particles.add(
         Positioned(
           left: anchor.dx + dx - (size / 2),
@@ -226,7 +239,9 @@ class _RewardFlyToTargetState extends State<RewardFlyToTarget>
               width: size,
               height: size,
               decoration: BoxDecoration(
-                color: widget.color.withValues(alpha: 0.88),
+                color: (index.isEven ? Colors.white : widget.color).withValues(
+                  alpha: 0.92,
+                ),
                 shape: BoxShape.circle,
               ),
             ),
@@ -236,6 +251,39 @@ class _RewardFlyToTargetState extends State<RewardFlyToTarget>
     }
 
     return particles;
+  }
+
+  Widget _buildTargetImpact(double t) {
+    final impactT = ((t - 0.72) / 0.28).clamp(0.0, 1.0);
+    final eased = Curves.easeOutCubic.transform(impactT);
+    final opacity = (1 - impactT).clamp(0.0, 1.0);
+    final size = 30 + eased * 54;
+    return Positioned(
+      key: const Key('reward_target_impact_pulse'),
+      left: widget.end.dx - size / 2,
+      top: widget.end.dy - size / 2,
+      child: Opacity(
+        opacity: opacity,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: widget.color.withValues(alpha: 0.78),
+              width: 3.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withValues(alpha: 0.45),
+                blurRadius: 26,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Offset _positionAt(double t) {

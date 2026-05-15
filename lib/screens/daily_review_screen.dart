@@ -11,6 +11,7 @@ import '../theme/astrax_theme.dart';
 import '../theme/tokens/spacing_tokens.dart';
 import '../widgets/astrax_buttons.dart';
 import '../widgets/astrax_card.dart';
+import '../widgets/target_cosmetic_chase_card.dart';
 import '../widgets/ui/state_scaffold.dart';
 
 class DailyReviewScreen extends StatefulWidget {
@@ -219,6 +220,9 @@ class _DailyReviewScreenState extends State<DailyReviewScreen> {
                         ),
                       ),
                     ).animate().fadeIn(duration: 250.ms),
+                  TargetCosmeticChaseCard(
+                    margin: EdgeInsets.only(top: AppScale.s(14)),
+                  ),
                   SizedBox(height: AppScale.s(30)),
                   Icon(
                         Icons.auto_awesome,

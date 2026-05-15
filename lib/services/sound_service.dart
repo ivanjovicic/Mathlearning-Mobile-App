@@ -9,38 +9,33 @@ import 'package:flutter/services.dart';
 
 enum SoundEffect {
   // Countdown / start-beat channel
-  run_start_tick,
+  runStartTick,
 
   // Answer channel
-  correct_ping,
-  fast_hit,
-  speed_streak,
+  correctPing,
+  fastHit,
+  speedStreak,
 
   // Combo channel
-  combo_burst,
+  comboBurst,
 
   // Reward channel
-  chest_drop,
-  chest_open_big,
-  xp_collect,
-  coin_collect,
-  rare_fragment_reveal,
-  reward_claim,
-  stage_cleared,
-  final_gate_unlocked,
-  final_gate_whoosh,
+  chestDrop,
+  chestOpenBig,
+  xpCollect,
+  coinCollect,
+  rareFragmentReveal,
+  rewardClaim,
+  stageCleared,
+  finalGateUnlocked,
+  finalGateWhoosh,
 }
 
 // ---------------------------------------------------------------------------
 // Sound channels — one active cue per channel; max two active simultaneously
 // ---------------------------------------------------------------------------
 
-enum _SoundChannel {
-  countdown,
-  answer,
-  combo,
-  reward,
-}
+enum _SoundChannel { countdown, answer, combo, reward }
 
 /// Per-event playback settings.
 final class _SoundSpec {
@@ -74,11 +69,7 @@ final class _SoundSpec {
 // Haptic levels (unchanged API)
 // ---------------------------------------------------------------------------
 
-enum SoundHaptic {
-  selection,
-  lightImpact,
-  mediumImpact,
-}
+enum SoundHaptic { selection, lightImpact, mediumImpact }
 
 // ---------------------------------------------------------------------------
 // Master event table
@@ -86,88 +77,86 @@ enum SoundHaptic {
 
 const Map<SoundEffect, _SoundSpec> _kSpecs = {
   // ── Countdown ──────────────────────────────────────────────────────────
-  SoundEffect.run_start_tick: _SoundSpec(
+  SoundEffect.runStartTick: _SoundSpec(
     assetPath: 'assets/audio/ui/run_start_tick.wav',
     channel: _SoundChannel.countdown,
-    fallbackPattern: [
-      (delay: Duration.zero, sound: SystemSoundType.click),
-    ],
+    fallbackPattern: [(delay: Duration.zero, sound: SystemSoundType.click)],
     cooldown: Duration(milliseconds: 110),
   ),
 
   // ── Answer ────────────────────────────────────────────────────────────
-  SoundEffect.correct_ping: _SoundSpec(
+  SoundEffect.correctPing: _SoundSpec(
     assetPath: 'assets/audio/ui/correct_ping.wav',
     channel: _SoundChannel.answer,
     cooldown: Duration(milliseconds: 180),
-    haptic: SoundHaptic.lightImpact,   // haptic only for now; remove once
-                                       // asset lands and per-answer haptic
-                                       // policy is tightened.
+    haptic: SoundHaptic.lightImpact, // haptic only for now; remove once
+    // asset lands and per-answer haptic
+    // policy is tightened.
   ),
-  SoundEffect.fast_hit: _SoundSpec(
+  SoundEffect.fastHit: _SoundSpec(
     assetPath: 'assets/audio/ui/fast_hit.wav',
     channel: _SoundChannel.answer,
     cooldown: Duration(milliseconds: 200),
   ),
-  SoundEffect.speed_streak: _SoundSpec(
+  SoundEffect.speedStreak: _SoundSpec(
     assetPath: 'assets/audio/ui/speed_streak.wav',
     channel: _SoundChannel.answer,
     cooldown: Duration(milliseconds: 200),
   ),
 
   // ── Combo ─────────────────────────────────────────────────────────────
-  SoundEffect.combo_burst: _SoundSpec(
+  SoundEffect.comboBurst: _SoundSpec(
     assetPath: 'assets/audio/ui/combo_burst.wav',
     channel: _SoundChannel.combo,
     cooldown: Duration(milliseconds: 900),
   ),
 
   // ── Reward ────────────────────────────────────────────────────────────
-  SoundEffect.chest_drop: _SoundSpec(
+  SoundEffect.chestDrop: _SoundSpec(
     assetPath: 'assets/audio/rewards/chest_drop.wav',
     channel: _SoundChannel.reward,
     cooldown: Duration(milliseconds: 300),
   ),
-  SoundEffect.chest_open_big: _SoundSpec(
+  SoundEffect.chestOpenBig: _SoundSpec(
     assetPath: 'assets/audio/rewards/chest_open_big.wav',
     channel: _SoundChannel.reward,
     cooldown: Duration(milliseconds: 1000),
     haptic: SoundHaptic.mediumImpact,
   ),
-  SoundEffect.xp_collect: _SoundSpec(
+  SoundEffect.xpCollect: _SoundSpec(
     assetPath: 'assets/audio/rewards/xp_collect.wav',
     channel: _SoundChannel.reward,
     cooldown: Duration(milliseconds: 180),
   ),
-  SoundEffect.coin_collect: _SoundSpec(
+  SoundEffect.coinCollect: _SoundSpec(
     assetPath: 'assets/audio/rewards/coin_collect.wav',
     channel: _SoundChannel.reward,
     cooldown: Duration(milliseconds: 180),
   ),
-  SoundEffect.rare_fragment_reveal: _SoundSpec(
+  SoundEffect.rareFragmentReveal: _SoundSpec(
     assetPath: 'assets/audio/rewards/rare_fragment_reveal.wav',
     channel: _SoundChannel.reward,
     cooldown: Duration(milliseconds: 600),
     haptic: SoundHaptic.selection,
   ),
-  SoundEffect.reward_claim: _SoundSpec(
+  SoundEffect.rewardClaim: _SoundSpec(
     assetPath: 'assets/audio/rewards/reward_claim.wav',
     channel: _SoundChannel.reward,
     cooldown: Duration(milliseconds: 450),
     haptic: SoundHaptic.lightImpact,
   ),
-  SoundEffect.stage_cleared: _SoundSpec(
+  SoundEffect.stageCleared: _SoundSpec(
     assetPath: 'assets/audio/rewards/stage_cleared.wav',
     channel: _SoundChannel.reward,
     cooldown: Duration(milliseconds: 300),
   ),
-  SoundEffect.final_gate_unlocked: _SoundSpec(
+  SoundEffect.finalGateUnlocked: _SoundSpec(
     assetPath: 'assets/audio/rewards/final_gate_unlocked.wav',
     channel: _SoundChannel.reward,
     cooldown: Duration(milliseconds: 400),
     haptic: SoundHaptic.lightImpact,
   ),
-  SoundEffect.final_gate_whoosh: _SoundSpec(
+  SoundEffect.finalGateWhoosh: _SoundSpec(
     assetPath: 'assets/audio/rewards/final_gate_whoosh.wav',
     channel: _SoundChannel.reward,
     cooldown: Duration(milliseconds: 200),
@@ -270,8 +259,7 @@ class SoundService {
     if (spec.channel == _SoundChannel.reward) {
       final last = _lastRewardCueAt;
       if (last != null &&
-          DateTime.now().difference(last) <
-              const Duration(milliseconds: 150)) {
+          DateTime.now().difference(last) < const Duration(milliseconds: 150)) {
         return;
       }
       _lastRewardCueAt = DateTime.now();
@@ -290,9 +278,13 @@ class SoundService {
       // Currently a no-op (no audio package in pubspec yet).
       // When ready, call: await _playAsset(spec.assetPath);
       //
-      // Fallback: SystemSound pattern (exists only for run_start_tick).
+      // Fallback: SystemSound pattern (exists only for runStartTick).
       if (!isMuted && spec.fallbackPattern.isNotEmpty) {
-        await _playPattern(spec.fallbackPattern, channel: spec.channel, token: token);
+        await _playPattern(
+          spec.fallbackPattern,
+          channel: spec.channel,
+          token: token,
+        );
       }
     } finally {
       // Release channel if the token still matches (i.e., we weren't preempted).
@@ -304,20 +296,20 @@ class SoundService {
 
   // ── Named convenience methods ───────────────────────────────────────────
 
-  Future<void> playRunStartTick() => play(SoundEffect.run_start_tick);
-  Future<void> playCorrectPing() => play(SoundEffect.correct_ping);
-  Future<void> playFastHit() => play(SoundEffect.fast_hit);
-  Future<void> playSpeedStreak() => play(SoundEffect.speed_streak);
-  Future<void> playComboBurst() => play(SoundEffect.combo_burst);
-  Future<void> playChestDrop() => play(SoundEffect.chest_drop);
-  Future<void> playChestOpenBig() => play(SoundEffect.chest_open_big);
-  Future<void> playCoinCollect() => play(SoundEffect.coin_collect);
-  Future<void> playXpCollect() => play(SoundEffect.xp_collect);
-  Future<void> playRareFragmentReveal() => play(SoundEffect.rare_fragment_reveal);
-  Future<void> playRewardClaim() => play(SoundEffect.reward_claim);
-  Future<void> playStageCleared() => play(SoundEffect.stage_cleared);
-  Future<void> playFinalGateUnlocked() => play(SoundEffect.final_gate_unlocked);
-  Future<void> playFinalGateWhoosh() => play(SoundEffect.final_gate_whoosh);
+  Future<void> playRunStartTick() => play(SoundEffect.runStartTick);
+  Future<void> playCorrectPing() => play(SoundEffect.correctPing);
+  Future<void> playFastHit() => play(SoundEffect.fastHit);
+  Future<void> playSpeedStreak() => play(SoundEffect.speedStreak);
+  Future<void> playComboBurst() => play(SoundEffect.comboBurst);
+  Future<void> playChestDrop() => play(SoundEffect.chestDrop);
+  Future<void> playChestOpenBig() => play(SoundEffect.chestOpenBig);
+  Future<void> playCoinCollect() => play(SoundEffect.coinCollect);
+  Future<void> playXpCollect() => play(SoundEffect.xpCollect);
+  Future<void> playRareFragmentReveal() => play(SoundEffect.rareFragmentReveal);
+  Future<void> playRewardClaim() => play(SoundEffect.rewardClaim);
+  Future<void> playStageCleared() => play(SoundEffect.stageCleared);
+  Future<void> playFinalGateUnlocked() => play(SoundEffect.finalGateUnlocked);
+  Future<void> playFinalGateWhoosh() => play(SoundEffect.finalGateWhoosh);
 
   // ── Private helpers ─────────────────────────────────────────────────────
 

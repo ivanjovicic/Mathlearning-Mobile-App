@@ -29,6 +29,7 @@ import 'package:mathlearning/state/avatar_provider.dart';
 import 'package:mathlearning/state/coin_provider.dart';
 import 'package:mathlearning/state/cosmetic_target_provider.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
+import 'package:mathlearning/state/daily_return_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
 import 'package:mathlearning/state/streak_freeze_provider.dart';
 import 'package:mathlearning/state/weekly_featured_provider.dart';
@@ -77,6 +78,12 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         context.read<DailyRunProvider>().load(widget.userId);
+        context.read<DailyReturnProvider?>()?.load(
+          userId: widget.userId,
+          progress: context.read<ProgressProvider>(),
+          streakFreeze: context.read<StreakFreezeProvider>(),
+          weeklyFeatured: _maybeRead<WeeklyFeaturedProvider>(context),
+        );
       });
     }
   }
@@ -550,23 +557,20 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
 
   Future<void> _openDailyReward(BuildContext context) async {
     final provider = context.read<LearningMapProvider>();
+    final progressProvider = context.read<ProgressProvider>();
+    final streakFreezeProvider = context.read<StreakFreezeProvider>();
     final reward = await provider.openDailyReward();
     if (reward == null || !mounted) {
       return;
     }
 
-    if (!mounted) return;
     switch (reward.type) {
       case DailyRewardType.xp:
-        final progress = context.read<ProgressProvider>();
-        progress.addXP(reward.xpAmount ?? 0);
-        unawaited(progress.persistLocalProgress());
+        progressProvider.addXP(reward.xpAmount ?? 0);
+        unawaited(progressProvider.persistLocalProgress());
         break;
       case DailyRewardType.streakBoost:
-        if (!mounted) return;
-        await context.read<StreakFreezeProvider>().add(
-          reward.streakBoosts ?? 1,
-        );
+        await streakFreezeProvider.add(reward.streakBoosts ?? 1);
         break;
       case DailyRewardType.cosmetic:
         break;
@@ -575,17 +579,29 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
 
   Future<void> _openDailyChest() async {
     final dailyRun = context.read<DailyRunProvider>();
+    final progressProvider = context.read<ProgressProvider>();
+    final streakFreezeProvider = context.read<StreakFreezeProvider>();
     final weeklyFeatured = _maybeRead<WeeklyFeaturedProvider>(context);
+    final dailyReturn = _maybeRead<DailyReturnProvider>(context);
+    final seasonProvider = _maybeRead<SeasonProvider>(context);
     final baseReward = await dailyRun.openChest();
-    final reward = baseReward == null
+    final featuredReward = baseReward == null
         ? null
         : weeklyFeatured?.applyFeaturedBoost(baseReward) ?? baseReward;
+    final reward = featuredReward == null
+        ? null
+        : dailyReturn?.applyRewardModifiers(featuredReward) ?? featuredReward;
     if (reward == null || !mounted) {
       return;
     }
+    await dailyReturn?.markChestOpened(
+      wasComebackChest: reward.isComebackChest,
+      progress: progressProvider,
+      streakFreeze: streakFreezeProvider,
+      weeklyFeatured: weeklyFeatured,
+    );
 
     // Award season XP for completing a daily run.
-    final seasonProvider = _maybeRead<SeasonProvider>(context);
     final multiplier = dailyRun.displayedXpMultiplier;
     if (seasonProvider != null) {
       await seasonProvider.awardDailyRunXp(multiplier);

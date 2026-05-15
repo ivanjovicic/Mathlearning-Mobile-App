@@ -9,19 +9,20 @@ void main() {
       expect(loadout.equippedItemLabels, isEmpty);
     });
 
-    test('derives friendly name from avatarFrameId when not in recentUnlocks', () {
-      const loadout = SocialCosmeticLoadout(
-        avatarFrameId: 'frame_comet',
-      );
-      final labels = loadout.equippedItemLabels;
-      expect(labels.length, 1);
-      expect(labels.first.name, equals('Comet'));
-    });
+    test(
+      'derives friendly name from avatarFrameId when not in recentRareUnlocks',
+      () {
+        const loadout = SocialCosmeticLoadout(avatarFrameId: 'frame_comet');
+        final labels = loadout.equippedItemLabels;
+        expect(labels.length, 1);
+        expect(labels.first.name, equals('Comet'));
+      },
+    );
 
-    test('prefers name from recentUnlocks when item matches', () {
+    test('prefers name from recentRareUnlocks when item matches', () {
       const loadout = SocialCosmeticLoadout(
         avatarFrameId: 'frame_comet',
-        recentUnlocks: [
+        recentRareUnlocks: [
           SocialCosmeticUnlock(
             itemId: 'frame_comet',
             name: 'Comet Frame',
@@ -38,19 +39,74 @@ void main() {
     test('returns labels for all three slots when all equipped', () {
       const loadout = SocialCosmeticLoadout(
         avatarFrameId: 'frame_comet',
-        animatedEffectId: 'effect_nova_trail',
-        accessoryId: 'acc_math_crown',
+        trailId: 'trail_nova',
+        avatarGearId: 'gear_math_crown',
+        answerEffectId: 'effect_neon_number_burst',
+        profileBackgroundId: 'bg_starfield',
       );
       final labels = loadout.equippedItemLabels;
-      expect(labels.length, 3);
-      expect(labels.map((l) => l.name), containsAll(['Comet', 'Nova Trail', 'Math Crown']));
+      expect(labels.length, 5);
+      expect(
+        labels.map((l) => l.name),
+        containsAll([
+          'Comet',
+          'Nova',
+          'Math Crown',
+          'Neon Number Burst',
+          'Starfield',
+        ]),
+      );
     });
 
-    test('rarity is null when slot not in recentUnlocks', () {
+    test('rarity is null when slot not in recentRareUnlocks', () {
+      const loadout = SocialCosmeticLoadout(avatarFrameId: 'frame_comet');
+      expect(loadout.equippedItemLabels.first.rarity, isNull);
+    });
+
+    test('fromJson keeps null API loadout as clean default', () {
+      final loadout = SocialCosmeticLoadout.fromJson({
+        'avatarFrameId': null,
+        'trailId': null,
+        'avatarGearId': null,
+        'answerEffectId': null,
+        'profileBackgroundId': null,
+        'recentRareUnlocks': const <dynamic>[],
+      });
+
+      expect(loadout.hasEquippedCosmetics, isFalse);
+      expect(loadout.recentRareUnlocks, isEmpty);
+      expect(loadout.isEmpty, isTrue);
+    });
+
+    test('flexItem chooses frame over higher-rarity background', () {
       const loadout = SocialCosmeticLoadout(
         avatarFrameId: 'frame_comet',
+        profileBackgroundId: 'bg_mythic_nebula',
+        recentRareUnlocks: [
+          SocialCosmeticUnlock(
+            itemId: 'frame_comet',
+            name: 'Comet Frame',
+            rarity: CosmeticRarity.rare,
+          ),
+          SocialCosmeticUnlock(
+            itemId: 'bg_mythic_nebula',
+            name: 'Mythic Nebula',
+            rarity: CosmeticRarity.mythic,
+          ),
+        ],
       );
-      expect(loadout.equippedItemLabels.first.rarity, isNull);
+
+      expect(loadout.flexItem?.itemId, equals('frame_comet'));
+      expect(loadout.flexItem?.name, equals('Comet Frame'));
+    });
+
+    test('flexItem fallback label uses slot type instead of style', () {
+      const loadout = SocialCosmeticLoadout(
+        trailId: 'trail_unknown_epic',
+        highlightRarity: CosmeticRarity.epic,
+      );
+
+      expect(loadout.flexItem?.name, equals('Epic Trail'));
     });
   });
 }

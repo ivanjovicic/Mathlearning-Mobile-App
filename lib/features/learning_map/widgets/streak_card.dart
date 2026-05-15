@@ -65,10 +65,11 @@ class StreakCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
+          _StreakFlameIcon(
+            icon: icon,
             color: iconColor,
-            size: AppScale.icon(32, min: 28, max: 40),
+            streakDays: streakDays,
+            atRisk: _isAtRisk,
           ),
           SizedBox(width: spacing.s + spacing.xs),
           Expanded(
@@ -101,10 +102,7 @@ class StreakCard extends StatelessWidget {
     if (_isAtRisk) {
       return card
           .animate(onPlay: (c) => c.repeat(reverse: true))
-          .shimmer(
-            duration: 1800.ms,
-            color: cs.error.withValues(alpha: 0.08),
-          );
+          .shimmer(duration: 1800.ms, color: cs.error.withValues(alpha: 0.08));
     }
 
     return card;
@@ -116,5 +114,49 @@ class StreakCard extends StatelessWidget {
     if (days >= 7) return 'One full week in a row! 🎉 You\'re unstoppable!';
     if (days >= 3) return 'Keep the fire alive — you\'re on a streak! 🔥';
     return 'Off to a great start — come back tomorrow! 🌟';
+  }
+}
+
+class _StreakFlameIcon extends StatelessWidget {
+  const _StreakFlameIcon({
+    required this.icon,
+    required this.color,
+    required this.streakDays,
+    required this.atRisk,
+  });
+
+  final IconData icon;
+  final Color color;
+  final int streakDays;
+  final bool atRisk;
+
+  @override
+  Widget build(BuildContext context) {
+    final tierBoost = streakDays >= 30
+        ? 10.0
+        : streakDays >= 14
+        ? 7.0
+        : streakDays >= 7
+        ? 4.0
+        : 0.0;
+    final size = AppScale.icon(32 + tierBoost, min: 28, max: 48);
+    return Container(
+      key: const Key('streak_evolved_flame'),
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: atRisk ? 0.16 : 0.12),
+        border: Border.all(color: color.withValues(alpha: 0.32)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: streakDays >= 7 ? 0.28 : 0.12),
+            blurRadius: streakDays >= 14 ? 18 : 10,
+            spreadRadius: streakDays >= 30 ? 2 : 0,
+          ),
+        ],
+      ),
+      child: Icon(icon, color: color, size: size),
+    );
   }
 }

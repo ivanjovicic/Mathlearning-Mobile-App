@@ -22,13 +22,29 @@ void main() {
         'score': 90,
         'streakDays': 5,
         'cosmeticLoadout': {
-          'frame_id': 'frame_comet',
-          'animated_effect_id': 'effect_nova_trail',
+          'avatarFrameId': 'frame_comet',
+          'trailId': 'trail_nova',
+          'avatarGearId': 'gear_math_crown',
+          'answerEffectId': 'effect_neon_number_burst',
+          'profileBackgroundId': 'bg_starfield',
+          'recentRareUnlocks': [
+            {'itemId': 'frame_comet', 'name': 'Comet Frame', 'rarity': 'rare'},
+          ],
         },
       });
       expect(item.cosmeticLoadout, isNotNull);
       expect(item.cosmeticLoadout!.avatarFrameId, equals('frame_comet'));
-      expect(item.cosmeticLoadout!.animatedEffectId, equals('effect_nova_trail'));
+      expect(item.cosmeticLoadout!.trailId, equals('trail_nova'));
+      expect(item.cosmeticLoadout!.avatarGearId, equals('gear_math_crown'));
+      expect(
+        item.cosmeticLoadout!.answerEffectId,
+        equals('effect_neon_number_burst'),
+      );
+      expect(item.cosmeticLoadout!.profileBackgroundId, equals('bg_starfield'));
+      expect(
+        item.cosmeticLoadout!.recentRareUnlocks.single.name,
+        'Comet Frame',
+      );
     });
 
     test('cosmeticLoadout is parsed when cosmetics field present', () {
@@ -42,6 +58,23 @@ void main() {
       });
       expect(item.cosmeticLoadout, isNotNull);
       expect(item.cosmeticLoadout!.avatarFrameId, equals('frame_gold_laurel'));
+    });
+
+    test('cosmeticLoadout is parsed from top-level optional API fields', () {
+      final item = LeaderboardItem.fromJson({
+        'rank': 4,
+        'userId': 4,
+        'displayName': 'Dana',
+        'score': 70,
+        'streakDays': 1,
+        'avatarFrameId': 'frame_comet',
+        'trailId': 'trail_nova',
+        'recentRareUnlocks': const <Map<String, dynamic>>[],
+      });
+      expect(item.cosmeticLoadout, isNotNull);
+      expect(item.cosmeticLoadout!.avatarFrameId, equals('frame_comet'));
+      expect(item.cosmeticLoadout!.trailId, equals('trail_nova'));
+      expect(item.cosmeticLoadout!.recentRareUnlocks, isEmpty);
     });
   });
 }

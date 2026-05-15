@@ -5,12 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_i18n.dart';
+import '../models/cosmetic_target.dart';
 import '../models/topic_item.dart';
 import '../navigation/app_routes.dart';
 import '../navigation/navigation_extensions.dart';
 import '../state/auth_provider.dart';
 import '../state/badge_provider.dart';
 import '../state/coin_provider.dart';
+import '../state/cosmetic_target_provider.dart';
 import '../state/leaderboard_provider.dart';
 import '../state/learning_path_provider.dart';
 import '../state/progress_provider.dart';
@@ -1018,6 +1020,7 @@ class _LeaderboardPreviewSection extends StatelessWidget {
         .take(3)
         .toList();
     final me = leaderboard.meFor(LeaderboardScope.global);
+    final currentUserTarget = _maybeWatchTarget(context);
     final colors = context.colors;
     final spacing = context.spacing;
     final theme = Theme.of(context);
@@ -1097,6 +1100,9 @@ class _LeaderboardPreviewSection extends StatelessWidget {
                 child: LeaderboardItemWidget(
                   item: item,
                   isCurrentUser: me != null && item.rank == me.rank,
+                  currentUserTarget: me != null && item.rank == me.rank
+                      ? currentUserTarget
+                      : null,
                 ),
               ),
             ),
@@ -1113,6 +1119,14 @@ class _LeaderboardPreviewSection extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  CosmeticTarget? _maybeWatchTarget(BuildContext context) {
+    try {
+      return context.watch<CosmeticTargetProvider>().target;
+    } catch (_) {
+      return null;
+    }
   }
 }
 

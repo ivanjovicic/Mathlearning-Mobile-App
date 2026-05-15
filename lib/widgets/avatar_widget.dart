@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/user_avatar.dart';
 import '../state/avatar_provider.dart';
+import '../state/cosmetic_preview_provider.dart';
 import 'cosmetic_visuals.dart';
 
 /// Renders a user's avatar with equipped cosmetic items.
@@ -32,19 +33,48 @@ class AvatarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final config =
+    final preview = _maybeWatch<CosmeticPreviewProvider>(context);
+    final baseConfig =
         overrideConfig ?? context.watch<AvatarProvider>().avatarConfig;
+    final config = overrideConfig == null && preview?.isPreviewing == true
+        ? preview!.applyToAvatar(baseConfig)
+        : baseConfig;
 
     if (config == null) {
       return _PlaceholderAvatar(size: size, borderColor: borderColor);
     }
 
-    return _AvatarBody(
+    final hasBackground =
+        config.backgroundId != null && config.backgroundId != 'bg_default';
+    Widget avatar = _AvatarBody(
       config: config,
-      size: size,
+      size: hasBackground ? size * 0.82 : size,
       showFrame: showFrame,
       borderColor: borderColor,
     );
+
+    if (hasBackground) {
+      avatar = Container(
+        width: size,
+        height: size,
+        padding: EdgeInsets.all(size * 0.08),
+        decoration: CosmeticVisuals.backgroundDecoration(
+          config.backgroundId,
+          BorderRadius.circular(size * 0.30),
+        ),
+        child: Center(child: avatar),
+      );
+    }
+
+    return avatar;
+  }
+
+  T? _maybeWatch<T>(BuildContext context) {
+    try {
+      return context.watch<T>();
+    } catch (_) {
+      return null;
+    }
   }
 }
 

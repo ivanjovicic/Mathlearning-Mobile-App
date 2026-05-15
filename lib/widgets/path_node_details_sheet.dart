@@ -73,15 +73,17 @@ class PathNodeDetailsSheet extends StatelessWidget {
                       children: [
                         Text(
                           node.topicName,
-                          style: theme.textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         if (node.subtopicName != null) ...[
                           const SizedBox(height: 2),
                           Text(
                             node.subtopicName!,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: cs.onSurfaceVariant),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ],
@@ -115,13 +117,17 @@ class PathNodeDetailsSheet extends StatelessWidget {
                     color: cs.primaryContainer.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                        color: cs.primary.withValues(alpha: 0.2)),
+                      color: cs.primary.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.lightbulb_outline_rounded,
-                          size: 16, color: cs.primary),
+                      Icon(
+                        Icons.lightbulb_outline_rounded,
+                        size: 16,
+                        color: cs.primary,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -155,16 +161,18 @@ class PathNodeDetailsSheet extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: node.mastery / 100,
                         minHeight: 7,
-                        backgroundColor:
-                            cs.outlineVariant.withValues(alpha: 0.3),
+                        backgroundColor: cs.outlineVariant.withValues(
+                          alpha: 0.3,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     '${node.mastery.round()}%',
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: cs.primary),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.primary,
+                    ),
                   ),
                 ],
               ),
@@ -183,8 +191,8 @@ class PathNodeDetailsSheet extends StatelessWidget {
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: Text(
                       node.type == PathNodeType.review
-                          ? 'Review it! →'
-                          : 'Let\'s go! →',
+                          ? 'Start Review'
+                          : 'Start Practice',
                     ),
                   ),
                 ),
@@ -206,11 +214,11 @@ class PathNodeDetailsSheet extends StatelessWidget {
   }
 
   IconData _iconFor(PathNodeType type) => switch (type) {
-        PathNodeType.review => Icons.refresh_rounded,
-        PathNodeType.checkpoint => Icons.flag_rounded,
-        PathNodeType.challenge => Icons.timer_rounded,
-        _ => Icons.menu_book_rounded,
-      };
+    PathNodeType.review => Icons.refresh_rounded,
+    PathNodeType.checkpoint => Icons.flag_rounded,
+    PathNodeType.challenge => Icons.timer_rounded,
+    _ => Icons.menu_book_rounded,
+  };
 }
 
 class _TypeBadge extends StatelessWidget {
@@ -235,9 +243,9 @@ class _TypeBadge extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -260,14 +268,17 @@ class _LockedCTA extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.lock_outline_rounded, size: 18,
-              color: cs.onSurfaceVariant),
+          Icon(
+            Icons.lock_outline_rounded,
+            size: 18,
+            color: cs.onSurfaceVariant,
+          ),
           const SizedBox(width: 8),
           Text(
             'Complete earlier nodes to unlock',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
         ],
       ),

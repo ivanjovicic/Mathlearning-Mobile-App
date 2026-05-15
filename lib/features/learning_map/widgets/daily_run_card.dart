@@ -5,7 +5,9 @@ import 'package:mathlearning/features/learning_map/widgets/daily_chest.dart';
 import 'package:mathlearning/features/learning_map/widgets/season_hub_sheet.dart';
 import 'package:mathlearning/models/season.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
+import 'package:mathlearning/state/daily_return_provider.dart';
 import 'package:mathlearning/state/season_provider.dart';
+import 'package:mathlearning/widgets/daily_return_panel.dart';
 import 'package:mathlearning/widgets/target_cosmetic_chase_card.dart';
 import 'package:mathlearning/widgets/weekly_featured_banner.dart';
 
@@ -32,12 +34,14 @@ class DailyRunCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final seasonProvider = context.watch<SeasonProvider>();
-    final season = seasonProvider.season;
+    final seasonProvider = context.watch<SeasonProvider?>();
+    final season = seasonProvider?.season;
     final seasonStatus = season?.status(DateTime.now());
+    final returnState = context.watch<DailyReturnProvider?>()?.state;
 
     final subtitle = switch (chestState) {
-      DailyChestState.locked => 'Finish it to unlock today\'s reward',
+      DailyChestState.locked =>
+        returnState?.primaryMessage ?? 'Finish it to unlock today\'s reward',
       DailyChestState.ready => 'Daily reward ready!',
       DailyChestState.opened => 'Come back tomorrow for a new one!',
     };
@@ -61,8 +65,8 @@ class DailyRunCard extends StatelessWidget {
             _SeasonStrip(
               season: season,
               status: seasonStatus ?? SeasonStatus.ended,
-              earnedXp: seasonProvider.earnedXp,
-              totalXp: seasonProvider.totalXpGoal,
+              earnedXp: seasonProvider?.earnedXp ?? 0,
+              totalXp: seasonProvider?.totalXpGoal ?? 500,
               onTap: () => showSeasonHub(context),
             ),
           if (season != null) const SizedBox(height: 10),
@@ -80,6 +84,12 @@ class DailyRunCard extends StatelessWidget {
               color: colors.onPrimaryContainer.withValues(alpha: 0.86),
             ),
           ),
+          if (returnState != null)
+            DailyReturnPanel(
+              state: returnState,
+              compact: true,
+              margin: const EdgeInsets.only(top: 12),
+            ),
           TargetCosmeticChaseCard(
             key: chaseCardKey,
             compact: true,
@@ -230,8 +240,7 @@ class _SeasonStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final fraction =
-        totalXp > 0 ? (earnedXp / totalXp).clamp(0.0, 1.0) : 0.0;
+    final fraction = totalXp > 0 ? (earnedXp / totalXp).clamp(0.0, 1.0) : 0.0;
     final isUrgent = status.isUrgent;
     final urgencyText = status.urgencyLabel;
 
@@ -268,9 +277,7 @@ class _SeasonStrip extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          urgencyText.isNotEmpty
-                              ? urgencyText
-                              : season.name,
+                          urgencyText.isNotEmpty ? urgencyText : season.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: textTheme.labelMedium?.copyWith(
@@ -298,8 +305,9 @@ class _SeasonStrip extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: fraction,
                       minHeight: 4,
-                      backgroundColor:
-                          colors.outlineVariant.withValues(alpha: 0.4),
+                      backgroundColor: colors.outlineVariant.withValues(
+                        alpha: 0.4,
+                      ),
                       valueColor: AlwaysStoppedAnimation<Color>(
                         isUrgent ? colors.error : colors.primary,
                       ),

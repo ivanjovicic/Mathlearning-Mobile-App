@@ -13,6 +13,7 @@ import 'package:mathlearning/models/cosmetic_fragment_progress.dart';
 import 'package:mathlearning/models/cosmetic_item.dart';
 import 'package:mathlearning/models/cosmetic_target.dart';
 import 'package:mathlearning/models/season.dart';
+import 'package:mathlearning/models/user_cosmetic.dart';
 import 'package:mathlearning/services/cosmetics_service.dart';
 import 'package:mathlearning/services/sound_service.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
@@ -165,7 +166,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
       isApplied: () => _xpApplied,
       markApplied: () => _xpApplied = true,
       onApply: () => widget.onApplyXp?.call(widget.reward.xp),
-      sound: SoundEffect.xp_collect,
+      sound: SoundEffect.xpCollect,
     );
 
     await Future<void>.delayed(const Duration(milliseconds: 240));
@@ -183,7 +184,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
       isApplied: () => _coinsApplied,
       markApplied: () => _coinsApplied = true,
       onApply: () => widget.onApplyCoins?.call(widget.reward.coins),
-      sound: SoundEffect.coin_collect,
+      sound: SoundEffect.coinCollect,
     );
 
     await Future<void>.delayed(const Duration(milliseconds: 280));
@@ -268,9 +269,7 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
 
     unawaited(
       SoundService.instance.play(
-        isCompletion
-            ? SoundEffect.final_gate_unlocked
-            : SoundEffect.chest_open_big,
+        isCompletion ? SoundEffect.finalGateUnlocked : SoundEffect.chestOpenBig,
       ),
     );
     if (isBonus || isCompletion) {
@@ -306,11 +305,30 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
     }
 
     final grant = widget.onGrantCosmeticFragment;
-    if (grant != null) {
-      return grant(widget.reward.cosmeticFragment);
+    final copies = widget.reward.fragmentCopies.clamp(1, 3).toInt();
+    DailyRunCosmeticGrantResult? first;
+    DailyRunCosmeticGrantResult? latest;
+    var didUnlock = false;
+    UserCosmetic? unlockedCosmetic;
+    for (var i = 0; i < copies; i++) {
+      final next = grant != null
+          ? await grant(widget.reward.cosmeticFragment)
+          : await CosmeticsService.instance.grantDailyRunFragment(
+              fragmentName: widget.reward.cosmeticFragment,
+            );
+      first ??= next;
+      latest = next;
+      didUnlock = didUnlock || next.didUnlock;
+      unlockedCosmetic ??= next.unlockedCosmetic;
     }
-    return CosmeticsService.instance.grantDailyRunFragment(
-      fragmentName: widget.reward.cosmeticFragment,
+
+    final resolved = latest!;
+    return DailyRunCosmeticGrantResult(
+      item: resolved.item,
+      progress: resolved.progress,
+      previousFragments: first?.previousFragments ?? resolved.previousFragments,
+      didUnlock: didUnlock,
+      unlockedCosmetic: unlockedCosmetic ?? resolved.unlockedCosmetic,
     );
   }
 
@@ -470,6 +488,11 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
                       color: colors.onSurfaceVariant,
                     ),
                   ),
+                  if (widget.reward.modifierLabels.isNotEmpty ||
+                      widget.reward.chestQualityLabel != null) ...[
+                    const SizedBox(height: 10),
+                    _RewardModifierStrip(reward: widget.reward),
+                  ],
                   const SizedBox(height: 16),
                   Center(
                     child: _ChestImpactShake(
@@ -974,6 +997,51 @@ class _RewardExplosionPainter extends CustomPainter {
     return oldDelegate.t != t ||
         oldDelegate.color != color ||
         oldDelegate.intense != intense;
+  }
+}
+
+class _RewardModifierStrip extends StatelessWidget {
+  const _RewardModifierStrip({required this.reward});
+
+  final DailyChestReward reward;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final labels = <String>[
+      if (reward.chestQualityLabel != null) reward.chestQualityLabel!,
+      ...reward.modifierLabels,
+      if (reward.fragmentCopies > 1) 'x${reward.fragmentCopies} fragments',
+    ];
+    final visible = labels.take(3).toList(growable: false);
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final label in visible)
+          Container(
+            key: label == 'Welcome-back chest'
+                ? const Key('welcome_back_chest_chip')
+                : null,
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: colors.primaryContainer.withValues(alpha: 0.62),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: colors.primary.withValues(alpha: 0.28)),
+            ),
+            child: Text(
+              label,
+              style: textTheme.labelSmall?.copyWith(
+                color: colors.onPrimaryContainer,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 

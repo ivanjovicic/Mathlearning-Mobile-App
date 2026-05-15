@@ -31,6 +31,19 @@ class UserService {
     return null;
   }
 
+  Future<UserProfile?> getPublicProfile(String userId) async {
+    try {
+      final profileData = await _apiService.getUserProfileById(userId);
+      if (profileData != null) {
+        return UserProfile.fromJson(profileData);
+      }
+    } catch (e) {
+      debugPrint('âŒ Failed to load public profile $userId: $e');
+    }
+
+    return null;
+  }
+
   /// Update user profile
   Future<UserProfile?> updateProfile({
     String? displayName,

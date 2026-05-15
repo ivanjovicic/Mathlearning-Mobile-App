@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/leaderboard_models.dart';
-import '../models/social_cosmetic_loadout.dart';
 import '../state/leaderboard_provider.dart';
 import '../widgets/leaderboard_tabs.dart';
 import '../widgets/period_selector.dart';

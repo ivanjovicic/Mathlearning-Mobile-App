@@ -19,7 +19,9 @@ void main() {
   bootstrapTests();
 
   group('QuizScreen daily review redirect', () {
-    testWidgets('redirects to /daily-review when SRS count > 0', (tester) async {
+    testWidgets('redirects to /daily-review when SRS count > 0', (
+      tester,
+    ) async {
       final quiz = TestQuizProvider(onGetDailySrsCount: () async => 3);
 
       await tester.pumpWidget(
@@ -93,9 +95,12 @@ void main() {
         quizQuestions: [
           Question(
             id: 1,
-            text: '2 + 2 = ?',
+            text: 'Koliko je 2 + 2?',
             correctAnswerId: 1,
-            options: [Option(id: 1, text: '4'), Option(id: 2, text: '3')],
+            options: [
+              Option(id: 1, text: '4'),
+              Option(id: 2, text: '3'),
+            ],
           ),
         ],
       );
@@ -118,12 +123,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       // QuizScreen stays (no redirect), getDailySrsCount was never called
-      expect(find.text('2 + 2 = ?'), findsOneWidget);
+      expect(find.text('Koliko je 2 + 2?'), findsOneWidget);
       expect(quiz.getDailySrsCountCalls, 0);
     });
 
-    testWidgets('DailyReview -> Quiz does not loop back to DailyReview',
-        (tester) async {
+    testWidgets('DailyReview -> Quiz does not loop back to DailyReview', (
+      tester,
+    ) async {
       final quiz = TestQuizProvider(
         onGetDailySrsCount: () async => 5,
         reviewQuestions: [
@@ -148,8 +154,7 @@ void main() {
             GoRoute(
               path: '/quiz/:quizSessionId',
               builder: (_, state) {
-                final skip =
-                    state.queryParameters['skipDailyReview'] == '1';
+                final skip = state.queryParameters['skipDailyReview'] == '1';
                 return QuizScreen(skipDailyReviewRedirect: skip);
               },
             ),
@@ -183,4 +188,3 @@ void main() {
     });
   });
 }
-

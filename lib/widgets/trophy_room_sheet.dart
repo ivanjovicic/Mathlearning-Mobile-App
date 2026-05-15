@@ -139,7 +139,7 @@ class _TitlesTab extends StatelessWidget {
       controller: scrollController,
       padding: EdgeInsets.all(AppSpacing.base),
       itemCount: PlayerTitle.values.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final title = PlayerTitle.values[index];
         final isEarned = identity.earnedTitles.contains(title);
@@ -181,8 +181,7 @@ class _TitleRow extends StatelessWidget {
     final color = isEarned
         ? PlayerTitleChip.colorFor(title)
         : theme.colorScheme.onSurface.withValues(alpha: 0.25);
-    final borderColor =
-        isSelected ? color : color.withValues(alpha: 0.35);
+    final borderColor = isSelected ? color : color.withValues(alpha: 0.35);
 
     return GestureDetector(
       onTap: onTap,
@@ -194,10 +193,7 @@ class _TitleRow extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: borderColor,
-            width: isSelected ? 2 : 1,
-          ),
+          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
           color: isSelected
               ? color.withValues(alpha: 0.10)
               : theme.colorScheme.surfaceContainerHighest.withValues(
@@ -206,11 +202,7 @@ class _TitleRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              PlayerTitleChip.iconFor(title),
-              color: color,
-              size: 20,
-            ),
+            Icon(PlayerTitleChip.iconFor(title), color: color, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -265,10 +257,9 @@ class _TrophiesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trophies = context
-        .select<PlayerIdentityProvider, List<TrophyEntry>>(
-          (p) => p.trophies,
-        );
+    final trophies = context.select<PlayerIdentityProvider, List<TrophyEntry>>(
+      (p) => p.trophies,
+    );
     final theme = Theme.of(context);
 
     if (trophies.isEmpty) {
@@ -407,10 +398,7 @@ class _TrophyRow extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: accentColor.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 1),
         color: accentColor.withValues(alpha: 0.06),
       ),
       child: Row(
@@ -444,7 +432,9 @@ class _TrophyRow extends StatelessWidget {
                   Text(
                     entry.sublabel!,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.55,
+                      ),
                     ),
                   ),
               ],

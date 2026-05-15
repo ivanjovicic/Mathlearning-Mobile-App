@@ -102,7 +102,7 @@ void main() {
             cosmeticLoadout: SocialCosmeticLoadout(
               avatarFrameId: 'frame_comet',
               highlightRarity: CosmeticRarity.rare,
-              recentUnlocks: [
+              recentRareUnlocks: [
                 SocialCosmeticUnlock(
                   itemId: 'frame_comet',
                   name: 'Comet Frame',
@@ -116,7 +116,33 @@ void main() {
       await tester.pumpWidget(createTestWidget());
 
       expect(find.text('Cosmo'), findsOneWidget);
-      expect(find.text('RARE'), findsOneWidget);
+      expect(find.text('Comet Frame'), findsOneWidget);
+      expect(find.text('Rare Find'), findsOneWidget);
+    });
+
+    testWidgets('does not render mock cosmetics when row loadout is null', (
+      WidgetTester tester,
+    ) async {
+      provider.paging.isLoading = false;
+      provider.setErrorForTesting(null);
+      provider.paging.items
+        ..clear()
+        ..add(
+          const LeaderboardItem(
+            rank: 1,
+            userId: 1,
+            displayName: 'Plain',
+            score: 100,
+            streakDays: 0,
+          ),
+        );
+
+      await tester.pumpWidget(createTestWidget());
+
+      expect(find.text('Plain'), findsOneWidget);
+      expect(find.text('Rare Find'), findsNothing);
+      expect(find.text('Epic Find'), findsNothing);
+      expect(find.text('Legendary Find'), findsNothing);
     });
   });
 }
