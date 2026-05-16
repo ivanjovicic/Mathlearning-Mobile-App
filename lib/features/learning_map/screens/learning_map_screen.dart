@@ -604,6 +604,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     if (reward == null || transactionId == null || !mounted) {
       return;
     }
+    // UI_PREVIEW_ONLY: store the preview payload until backend claim succeeds.
     // Persist the final reward payload onto the transaction before presenting
     // the sheet so crash/restart resumes with the exact same values.
     await dailyRun.setTransactionReward(
@@ -771,6 +772,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     }
   }
 
+  // UI_PREVIEW_ONLY: local fragment preview for the chest animation flow.
   Future<DailyRunCosmeticGrantResult> _previewDailyRunFragmentGrant(
     String fragmentName,
     int copies,
@@ -814,6 +816,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     );
   }
 
+  // UI_PREVIEW_ONLY: local target preview for the chest animation flow.
   CosmeticTargetProgressEvent? _previewTargetProgress(
     DailyRunCosmeticGrantResult result,
     CosmeticTargetProvider? targetProvider,

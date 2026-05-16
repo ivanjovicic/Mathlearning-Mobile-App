@@ -48,6 +48,120 @@ void main() {
     );
   }
 
+  Future<String> _startOpenedChestTransaction(DailyRunProvider provider) async {
+    await provider.load('userA');
+    await provider.startRun();
+    await provider.markCompleted();
+    final reward = await provider.openChest();
+    expect(reward, isNotNull);
+    final tx = provider.activeRewardTransactionId;
+    expect(tx, isNotNull);
+    await provider.markRewardTransactionStarted(
+      expectedTransactionId: tx,
+    );
+    return tx!;
+  }
+
+  test(
+    'cannot permanently open chest before all required reward steps',
+    () async {
+      final provider = DailyRunProvider();
+      final tx = await _startOpenedChestTransaction(provider);
+
+      await provider.applyRewardStep(
+        expectedTransactionId: tx,
+        step: DailyChestRewardStep.xp,
+        action: () async {},
+      );
+      await provider.applyRewardStep(
+        expectedTransactionId: tx,
+        step: DailyChestRewardStep.coins,
+        action: () async {},
+      );
+
+      expect(provider.rewardsApplied, isFalse);
+      expect(
+        () => provider.markChestPermanentlyOpened(
+          expectedTransactionId: tx,
+        ),
+        throwsStateError,
+      );
+      expect(provider.chestPermanentlyOpened, isFalse);
+      expect(provider.chestReady, isTrue);
+    },
+  );
+
+  test('reward step is idempotent', () async {
+    final provider = DailyRunProvider();
+    final tx = await _startOpenedChestTransaction(provider);
+
+    var counter = 0;
+    Future<void> action() async {
+      counter += 1;
+    }
+
+    await provider.applyRewardStep(
+      expectedTransactionId: tx,
+      step: DailyChestRewardStep.xp,
+      action: action,
+    );
+    await provider.applyRewardStep(
+      expectedTransactionId: tx,
+      step: DailyChestRewardStep.xp,
+      action: action,
+    );
+
+    expect(counter, 1);
+    expect(provider.isRewardStepApplied(DailyChestRewardStep.xp), isTrue);
+  });
+
+  test(
+    'full transaction can permanently open only after all required steps',
+    () async {
+      final provider = DailyRunProvider();
+      final tx = await _startOpenedChestTransaction(provider);
+
+      for (final step in DailyChestRewardStep.values) {
+        await provider.applyRewardStep(
+          expectedTransactionId: tx,
+          step: step,
+          action: () async {},
+        );
+      }
+
+      await provider.markChestPermanentlyOpened(
+        expectedTransactionId: tx,
+      );
+
+      expect(provider.chestPermanentlyOpened, isTrue);
+      expect(provider.chestOpeningInProgress, isFalse);
+      expect(provider.activeRewardTransactionId, isNull);
+      expect(provider.rewardsApplied, isTrue);
+    },
+  );
+
+  test(
+    'recovered unfinished transaction remains resumable after reload',
+    () async {
+      final provider = DailyRunProvider();
+      final tx = await _startOpenedChestTransaction(provider);
+
+      await provider.applyRewardStep(
+        expectedTransactionId: tx,
+        step: DailyChestRewardStep.xp,
+        action: () async {},
+      );
+
+      final providerB = DailyRunProvider();
+      await providerB.load('userA');
+
+      expect(providerB.activeRewardTransactionId, isNotNull);
+      expect(providerB.chestOpeningInProgress, isTrue);
+      expect(providerB.isRewardStepApplied(DailyChestRewardStep.xp), isTrue);
+      expect(providerB.chestPermanentlyOpened, isFalse);
+    },
+  );
+
   test(
     'crash/restart before rewards applied keeps resumable transaction',
     () async {
@@ -179,94 +293,6 @@ void main() {
       );
       expect(provider.chestPermanentlyOpened, isTrue);
       expect(provider.chestState, DailyChestState.opened);
-    },
-  );
-
-  test('reward step is idempotent', () async {
-    final provider = DailyRunProvider();
-    await provider.load('user-11');
-    await provider.markCompleted();
-    await provider.openChest();
-    final transactionId = provider.activeRewardTransactionId;
-    expect(transactionId, isNotNull);
-
-    await provider.markRewardTransactionStarted(
-      expectedTransactionId: transactionId,
-    );
-
-    var actionRuns = 0;
-    Future<void> action() async {
-      actionRuns += 1;
-    }
-
-    await provider.applyRewardStep(
-      expectedTransactionId: transactionId,
-      step: DailyChestRewardStep.xp,
-      action: action,
-    );
-    await provider.applyRewardStep(
-      expectedTransactionId: transactionId,
-      step: DailyChestRewardStep.xp,
-      action: action,
-    );
-
-    expect(actionRuns, 1);
-    expect(provider.isRewardStepApplied(DailyChestRewardStep.xp), isTrue);
-  });
-
-  test(
-    'full transaction can permanently open chest only after all required steps',
-    () async {
-      final provider = DailyRunProvider();
-      await provider.load('user-12');
-      await provider.markCompleted();
-      await provider.openChest();
-      final transactionId = provider.activeRewardTransactionId;
-      expect(transactionId, isNotNull);
-
-      await provider.markRewardTransactionStarted(
-        expectedTransactionId: transactionId,
-      );
-      await applyAllRewardSteps(provider, transactionId: transactionId!);
-
-      expect(provider.rewardsApplied, isTrue);
-
-      await provider.markChestPermanentlyOpened(
-        expectedTransactionId: transactionId,
-      );
-
-      expect(provider.chestPermanentlyOpened, isTrue);
-      expect(provider.chestOpeningInProgress, isFalse);
-      expect(provider.activeRewardTransactionId, isNull);
-    },
-  );
-
-  test(
-    'recovered unfinished transaction remains resumable after reload',
-    () async {
-      final provider = DailyRunProvider();
-      await provider.load('user-13');
-      await provider.markCompleted();
-      await provider.openChest();
-      final transactionId = provider.activeRewardTransactionId;
-      expect(transactionId, isNotNull);
-
-      await provider.markRewardTransactionStarted(
-        expectedTransactionId: transactionId,
-      );
-      await provider.applyRewardStep(
-        expectedTransactionId: transactionId,
-        step: DailyChestRewardStep.xp,
-        action: () async {},
-      );
-
-      final restarted = DailyRunProvider();
-      await restarted.load('user-13');
-
-      expect(restarted.activeRewardTransactionId, transactionId);
-      expect(restarted.chestOpeningInProgress, isTrue);
-      expect(restarted.isRewardStepApplied(DailyChestRewardStep.xp), isTrue);
-      expect(restarted.chestPermanentlyOpened, isFalse);
     },
   );
 

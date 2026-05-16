@@ -1,10 +1,10 @@
 # Quiz Flow Refactor Notes
 
 ## Current Problem
-`QuizProvider.answer()` currently owns submit, progress update, SnackBar, completion navigation, and summary construction.
+`QuizProvider.answer()` currently owns answer submit, progress update, offline SnackBar, completion navigation, level-up dialog, achievement popup, and results navigation.
 
 ## Target
-`QuizProvider.answer()` should return a `QuizAnswerResult` and not require `BuildContext`. Screens should own SnackBars and navigation.
+`QuizProvider.answer()` should return a `QuizAnswerResult` and not require `BuildContext`. Screens should own SnackBars, dialogs, and navigation.
 
 ## Proposed Result Model
 - `isCorrect`
@@ -14,6 +14,8 @@
 - `completedQuiz`
 - `summaryStats` nullable
 - `awardedXp`
+- `levelUp` nullable
+- `achievement` nullable
 
 ## Migration Plan
 1. Introduce `answerWithoutContext` or `answerResult`.
@@ -30,4 +32,4 @@
 - daily review screen if it calls `QuizProvider.answer()`
 
 ## Notes
-- Preserve result navigation, offline SnackBar behavior, and LevelUp/Achievement popup behavior during migration.
+- Preserve offline SnackBar behavior, level-up animation, achievement popup, and results navigation source (`quiz` / `daily_review`) during migration.
