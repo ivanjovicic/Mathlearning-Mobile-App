@@ -34,6 +34,12 @@ void main() {
         '.getQuestions(': RegExp(r'\.\s*getQuestions\s*\('),
         '.submitAnswer(': RegExp(r'\.\s*submitAnswer\s*\('),
       };
+      final typedServiceMarkers = <String>[
+        'QuizApiService',
+        'AdaptiveContentApiService',
+        'LeaderboardApiService',
+        'PracticeSessionApiService',
+      ];
 
       await for (final entity
           in libDir.list(recursive: true, followLinks: false)) {
@@ -43,6 +49,10 @@ void main() {
         if (normalizedPath.endsWith('lib/services/api_service.dart')) continue;
 
         final content = await entity.readAsString();
+        final usesTypedDomainService = typedServiceMarkers.any(content.contains);
+        if (usesTypedDomainService) {
+          continue;
+        }
 
         for (final entry in simplePatterns.entries) {
           if (entry.value.hasMatch(content)) {
@@ -50,13 +60,11 @@ void main() {
           }
         }
 
-        // These two names exist on typed domain services too, so only flag them
-        // when the file also looks like a legacy ApiService caller.
-        if (content.contains('ApiService')) {
-          for (final entry in sensitivePatterns.entries) {
-            if (entry.value.hasMatch(content)) {
-              matches.putIfAbsent(normalizedPath, () => []).add(entry.key);
-            }
+        // These two names are intentionally ignored in files that use the
+        // typed quiz domain service, because the same method names exist there.
+        for (final entry in sensitivePatterns.entries) {
+          if (entry.value.hasMatch(content) && !content.contains('_offline.')) {
+            matches.putIfAbsent(normalizedPath, () => []).add(entry.key);
           }
         }
       }

@@ -48,7 +48,9 @@ void main() {
     );
   }
 
-  Future<String> _startOpenedChestTransaction(DailyRunProvider provider) async {
+  Future<String> startOpenedChestTransaction(
+    DailyRunProvider provider,
+  ) async {
     await provider.load('userA');
     await provider.startRun();
     await provider.markCompleted();
@@ -66,7 +68,7 @@ void main() {
     'cannot permanently open chest before all required reward steps',
     () async {
       final provider = DailyRunProvider();
-      final tx = await _startOpenedChestTransaction(provider);
+      final tx = await startOpenedChestTransaction(provider);
 
       await provider.applyRewardStep(
         expectedTransactionId: tx,
@@ -93,7 +95,7 @@ void main() {
 
   test('reward step is idempotent', () async {
     final provider = DailyRunProvider();
-    final tx = await _startOpenedChestTransaction(provider);
+    final tx = await startOpenedChestTransaction(provider);
 
     var counter = 0;
     Future<void> action() async {
@@ -119,7 +121,7 @@ void main() {
     'full transaction can permanently open only after all required steps',
     () async {
       final provider = DailyRunProvider();
-      final tx = await _startOpenedChestTransaction(provider);
+      final tx = await startOpenedChestTransaction(provider);
 
       for (final step in DailyChestRewardStep.values) {
         await provider.applyRewardStep(
@@ -144,7 +146,7 @@ void main() {
     'recovered unfinished transaction remains resumable after reload',
     () async {
       final provider = DailyRunProvider();
-      final tx = await _startOpenedChestTransaction(provider);
+      final tx = await startOpenedChestTransaction(provider);
 
       await provider.applyRewardStep(
         expectedTransactionId: tx,
