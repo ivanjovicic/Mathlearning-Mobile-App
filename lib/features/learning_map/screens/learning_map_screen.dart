@@ -657,14 +657,39 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
               date: DateTime.now(),
             );
             if (claimResponse == null) {
-              throw StateError('Daily Run chest claim failed.');
+              debugPrint(
+                '[DailyRun] Chest claim failed for transactionId=$transactionId',
+              );
+              if (rootScaffoldMessenger.mounted) {
+                rootScaffoldMessenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Claimanje dnevne nagrade trenutno nije dostupno. Pokusaj ponovo.',
+                    ),
+                  ),
+                );
+              }
+              // TODO(server-authoritative-rewards): remove temporary failure UI once backend claim endpoint is contract-tested.
+              throw Exception('Daily Run chest claim unavailable.');
+            }
+            final backendReward = claimResponse.reward;
+            final previewMismatch = backendReward.xp != reward.xp ||
+                backendReward.coins != reward.coins ||
+                backendReward.cosmeticFragment != reward.cosmeticFragment;
+            if (previewMismatch) {
+              debugPrint(
+                '[DailyRun] Chest reward preview/backend mismatch for transactionId=$transactionId '
+                'preview(xp=${reward.xp}, coins=${reward.coins}, fragment=${reward.cosmeticFragment}) '
+                'backend(xp=${backendReward.xp}, coins=${backendReward.coins}, fragment=${backendReward.cosmeticFragment})',
+              );
             }
             debugPrint(
               '[DailyRun] Chest claim backend reward: '
-              'xp=${claimResponse.reward.xp}, '
-              'coins=${claimResponse.reward.coins}, '
-              'fragment=${claimResponse.reward.cosmeticFragment}',
+              'xp=${backendReward.xp}, '
+              'coins=${backendReward.coins}, '
+              'fragment=${backendReward.cosmeticFragment}',
             );
+            // TODO(server-authoritative-rewards): build the chest sheet from backend claim response once the endpoint is stable.
 
             await progressProvider.loadProgress(forceRefresh: true);
             await coinProvider.loadCoinsAndHints(forceRefresh: true);

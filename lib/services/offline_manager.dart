@@ -456,8 +456,6 @@ class OfflineManager {
   }
 }
 
-// ───────── HELPER DATA CLASSES ─────────
-
 class PendingAnswer {
   final String questionId;
   final bool isCorrect;
@@ -517,3 +515,4 @@ class PendingSrsUpdate {
     );
   }
 }
+

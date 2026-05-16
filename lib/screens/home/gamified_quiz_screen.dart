@@ -772,8 +772,9 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     });
 
     await widget.onSubmit(selectedAnswer);
+    if (!mounted) return;
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
-    if (!mounted || quizProvider.currentQuestion == null) return;
+    if (quizProvider.currentQuestion == null) return;
 
     setState(() {
       isSubmitting = false;
