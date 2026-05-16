@@ -26,6 +26,7 @@ import 'package:mathlearning/features/learning_map/widgets/skill_graph_view.dart
 import 'package:mathlearning/features/learning_map/widgets/streak_card.dart';
 import 'package:mathlearning/features/learning_map/widgets/xp_level_chip.dart';
 import 'package:mathlearning/services/connectivity_service.dart';
+import 'package:mathlearning/services/daily_run_api_service.dart';
 import 'package:mathlearning/services/cosmetics_service.dart';
 import 'package:mathlearning/state/auth_provider.dart';
 import 'package:mathlearning/state/avatar_provider.dart';
@@ -591,6 +592,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     final weeklyFeatured = _maybeRead<WeeklyFeaturedProvider>(context);
     final dailyReturn = _maybeRead<DailyReturnProvider>(context);
     final seasonProvider = _maybeRead<SeasonProvider>(context);
+    final dailyRunApi = DailyRunApiService();
     final baseReward = await dailyRun.openChest();
     final transactionId = dailyRun.activeRewardTransactionId;
     final featuredReward = baseReward == null
@@ -645,56 +647,32 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
             );
           },
           onGrantCosmeticFragments: (fragmentName, copies) async {
-            final result = await dailyRun
-                .applyRewardStepWithResult<DailyRunCosmeticGrantResult>(
-                  expectedTransactionId: transactionId,
-                  step: DailyChestRewardStep.cosmeticFragments,
-                  action: () async {
-                    DailyRunCosmeticGrantResult? first;
-                    DailyRunCosmeticGrantResult? latest;
-                    var didUnlock = false;
-                    for (var i = 0; i < copies; i++) {
-                      final next = await avatarProvider.grantDailyRunFragment(
-                        fragmentName,
-                      );
-                      first ??= next;
-                      latest = next;
-                      didUnlock = didUnlock || next.didUnlock;
-                    }
-                    final resolved = latest!;
-                    return DailyRunCosmeticGrantResult(
-                      item: resolved.item,
-                      progress: resolved.progress,
-                      previousFragments:
-                          first?.previousFragments ??
-                          resolved.previousFragments,
-                      didUnlock: didUnlock,
-                      unlockedCosmetic:
-                          first?.unlockedCosmetic ?? resolved.unlockedCosmetic,
-                    );
-                  },
-                );
-            if (result != null) {
-              return result;
-            }
-            // Step was already applied earlier in this transaction (resume path).
-            // Fetch current progress without mutating counts.
-            return CosmeticsService.instance.grantDailyRunFragment(
-              fragmentName: fragmentName,
-              fragmentAmount: 0,
-            );
+            return _previewDailyRunFragmentGrant(fragmentName, copies);
           },
-          onApplyTargetProgress: (result) {
-            return dailyRun
-                .applyRewardStepWithResult<CosmeticTargetProgressEvent?>(
-                  expectedTransactionId: transactionId,
-                  step: DailyChestRewardStep.targetChaseProgress,
-                  action: () async {
-                    return targetProvider?.applyDailyRunGrant(result);
-                  },
-                );
-          },
+          onApplyTargetProgress: (result) =>
+              _previewTargetProgress(result, targetProvider),
           onApplyPostChestRewards: () async {
+            final claimResponse = await dailyRunApi.claimChest(
+              transactionId: transactionId,
+              date: DateTime.now(),
+            );
+            if (claimResponse == null) {
+              throw StateError('Daily Run chest claim failed.');
+            }
+            debugPrint(
+              '[DailyRun] Chest claim backend reward: '
+              'xp=${claimResponse.reward.xp}, '
+              'coins=${claimResponse.reward.coins}, '
+              'fragment=${claimResponse.reward.cosmeticFragment}',
+            );
+
+            await progressProvider.loadProgress(forceRefresh: true);
+            await coinProvider.loadCoinsAndHints(forceRefresh: true);
+            await avatarProvider.load();
+            if (targetProvider != null) {
+              await targetProvider.refreshFromFragmentProgress();
+            }
+
             // Post-chest effects are part of the same transaction and must
             // complete before permanent-open is allowed.
             await dailyRun.applyRewardStep(
@@ -732,23 +710,18 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
             );
           },
           onViewCollection: openCollectionFromSheet,
-          onApplyXp: (amount) async {
+          onApplyXp: (_) async {
             await dailyRun.applyRewardStep(
               expectedTransactionId: transactionId,
               step: DailyChestRewardStep.xp,
-              action: () async {
-                progressProvider.addXP(amount);
-                await progressProvider.persistLocalProgress();
-              },
+              action: () async {},
             );
           },
-          onApplyCoins: (amount) async {
+          onApplyCoins: (_) async {
             await dailyRun.applyRewardStep(
               expectedTransactionId: transactionId,
               step: DailyChestRewardStep.coins,
-              action: () async {
-                coinProvider.addCoins(amount);
-              },
+              action: () async {},
             );
           },
           onContinue: () => Navigator.of(sheetContext).pop(),
@@ -770,6 +743,101 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<DailyRunCosmeticGrantResult> _previewDailyRunFragmentGrant(
+    String fragmentName,
+    int copies,
+  ) async {
+    final service = CosmeticsService.instance;
+    final item = service.dailyRunItemForFragment(fragmentName);
+    final progressEntries = await service.loadFragmentProgress();
+    CosmeticFragmentProgress? current;
+    for (final entry in progressEntries) {
+      if (entry.itemId == item.id) {
+        current = entry;
+        break;
+      }
+    }
+
+    final now = DateTime.now();
+    final required = current?.requiredFragments ??
+        CosmeticsService.dailyRunRequiredFragments;
+    final alreadyOwned = current?.isUnlocked == true;
+    final previous = alreadyOwned
+        ? required
+        : (current?.collectedFragments ?? 0).clamp(0, required).toInt();
+    final nextCount = alreadyOwned
+        ? required
+        : (previous + copies).clamp(0, required).toInt();
+    final didUnlock =
+        !alreadyOwned && previous < required && nextCount >= required;
+    final progress = CosmeticFragmentProgress(
+      itemId: item.id,
+      collectedFragments: nextCount,
+      requiredFragments: required,
+      updatedAt: now,
+      unlockedAt: didUnlock ? now : current?.unlockedAt,
+    );
+    return DailyRunCosmeticGrantResult(
+      item: item,
+      progress: progress,
+      previousFragments: previous,
+      didUnlock: didUnlock,
+      unlockedCosmetic: null,
+    );
+  }
+
+  CosmeticTargetProgressEvent? _previewTargetProgress(
+    DailyRunCosmeticGrantResult result,
+    CosmeticTargetProvider? targetProvider,
+  ) {
+    final target = targetProvider?.target;
+    if (target == null) return null;
+
+    if (result.item.id == target.targetCosmeticItemId) {
+      final updated = target.copyWith(
+        targetFragmentsOwned: result.progress.collectedFragments
+            .clamp(0, result.progress.requiredFragments)
+            .toInt(),
+        targetFragmentsRequired: result.progress.requiredFragments,
+        targetRarity: result.item.rarity,
+        targetItemName: result.item.name,
+        updatedAt: result.progress.updatedAt,
+      );
+      return CosmeticTargetProgressEvent(
+        target: updated,
+        previousFragments: target.targetFragmentsOwned,
+        currentFragments: updated.targetFragmentsOwned,
+        targetFragmentFound: true,
+      );
+    }
+
+    final newProgress = target.bonusProgress + 1;
+    final bonusEarned = newProgress >= CosmeticTarget.kBonusProgressMax;
+    final storedProgress = bonusEarned
+        ? (newProgress - CosmeticTarget.kBonusProgressMax)
+              .clamp(0, CosmeticTarget.kBonusProgressMax)
+              .toInt()
+        : newProgress.clamp(0, CosmeticTarget.kBonusProgressMax).toInt();
+    final newFragments = bonusEarned
+        ? (target.targetFragmentsOwned + 1)
+              .clamp(0, target.targetFragmentsRequired)
+              .toInt()
+        : target.targetFragmentsOwned;
+    final updated = target.copyWith(
+      bonusProgress: storedProgress,
+      targetFragmentsOwned: newFragments,
+      updatedAt: DateTime.now(),
+    );
+    return CosmeticTargetProgressEvent(
+      target: updated,
+      previousFragments: target.targetFragmentsOwned,
+      currentFragments: newFragments,
+      targetFragmentFound: bonusEarned,
+      bonusProgressAwarded: 1,
+      bonusFragmentEarned: bonusEarned,
+    );
   }
 }
 

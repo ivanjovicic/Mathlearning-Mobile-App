@@ -5,7 +5,9 @@ import '../models/progress_overview.dart';
 import '../models/leaderboard_models.dart';
 import '../models/school_leaderboard_models.dart';
 import '../widgets/math/math_content_parser.dart';
+import 'adaptive_content_api_service.dart';
 import 'network/dio_factory.dart';
+import 'leaderboard_api_service.dart';
 
 // Models
 class ApiResult<T> {
@@ -29,7 +31,10 @@ class ApiResult<T> {
     this.isAuthError = false,
   });
 
+  // isSuccess means request completed without ApiError; use hasData when payload is required.
   bool get isSuccess => error == null;
+
+  bool get hasData => data != null && error == null;
 
   factory ApiResult.success(T data, {int? statusCode}) {
     return ApiResult<T>(data: data, statusCode: statusCode);
@@ -314,6 +319,9 @@ class ApiService {
 
   late Dio _dio;
   late ApiClient _client;
+  final LeaderboardApiService _leaderboardApi = LeaderboardApiService();
+  final AdaptiveContentApiService _adaptiveContentApiService =
+      AdaptiveContentApiService();
 
   Future<ApiResult<T>> _requestResult<T>(
     Future<Response<dynamic>> Function() request,
@@ -476,27 +484,19 @@ class ApiService {
     return null;
   }
 
+  @Deprecated('Use LeaderboardApiService.fetchLeaderboard instead.')
   Future<LeaderboardResponse?> fetchLeaderboard({
     required String scope,
     required String period,
     int limit = 50,
     String? cursor,
-  }) async {
-    try {
-      final query = <String, dynamic>{
-        'scope': scope,
-        'period': period,
-        'limit': limit,
-      };
-      if (cursor != null && cursor.isNotEmpty) {
-        query['cursor'] = cursor;
-      }
-      final resp = await _dio.get('/api/leaderboard', queryParameters: query);
-      if (resp.data is Map<String, dynamic>) {
-        return LeaderboardResponse.fromJson(resp.data as Map<String, dynamic>);
-      }
-    } catch (_) {}
-    return null;
+  }) {
+    return _leaderboardApi.fetchLeaderboard(
+      scope: scope,
+      period: period,
+      limit: limit,
+      cursor: cursor,
+    );
   }
 
   Future<List<dynamic>?> getTopicsProgress() async {
@@ -536,41 +536,11 @@ class ApiService {
     return null;
   }
 
+  @Deprecated('Use LeaderboardApiService.fetchLeaderboardRivals instead.')
   Future<List<RivalLeaderboardEntry>?> fetchLeaderboardRivals({
     required String period,
-  }) async {
-    try {
-      final resp = await _dio.get(
-        '/api/leaderboard/friends',
-        queryParameters: <String, dynamic>{'period': period},
-      );
-      if (resp.data is List) {
-        return (resp.data as List)
-            .whereType<Map>()
-            .map(
-              (item) => RivalLeaderboardEntry.fromJson(
-                Map<String, dynamic>.from(item),
-              ),
-            )
-            .toList();
-      }
-      if (resp.data is Map<String, dynamic>) {
-        final payload = resp.data as Map<String, dynamic>;
-        final rawItems = (payload['items'] ?? payload['entries']) as List?;
-        if (rawItems == null) {
-          return const <RivalLeaderboardEntry>[];
-        }
-        return rawItems
-            .whereType<Map>()
-            .map(
-              (item) => RivalLeaderboardEntry.fromJson(
-                Map<String, dynamic>.from(item),
-              ),
-            )
-            .toList();
-      }
-    } catch (_) {}
-    return null;
+  }) {
+    return _leaderboardApi.fetchRivals(period: period);
   }
 
   Future<String?> fetchClueHint(int questionId) async {
@@ -613,122 +583,68 @@ class ApiService {
     return null;
   }
 
+  @Deprecated(
+    'Use LeaderboardApiService.fetchSchoolVsSchoolLeaderboard instead.',
+  )
   Future<SchoolLeaderboardResponse?> fetchSchoolVsSchoolLeaderboard({
     required String period,
     int limit = 50,
     String? cursor,
-  }) async {
-    try {
-      final query = <String, dynamic>{'period': period, 'limit': limit};
-      if (cursor != null && cursor.isNotEmpty) {
-        query['cursor'] = cursor;
-      }
-      final resp = await _dio.get(
-        '/api/leaderboard/schools',
-        queryParameters: query,
-      );
-      if (resp.data is Map<String, dynamic>) {
-        return SchoolLeaderboardResponse.fromJson(
-          resp.data as Map<String, dynamic>,
-        );
-      }
-    } catch (_) {}
-    return null;
+  }) {
+    return _leaderboardApi.fetchSchoolVsSchoolLeaderboard(
+      period: period,
+      limit: limit,
+      cursor: cursor,
+    );
   }
 
+  @Deprecated('Use LeaderboardApiService.fetchSchoolLeaderboard instead.')
   Future<SchoolLeaderboardFeed?> fetchSchoolLeaderboard({
     required String period,
     int limit = 50,
     String? cursor,
-  }) async {
-    try {
-      final query = <String, dynamic>{'period': period, 'limit': limit};
-      if (cursor != null && cursor.isNotEmpty) {
-        query['cursor'] = cursor;
-      }
-      final resp = await _dio.get(
-        '/api/leaderboard/schools',
-        queryParameters: query,
-      );
-      if (resp.data is Map<String, dynamic>) {
-        return SchoolLeaderboardFeed.fromJson(
-          resp.data as Map<String, dynamic>,
-        );
-      }
-    } catch (_) {}
-    return null;
+  }) {
+    return _leaderboardApi.fetchSchoolLeaderboard(
+      period: period,
+      limit: limit,
+      cursor: cursor,
+    );
   }
 
+  @Deprecated(
+    'Use LeaderboardApiService.fetchSchoolLeaderboardDetail instead.',
+  )
   Future<SchoolLeaderboardDetail?> fetchSchoolLeaderboardDetail({
     required int schoolId,
     required String period,
-  }) async {
-    try {
-      final resp = await _dio.get(
-        '/api/leaderboard/schools/$schoolId',
-        queryParameters: {'period': period},
-      );
-      if (resp.data is Map<String, dynamic>) {
-        return SchoolLeaderboardDetail.fromJson(
-          resp.data as Map<String, dynamic>,
-        );
-      }
-    } catch (_) {}
-    return null;
+  }) {
+    return _leaderboardApi.fetchSchoolLeaderboardDetail(
+      schoolId: schoolId,
+      period: period,
+    );
   }
 
-  Future<List<SchoolLeaderboardHistoryPoint>?> fetchSchoolLeaderboardHistory({
+  @Deprecated(
+    'Use LeaderboardApiService.fetchSchoolLeaderboardHistory instead.',
+  )
+  Future<List<SchoolLeaderboardHistoryPoint>?>
+  fetchSchoolLeaderboardHistory({
     required int schoolId,
     required String period,
     int take = 30,
-  }) async {
-    try {
-      final query = <String, dynamic>{'period': period, 'take': take};
-
-      final resp = await _dio.get(
-        '/api/leaderboard/schools/history/$schoolId',
-        queryParameters: query,
-      );
-      if (resp.data is List) {
-        return (resp.data as List)
-            .whereType<Map>()
-            .map(
-              (item) => SchoolLeaderboardHistoryPoint.fromJson(
-                Map<String, dynamic>.from(item),
-              ),
-            )
-            .toList();
-      }
-      if (resp.data is Map<String, dynamic> &&
-          (resp.data as Map<String, dynamic>)['items'] is List) {
-        return ((resp.data as Map<String, dynamic>)['items'] as List)
-            .whereType<Map>()
-            .map(
-              (item) => SchoolLeaderboardHistoryPoint.fromJson(
-                Map<String, dynamic>.from(item),
-              ),
-            )
-            .toList();
-      }
-    } catch (_) {}
-    return null;
+  }) {
+    return _leaderboardApi.fetchSchoolLeaderboardHistory(
+      schoolId: schoolId,
+      period: period,
+      take: take,
+    );
   }
 
+  @Deprecated('Use AdaptiveContentApiService instead.')
   Future<ApiResult<Map<String, dynamic>>> getAdaptivePathForUserResult(
     String userId,
   ) {
-    return _requestResult<Map<String, dynamic>>(
-      () => _dio.get('/api/adaptive/path'),
-      (data) {
-        if (data is Map<String, dynamic>) {
-          if (data['data'] is Map<String, dynamic>) {
-            return data['data'] as Map<String, dynamic>;
-          }
-          return data;
-        }
-        return <String, dynamic>{};
-      },
-    );
+    return _adaptiveContentApiService.getAdaptivePathForUserResult(userId);
   }
 
   Future<ApiResult<List<Map<String, dynamic>>>> getMasteryForUserResult(
@@ -800,75 +716,46 @@ class ApiService {
     );
   }
 
+  @Deprecated('Use AdaptiveContentApiService instead.')
   Future<Map<String, dynamic>?> getAdaptiveRecommendations() async {
-    final result = await getAdaptiveRecommendationsResult();
-    return result.data;
+    return _adaptiveContentApiService.getAdaptiveRecommendations();
   }
 
+  @Deprecated('Use AdaptiveContentApiService instead.')
   Future<ApiResult<Map<String, dynamic>>> getAdaptiveRecommendationsResult() {
-    return _requestResult<Map<String, dynamic>>(
-      () => _dio.get('/api/adaptive/recommendations'),
-      (data) {
-        if (data is Map<String, dynamic>) return data;
-        if (data is List &&
-            data.isNotEmpty &&
-            data.first is Map<String, dynamic>) {
-          return data.first as Map<String, dynamic>;
-        }
-        return <String, dynamic>{};
-      },
-    );
+    return _adaptiveContentApiService.getAdaptiveRecommendationsResult();
   }
 
   // Legacy adaptive session endpoints have been removed from runtime use.
   // Practice session flow under `/api/practice/session/*` is canonical; callers
   // should use `PracticeSessionApiService` instead.
 
+  @Deprecated('Use AdaptiveContentApiService instead.')
   Future<List<Map<String, dynamic>>?> getAdaptiveReview() async {
-    final result = await getAdaptiveReviewResult();
-    return result.data;
+    return _adaptiveContentApiService.getAdaptiveReview();
   }
 
+  @Deprecated('Use AdaptiveContentApiService instead.')
   Future<ApiResult<List<Map<String, dynamic>>>> getAdaptiveReviewResult() {
-    return _requestResult<List<Map<String, dynamic>>>(
-      () => _dio.get('/api/adaptive/reviews/due'),
-      (data) {
-        if (data is List) {
-          return data.whereType<Map<String, dynamic>>().toList(growable: false);
-        }
-        if (data is Map<String, dynamic> && data['items'] is List) {
-          return (data['items'] as List)
-              .whereType<Map<String, dynamic>>()
-              .toList(growable: false);
-        }
-        if (data is Map<String, dynamic> && data['data'] is List) {
-          return (data['data'] as List)
-              .whereType<Map<String, dynamic>>()
-              .toList(growable: false);
-        }
-        return const <Map<String, dynamic>>[];
-      },
-    );
+    return _adaptiveContentApiService.getAdaptiveReviewResult();
   }
 
-  /// Fetches the full learning path from the adaptive backend.
-  /// Returns null if the endpoint is unavailable — caller must fall back to
-  /// derived path from progress + SRS data.
+  @Deprecated('Use AdaptiveContentApiService instead.')
   Future<Map<String, dynamic>?> getAdaptivePath() async {
-    final result = await getAdaptivePathResult();
-    return result.data;
+    return _adaptiveContentApiService.getAdaptivePath();
   }
 
+  @Deprecated('Use AdaptiveContentApiService instead.')
   Future<ApiResult<Map<String, dynamic>>> getAdaptivePathResult() {
-    return _requestResult<Map<String, dynamic>>(
-      () => _dio.get('/api/adaptive/path'),
-      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
-    );
+    return _adaptiveContentApiService.getAdaptivePathResult();
   }
 
   // Generic helpers kept only for temporary legacy compatibility.
   // New runtime code should use domain services (ProgressApiService, etc.).
-  @Deprecated('Use typed domain API services instead of raw endpoint calls.')
+  // Temporary legacy compatibility only. Do not add new callers.
+  @Deprecated(
+    'Use typed domain API services. Generic endpoint calls are forbidden in new runtime code.',
+  )
   Future<Map<String, dynamic>?> get(String endpoint, [String? token]) async {
     try {
       final response = await _dio.get(endpoint);
@@ -881,7 +768,10 @@ class ApiService {
     return null;
   }
 
-  @Deprecated('Use typed domain API services instead of raw endpoint calls.')
+  // Temporary legacy compatibility only. Do not add new callers.
+  @Deprecated(
+    'Use typed domain API services. Generic endpoint calls are forbidden in new runtime code.',
+  )
   Future<Map<String, dynamic>?> post(
     String endpoint,
     Map data, [

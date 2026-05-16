@@ -21,6 +21,7 @@ class ProgressProvider extends ChangeNotifier {
   final bool enableDemoFallback;
   // When true, indicates that no progress data is available (no cache + API failed)
   bool progressUnavailable = false;
+  bool topicsUnavailable = false;
 
   final ProgressService _progressService = ProgressService.instance;
   static const Duration _reloadDebounce = Duration(seconds: 4);
@@ -41,7 +42,9 @@ class ProgressProvider extends ChangeNotifier {
   int totalAttempts = 0;
   double accuracy = 0;
 
-  // Pending local optimistic events (stored until server confirms)
+  // Permanent progress is server/cache-authoritative.
+  // Local optimistic changes are stored as PendingProgressEvent entries and
+  // exposed through display* getters until syncWithServer confirms them.
   PendingLocalProgress _pendingLocalProgress = PendingLocalProgress.empty;
 
   VoidCallback? onLevelUp; // callback za animaciju
@@ -63,6 +66,14 @@ class ProgressProvider extends ChangeNotifier {
     this.token = token;
     _isDemoMode = isDemoMode;
     _userId = UserScopedStorage.normalizeUserId(userId);
+  }
+
+  int _pendingEventSequence = 0;
+
+  String _newPendingEventId(String type) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _pendingEventSequence += 1;
+    return '${_userId}_$type_${now}_$_pendingEventSequence';
   }
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
@@ -150,6 +161,7 @@ class ProgressProvider extends ChangeNotifier {
   Future<void> _loadLastStreakDayFromPrefs() async {
     if (_lastStreakDay != null) return;
     final prefs = await SharedPreferences.getInstance();
+    // TODO: legacy global key migration for authenticated users is intentionally conservative and should be removed after migration window.
     final ms =
         prefs.getInt(_lastStreakDayKey) ??
         (_userId == 'local'
@@ -231,7 +243,7 @@ class ProgressProvider extends ChangeNotifier {
       streakBroken: remainingMissedDays > 0,
     );
     final event = PendingProgressEvent(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _newPendingEventId('streakRoll'),
       type: PendingProgressEventType.streakRoll,
       timestampMs: DateTime.now().millisecondsSinceEpoch,
       freezesUsed: freezesUsed,
@@ -251,7 +263,7 @@ class ProgressProvider extends ChangeNotifier {
   /// Updates XP & streak immediately (works offline too).
   void applyAnswerResult({required bool isCorrect, int xpForQuestion = 10}) {
     final ev = PendingProgressEvent(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _newPendingEventId('answer'),
       type: PendingProgressEventType.answer,
       isCorrect: isCorrect,
       xp: xpForQuestion,
@@ -575,9 +587,10 @@ class ProgressProvider extends ChangeNotifier {
   }
 
   Future<void> _loadTopicsInternal() async {
-    try {
-      // Skip API call only in explicit demo mode.
-      if (!_isDemoMode) {
+    topicsUnavailable = false;
+
+    if (!_isDemoMode) {
+      try {
         final data = await api.getTopicsProgress();
         if (data != null) {
           topics = data.map((e) {
@@ -593,13 +606,18 @@ class ProgressProvider extends ChangeNotifier {
           notifyListeners();
           return;
         }
+      } catch (e) {
+        debugPrint('Topics API failed: $e');
       }
-    } catch (e) {
-      // API failed, use demo topics
-      debugPrint('Topics API failed: $e');
+
+      // Real users must not fall back to demo topics when the API fails.
+      topicsUnavailable = true;
+      _lastTopicsLoadedAt = DateTime.now();
+      notifyListeners();
+      return;
     }
 
-    // Fallback demo topics (when using demo token or API fails)
+    // Demo mode only: keep existing hardcoded demo topics fallback.
     topics = [
       TopicProgress(
         name: "Osnovne operacije",
@@ -639,7 +657,7 @@ class ProgressProvider extends ChangeNotifier {
   // Test method to manually add XP
   void addXP(int amount) {
     final event = PendingProgressEvent(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _newPendingEventId('bonusXp'),
       type: PendingProgressEventType.bonusXp,
       timestampMs: DateTime.now().millisecondsSinceEpoch,
       xp: amount,
@@ -655,7 +673,7 @@ class ProgressProvider extends ChangeNotifier {
   }) async {
     final day = _dateOnly(now ?? DateTime.now());
     final event = PendingProgressEvent(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _newPendingEventId('practiceReward'),
       type: PendingProgressEventType.practiceReward,
       timestampMs: DateTime.now().millisecondsSinceEpoch,
       xp: xpEarned > 0 ? xpEarned : 0,
@@ -670,7 +688,7 @@ class ProgressProvider extends ChangeNotifier {
   // Penalize XP for using hints
   void penalizeXp(int amount) {
     final event = PendingProgressEvent(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _newPendingEventId('bonusXp'),
       type: PendingProgressEventType.bonusXp,
       timestampMs: DateTime.now().millisecondsSinceEpoch,
       xp: -amount.abs(),

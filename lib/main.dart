@@ -92,6 +92,7 @@ class MathLearningApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => StreakFreezeProvider()..load()),
+        // Provider.update callbacks must stay side-effect free. Auth/user-scoped async loading is coordinated by SessionCoordinator.
         ChangeNotifierProxyProvider<StreakFreezeProvider, ProgressProvider>(
           create: (_) => ProgressProvider(),
           update: (_, streakFreeze, previous) {

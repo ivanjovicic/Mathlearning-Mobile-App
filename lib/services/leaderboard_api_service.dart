@@ -56,7 +56,7 @@ class LeaderboardApiService {
                 Map<String, dynamic>.from(item),
               ),
             )
-            .toList(growable: false);
+            .toList();
       }
       if (response.data is Map<String, dynamic>) {
         final payload = response.data as Map<String, dynamic>;
@@ -71,11 +71,71 @@ class LeaderboardApiService {
                 Map<String, dynamic>.from(item),
               ),
             )
-            .toList(growable: false);
+            .toList();
       }
     } catch (e) {
       debugPrint('[LeaderboardApiService] fetchRivals failed: $e');
     }
+    return null;
+  }
+
+  Future<List<RivalLeaderboardEntry>?> fetchLeaderboardRivals({
+    required String period,
+  }) async {
+    try {
+      final resp = await _dio.get(
+        '/api/leaderboard/friends',
+        queryParameters: <String, dynamic>{'period': period},
+      );
+      if (resp.data is List) {
+        return (resp.data as List)
+            .whereType<Map>()
+            .map(
+              (item) => RivalLeaderboardEntry.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList();
+      }
+      if (resp.data is Map<String, dynamic>) {
+        final payload = resp.data as Map<String, dynamic>;
+        final rawItems = (payload['items'] ?? payload['entries']) as List?;
+        if (rawItems == null) {
+          return const <RivalLeaderboardEntry>[];
+        }
+        return rawItems
+            .whereType<Map>()
+            .map(
+              (item) => RivalLeaderboardEntry.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<SchoolLeaderboardResponse?> fetchSchoolVsSchoolLeaderboard({
+    required String period,
+    int limit = 50,
+    String? cursor,
+  }) async {
+    try {
+      final query = <String, dynamic>{'period': period, 'limit': limit};
+      if (cursor != null && cursor.isNotEmpty) {
+        query['cursor'] = cursor;
+      }
+      final response = await _dio.get(
+        '/api/leaderboard/schools',
+        queryParameters: query,
+      );
+      if (response.data is Map<String, dynamic>) {
+        return SchoolLeaderboardResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      }
+    } catch (_) {}
     return null;
   }
 
@@ -144,7 +204,7 @@ class LeaderboardApiService {
                 Map<String, dynamic>.from(item),
               ),
             )
-            .toList(growable: false);
+            .toList();
       }
       if (response.data is Map<String, dynamic> &&
           (response.data as Map<String, dynamic>)['items'] is List) {
@@ -155,7 +215,7 @@ class LeaderboardApiService {
                 Map<String, dynamic>.from(item),
               ),
             )
-            .toList(growable: false);
+            .toList();
       }
     } catch (e) {
       debugPrint(

@@ -88,6 +88,7 @@ class CoinProvider extends ChangeNotifier {
     return '$cost zlatnika';
   }
 
+  // TODO(server-authoritative-rewards): this local mutation should be replaced by backend claim/refresh.
   void _spendCoins(int amount) {
     _coins = (_coins - amount).clamp(0, double.infinity).toInt();
     notifyListeners();
@@ -168,6 +169,7 @@ class CoinProvider extends ChangeNotifier {
     return true;
   }
 
+  // TODO(server-authoritative-rewards): this local mutation should be replaced by backend claim/refresh.
   // Add coins (for rewards, purchases, etc.)
   void addCoins(int amount) {
     _coins += amount;

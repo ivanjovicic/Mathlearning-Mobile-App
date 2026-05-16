@@ -15,7 +15,6 @@ import 'season_provider.dart';
 import 'settings_provider.dart';
 import 'streak_freeze_provider.dart';
 import 'user_profile_provider.dart';
-import '../services/user_scoped_storage.dart';
 import 'weekly_featured_provider.dart';
 
 /// Centralizes auth-session transitions for user-scoped providers.
@@ -67,7 +66,7 @@ class SessionCoordinator {
     quiz.token = auth.token;
 
     if (previousScopedUserId != null && previousScopedUserId != scopedUserId) {
-      await UserScopedStorage.clearUserScopedData(previousScopedUserId);
+      // TODO: User-scoped persistent data should be cleared only after successful sync or explicit "clear local data" action.
     }
 
     if (!auth.isAuthenticated || scopedUserId == null) {

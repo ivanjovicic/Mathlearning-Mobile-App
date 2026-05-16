@@ -183,6 +183,7 @@ class SeasonProvider extends ChangeNotifier {
   /// Awards season XP for a completed Daily Run.
   ///
   /// [streakMultiplier] should come from [DailyRunProvider.displayedXpMultiplier].
+  // TODO(server-authoritative-rewards): this local mutation should be replaced by backend claim/refresh.
   Future<void> awardDailyRunXp(double streakMultiplier) async {
     final season = _season;
     final userId = _userId;
