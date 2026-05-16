@@ -64,8 +64,8 @@ LeaderboardItem _leaderboardItem({SocialCosmeticLoadout? loadout}) {
 // Tests
 // ---------------------------------------------------------------------------
 
-void main() {
-  bootstrapTests();
+Future<void> main() async {
+  await bootstrapTests();
 
   group('TargetCosmeticChaseCard no-target prompt', () {
     testWidgets('shows prompt when no target exists', (tester) async {

@@ -33,8 +33,8 @@ Widget _wrap(LeaderboardItem item, {bool isCurrentUser = false}) {
   );
 }
 
-void main() {
-  bootstrapTests();
+Future<void> main() async {
+  await bootstrapTests();
 
   group('LeaderboardItemWidget cosmetic flex chip', () {
     testWidgets(

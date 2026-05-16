@@ -276,6 +276,7 @@ class SeasonProgress {
     required this.earnedXp,
     required this.claimedMilestoneIds,
     required this.archivedBadgeIds,
+    required this.appliedDailyRunTransactionIds,
   });
 
   final String seasonId;
@@ -284,11 +285,14 @@ class SeasonProgress {
   final Set<String> claimedMilestoneIds;
   /// Badge IDs archived when a season ends. Preserves history across resets.
   final Set<String> archivedBadgeIds;
+  /// Daily Run transaction IDs already applied to this season progress.
+  final Set<String> appliedDailyRunTransactionIds;
 
   SeasonProgress copyWith({
     int? earnedXp,
     Set<String>? claimedMilestoneIds,
     Set<String>? archivedBadgeIds,
+    Set<String>? appliedDailyRunTransactionIds,
   }) {
     return SeasonProgress(
       seasonId: seasonId,
@@ -296,6 +300,8 @@ class SeasonProgress {
       earnedXp: earnedXp ?? this.earnedXp,
       claimedMilestoneIds: claimedMilestoneIds ?? this.claimedMilestoneIds,
       archivedBadgeIds: archivedBadgeIds ?? this.archivedBadgeIds,
+      appliedDailyRunTransactionIds:
+          appliedDailyRunTransactionIds ?? this.appliedDailyRunTransactionIds,
     );
   }
 
@@ -309,6 +315,7 @@ class SeasonProgress {
       earnedXp: 0,
       claimedMilestoneIds: const {},
       archivedBadgeIds: const {},
+      appliedDailyRunTransactionIds: const {},
     );
   }
 
@@ -327,6 +334,11 @@ class SeasonProgress {
               .map((e) => e?.toString() ?? '')
               .where((s) => s.isNotEmpty)
               .toSet(),
+      appliedDailyRunTransactionIds:
+          (json['applied_daily_run_transaction_ids'] as List<dynamic>? ?? [])
+              .map((e) => e?.toString() ?? '')
+              .where((s) => s.isNotEmpty)
+              .toSet(),
     );
   }
 
@@ -336,6 +348,8 @@ class SeasonProgress {
         'earned_xp': earnedXp,
         'claimed_milestone_ids': claimedMilestoneIds.toList(),
         'archived_badge_ids': archivedBadgeIds.toList(),
+        'applied_daily_run_transaction_ids':
+            appliedDailyRunTransactionIds.toList(),
       };
 
   static int? _asInt(dynamic v) {

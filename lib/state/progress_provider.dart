@@ -73,7 +73,7 @@ class ProgressProvider extends ChangeNotifier {
   String _newPendingEventId(String type) {
     final now = DateTime.now().millisecondsSinceEpoch;
     _pendingEventSequence += 1;
-    return '${_userId}_$type_${now}_$_pendingEventSequence';
+    return '${_userId}_${type}_${now}_$_pendingEventSequence';
   }
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);

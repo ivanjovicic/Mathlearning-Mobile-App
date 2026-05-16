@@ -15,8 +15,8 @@ import '../helpers/test_app.dart';
 import '../helpers/test_bootstrap.dart';
 import '../helpers/test_fakes.dart';
 
-void main() {
-  bootstrapTests();
+Future<void> main() async {
+  await bootstrapTests();
 
   group('QuizScreen daily review redirect', () {
     testWidgets('redirects to /daily-review when SRS count > 0', (

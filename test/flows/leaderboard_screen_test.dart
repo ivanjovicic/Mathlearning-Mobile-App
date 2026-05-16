@@ -24,8 +24,8 @@ class _NoopLeaderboardProvider extends LeaderboardProvider {
   Future<void> loadFriends([LeaderboardPeriod? period]) async {}
 }
 
-void main() {
-  bootstrapTests();
+Future<void> main() async {
+  await bootstrapTests();
 
   group('LeaderboardScreen', () {
     testWidgets('shows loading indicator when provider isLoading is true', (

@@ -53,8 +53,8 @@ class _TestDashboardProgressProvider extends ProgressProvider {
   }
 }
 
-void main() {
-  bootstrapTests();
+Future<void> main() async {
+  await bootstrapTests();
 
   testWidgets('renders without sliver layout exceptions on medium width', (
     tester,

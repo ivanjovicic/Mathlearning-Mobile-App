@@ -17,8 +17,8 @@ import '../helpers/test_app.dart';
 import '../helpers/test_bootstrap.dart';
 import '../helpers/test_fakes.dart';
 
-void main() {
-  bootstrapTests();
+Future<void> main() async {
+  await bootstrapTests();
 
   Future<void> pumpHomeReady(WidgetTester tester) async {
     await tester.pump();

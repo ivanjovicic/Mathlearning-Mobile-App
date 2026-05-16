@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,11 +22,25 @@ class _StubSeasonService extends SeasonService {
   SeasonProgress? _savedProgress;
   int grantCalls = 0;
   bool grantResult = true;
+  int loadActiveSeasonCalls = 0;
+  int failActiveSeasonLoads = 0;
+  bool failNextSaveProgress = false;
+  Completer<Season?>? activeSeasonCompleter;
 
   void updateSeason(Season s) => _season = s;
 
   @override
-  Future<Season?> loadActiveSeason({DateTime? now}) async => _season;
+  Future<Season?> loadActiveSeason({DateTime? now}) async {
+    loadActiveSeasonCalls++;
+    if (activeSeasonCompleter != null) {
+      return activeSeasonCompleter!.future;
+    }
+    if (failActiveSeasonLoads > 0) {
+      failActiveSeasonLoads--;
+      throw StateError('loadActiveSeason failed');
+    }
+    return _season;
+  }
 
   @override
   Future<SeasonProgress> loadProgress({
@@ -35,6 +52,10 @@ class _StubSeasonService extends SeasonService {
 
   @override
   Future<bool> saveProgress(SeasonProgress progress) async {
+    if (failNextSaveProgress) {
+      failNextSaveProgress = false;
+      return false;
+    }
     _savedProgress = progress;
     return true;
   }
@@ -93,6 +114,12 @@ Future<SeasonProvider> _buildProvider({
   await provider.configureUserAndWait(userId);
   return provider;
 }
+
+String _seasonProgressKey(String userId, String seasonId) =>
+    'season_progress.v1.$userId.$seasonId';
+
+String _pendingAwardKey(String userId) =>
+    'season_pending_daily_run_award.v1.$userId';
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -214,6 +241,109 @@ void main() {
       await provider.awardDailyRunXp(1.0);
       expect(provider.earnedXp, 0);
       expect(provider.takePendingXpGain(), isNull);
+    });
+
+    test('awardDailyRunXp waits for an in-flight load before applying', () async {
+      final season = _buildSeason();
+      final stub = _StubSeasonService(season: season)
+        ..activeSeasonCompleter = Completer<Season?>();
+      final provider = SeasonProvider(service: stub);
+
+      provider.configureUser('user-1');
+      await Future<void>.delayed(Duration.zero);
+
+      final awardFuture = provider.awardDailyRunXp(1.0);
+      await Future<void>.delayed(Duration.zero);
+      stub.activeSeasonCompleter!.complete(season);
+
+      final result = await awardFuture;
+      expect(result.applied, isTrue);
+      expect(provider.earnedXp, greaterThan(0));
+      expect(stub.loadActiveSeasonCalls, greaterThanOrEqualTo(1));
+    });
+
+    test('awardDailyRunXp retries once when the initial load fails', () async {
+      final season = _buildSeason();
+      final stub = _StubSeasonService(season: season)
+        ..failActiveSeasonLoads = 1;
+      final provider = SeasonProvider(service: stub);
+
+      provider.configureUser('user-1');
+      final result = await provider.awardDailyRunXp(1.0);
+
+      expect(result.applied, isTrue);
+      expect(provider.earnedXp, greaterThan(0));
+      expect(stub.loadActiveSeasonCalls, 2);
+    });
+
+    test('app restart with pending season XP applies it exactly once', () async {
+      final season = _buildSeason();
+      final userId = 'user-1';
+      final xpGain = SeasonService.dailyRunSeasonXpFor(1.0);
+      final txId = 'season_daily_run_user-1_pending';
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _pendingAwardKey(userId),
+        jsonEncode({
+          'transactionId': txId,
+          'userId': userId,
+          'seasonId': season.seasonId,
+          'xpGain': xpGain,
+          'createdAtUtc': DateTime.now().toUtc().toIso8601String(),
+        }),
+      );
+      await prefs.setString(
+        _seasonProgressKey(userId, season.seasonId),
+        jsonEncode(
+          SeasonProgress.empty(seasonId: season.seasonId, userId: userId)
+              .toJson(),
+        ),
+      );
+
+      final restarted = await _buildProvider(season: season, userId: userId);
+      final firstXp = restarted.earnedXp;
+
+      expect(firstXp, xpGain);
+      expect(prefs.getString(_pendingAwardKey(userId)), isNull);
+
+      await restarted.reload();
+      expect(restarted.earnedXp, firstXp);
+    });
+
+    test('duplicate award prevention keeps restarted progress idempotent', () async {
+      final season = _buildSeason();
+      final userId = 'user-2';
+      final xpGain = SeasonService.dailyRunSeasonXpFor(1.0);
+      final txId = 'season_daily_run_user-2_duplicate';
+      final prefs = await SharedPreferences.getInstance();
+      final progress = SeasonProgress(
+        seasonId: season.seasonId,
+        userId: userId,
+        earnedXp: xpGain,
+        claimedMilestoneIds: const {},
+        archivedBadgeIds: const {},
+        appliedDailyRunTransactionIds: {txId},
+      );
+      await prefs.setString(
+        _pendingAwardKey(userId),
+        jsonEncode({
+          'transactionId': txId,
+          'userId': userId,
+          'seasonId': season.seasonId,
+          'xpGain': xpGain,
+          'createdAtUtc': DateTime.now().toUtc().toIso8601String(),
+        }),
+      );
+      await prefs.setString(
+        _seasonProgressKey(userId, season.seasonId),
+        jsonEncode(progress.toJson()),
+      );
+
+      final restarted = await _buildProvider(season: season, userId: userId);
+      expect(restarted.earnedXp, xpGain);
+
+      await restarted.reload();
+      expect(restarted.earnedXp, xpGain);
     });
   });
 

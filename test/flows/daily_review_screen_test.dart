@@ -47,8 +47,8 @@ Widget _buildRouterApp({
   );
 }
 
-void main() {
-  bootstrapTests();
+Future<void> main() async {
+  await bootstrapTests();
 
   group('DailyReviewScreen', () {
     testWidgets('shows loading indicator initially', (WidgetTester tester) async {
@@ -220,4 +220,3 @@ void main() {
     });
   });
 }
-

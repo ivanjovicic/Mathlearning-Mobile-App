@@ -160,6 +160,7 @@ class SeasonService {
       earnedXp: 0,
       claimedMilestoneIds: const {},
       archivedBadgeIds: allArchived,
+      appliedDailyRunTransactionIds: const {},
     );
     await saveProgress(newProgress);
     return newProgress;

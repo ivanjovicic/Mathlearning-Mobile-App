@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/cosmetic_item.dart';
 import '../models/season.dart';
@@ -12,6 +14,62 @@ class SeasonDailyRunPreview {
 
   final int xpGained;
   final SeasonMilestone? milestoneReached;
+}
+
+class SeasonDailyRunAwardResult {
+  const SeasonDailyRunAwardResult({
+    required this.success,
+    required this.applied,
+    required this.queued,
+    required this.transactionId,
+    required this.xpGain,
+    this.reason,
+    this.retried = false,
+  });
+
+  final bool success;
+  final bool applied;
+  final bool queued;
+  final String? transactionId;
+  final int? xpGain;
+  final String? reason;
+  final bool retried;
+}
+
+class _PendingSeasonDailyRunAward {
+  const _PendingSeasonDailyRunAward({
+    required this.transactionId,
+    required this.userId,
+    required this.seasonId,
+    required this.xpGain,
+    required this.createdAtUtc,
+  });
+
+  final String transactionId;
+  final String userId;
+  final String seasonId;
+  final int xpGain;
+  final DateTime createdAtUtc;
+
+  Map<String, dynamic> toJson() => {
+        'transactionId': transactionId,
+        'userId': userId,
+        'seasonId': seasonId,
+        'xpGain': xpGain,
+        'createdAtUtc': createdAtUtc.toIso8601String(),
+      };
+
+  factory _PendingSeasonDailyRunAward.fromJson(Map<String, dynamic> json) {
+    return _PendingSeasonDailyRunAward(
+      transactionId: json['transactionId']?.toString() ?? '',
+      userId: json['userId']?.toString() ?? '',
+      seasonId: json['seasonId']?.toString() ?? '',
+      xpGain: _asInt(json['xpGain']) ?? 0,
+      createdAtUtc:
+          DateTime.tryParse(json['createdAtUtc']?.toString() ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+  }
 }
 
 /// Drives the Mini Seasons feature: loads the active season, tracks per-user
@@ -31,6 +89,7 @@ class SeasonProvider extends ChangeNotifier {
 
   String? _userId;
   bool _isLoading = false;
+  Future<void>? _loadInFlight;
   Season? _season;
   SeasonProgress? _progress;
 
@@ -39,6 +98,9 @@ class SeasonProvider extends ChangeNotifier {
 
   /// Milestone that was just reached — consumed once by the UI.
   SeasonMilestone? _pendingMilestoneReached;
+
+  _PendingSeasonDailyRunAward? _pendingDailyRunAward;
+  int _seasonAwardSequence = 0;
 
   // ── Getters ────────────────────────────────────────────────────
 
@@ -129,10 +191,12 @@ class SeasonProvider extends ChangeNotifier {
     _progress = null;
     _pendingSeasonXpGain = null;
     _pendingMilestoneReached = null;
+    _pendingDailyRunAward = null;
+    _loadInFlight = null;
     _isLoading = true;
     notifyListeners();
     if (autoLoad) {
-      unawaited(_load(safeId));
+      unawaited(_startLoad(safeId));
     } else {
       _isLoading = false;
       notifyListeners();
@@ -151,9 +215,11 @@ class SeasonProvider extends ChangeNotifier {
     _progress = null;
     _pendingSeasonXpGain = null;
     _pendingMilestoneReached = null;
+    _pendingDailyRunAward = null;
+    _loadInFlight = null;
     _isLoading = true;
     notifyListeners();
-    await _load(safeId);
+    await _startLoad(safeId);
   }
 
   Future<void> reload({DateTime? now}) async {
@@ -161,21 +227,55 @@ class SeasonProvider extends ChangeNotifier {
     if (uid == null) return;
     _isLoading = true;
     notifyListeners();
-    await _load(uid, now: now);
+    await _startLoad(uid, now: now);
+  }
+
+  Future<void> _startLoad(String userId, {DateTime? now}) {
+    final inFlight = _loadInFlight;
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final task = _load(userId, now: now).whenComplete(() {
+      _loadInFlight = null;
+    });
+    _loadInFlight = task;
+    return task;
+  }
+
+  Future<void> _ensureLoaded({DateTime? now}) async {
+    final userId = _userId;
+    if (userId == null) return;
+    await _startLoad(userId, now: now);
+    if (_season != null && _progress != null) {
+      return;
+    }
+    await _startLoad(userId, now: now);
   }
 
   Future<void> _load(String userId, {DateTime? now}) async {
-    final season = await _service.loadActiveSeason(now: now);
-    if (_userId != userId) return;
-    _season = season;
-    if (season != null) {
-      _progress = await _service.loadProgress(
-        seasonId: season.seasonId,
-        userId: userId,
-      );
+    try {
+      final season = await _service.loadActiveSeason(now: now);
+      if (_userId != userId) return;
+      _season = season;
+      if (season != null) {
+        _progress = await _service.loadProgress(
+          seasonId: season.seasonId,
+          userId: userId,
+        );
+        await _reconcilePendingDailyRunAwardIfNeeded(
+          season: season,
+          userId: userId,
+        );
+      }
+    } catch (e) {
+      debugPrint('[SeasonProvider] load failed: $e');
+    } finally {
+      if (_userId == userId) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
-    _isLoading = false;
-    notifyListeners();
   }
 
   // ── Season XP ──────────────────────────────────────────────────
@@ -183,34 +283,147 @@ class SeasonProvider extends ChangeNotifier {
   /// Awards season XP for a completed Daily Run.
   ///
   /// [streakMultiplier] should come from [DailyRunProvider.displayedXpMultiplier].
-  // TODO(server-authoritative-rewards): this local mutation should be replaced by backend claim/refresh.
-  Future<void> awardDailyRunXp(double streakMultiplier) async {
-    final season = _season;
+  Future<SeasonDailyRunAwardResult> awardDailyRunXp(
+    double streakMultiplier,
+  ) async {
     final userId = _userId;
-    if (season == null || userId == null) return;
-    if (season.status(DateTime.now()) == SeasonStatus.ended) return;
+    if (userId == null) {
+      return const SeasonDailyRunAwardResult(
+        success: false,
+        applied: false,
+        queued: false,
+        transactionId: null,
+        xpGain: null,
+        reason: 'Not logged in',
+      );
+    }
 
+    await _ensureLoaded();
+    final season = _season;
+    if (season == null) {
+      return _queuePendingDailyRunAward(
+        userId: userId,
+        streakMultiplier: streakMultiplier,
+        reason: 'Season unavailable',
+      );
+    }
+
+    final now = DateTime.now();
+    if (season.status(now) == SeasonStatus.ended) {
+      return const SeasonDailyRunAwardResult(
+        success: false,
+        applied: false,
+        queued: false,
+        transactionId: null,
+        xpGain: null,
+        reason: 'Season has ended',
+      );
+    }
+
+    final existingPending = await _loadPendingDailyRunAward();
+    if (existingPending != null &&
+        existingPending.userId == userId &&
+        (existingPending.seasonId.isEmpty ||
+            existingPending.seasonId == season.seasonId)) {
+      final applied = await _reconcilePendingDailyRunAwardIfNeeded(
+        season: season,
+        userId: userId,
+      );
+      return SeasonDailyRunAwardResult(
+        success: applied || _pendingDailyRunAward != null,
+        applied: applied,
+        queued: _pendingDailyRunAward != null,
+        transactionId: existingPending.transactionId,
+        xpGain: existingPending.xpGain,
+        reason: applied ? null : 'Pending award retained for retry',
+        retried: true,
+      );
+    }
+
+    return _queuePendingDailyRunAward(
+      userId: userId,
+      streakMultiplier: streakMultiplier,
+      season: season,
+    );
+  }
+
+  Future<SeasonDailyRunAwardResult> _queuePendingDailyRunAward({
+    required String userId,
+    required double streakMultiplier,
+    Season? season,
+    String? seasonId,
+    String? reason,
+  }) async {
     final xpGain = _service.dailyRunSeasonXp(streakMultiplier);
+    final resolvedSeasonId = season?.seasonId ?? seasonId ?? _season?.seasonId ?? '';
+    final pending = _PendingSeasonDailyRunAward(
+      transactionId: _newSeasonAwardTransactionId(),
+      userId: userId,
+      seasonId: resolvedSeasonId,
+      xpGain: xpGain,
+      createdAtUtc: DateTime.now().toUtc(),
+    );
+    _pendingDailyRunAward = pending;
+    try {
+      await _persistPendingDailyRunAward(pending);
+    } catch (e) {
+      debugPrint('[SeasonProvider] failed to persist pending award: $e');
+    }
+
+    var applied = false;
+    if (season != null) {
+      applied = await _applyDailyRunAwardTransaction(
+        pending,
+        season: season,
+        userId: userId,
+      );
+      if (applied) {
+        await _clearPendingDailyRunAward();
+      }
+    }
+
+    return SeasonDailyRunAwardResult(
+      success: true,
+      applied: applied,
+      queued: !applied,
+      transactionId: pending.transactionId,
+      xpGain: xpGain,
+      reason: applied ? null : (reason ?? 'Pending award queued for retry'),
+    );
+  }
+
+  Future<bool> _applyDailyRunAwardTransaction(
+    _PendingSeasonDailyRunAward pending, {
+    required Season season,
+    required String userId,
+  }) async {
+    if (_progress?.appliedDailyRunTransactionIds
+            .contains(pending.transactionId) ==
+        true) {
+      _pendingSeasonXpGain = pending.xpGain;
+      return true;
+    }
+
     final current =
         _progress ??
         SeasonProgress.empty(seasonId: season.seasonId, userId: userId);
-
     final prevXp = current.earnedXp;
-    final newXp = (prevXp + xpGain).clamp(0, season.totalXpGoal * 2);
-    final updated = current.copyWith(earnedXp: newXp);
+    final newXp = (prevXp + pending.xpGain).clamp(0, season.totalXpGoal * 2);
+    final updated = current.copyWith(
+      earnedXp: newXp,
+      appliedDailyRunTransactionIds: {
+        ...current.appliedDailyRunTransactionIds,
+        pending.transactionId,
+      },
+    );
 
     _progress = updated;
-    _pendingSeasonXpGain = xpGain;
-
-    // Detect if a milestone threshold was crossed for the first time.
-    for (final milestone in season.milestones) {
-      if (prevXp < milestone.xpRequired &&
-          newXp >= milestone.xpRequired &&
-          !current.claimedMilestoneIds.contains(milestone.id)) {
-        _pendingMilestoneReached = milestone;
-        break; // Only surface the first newly-crossed milestone per run.
-      }
-    }
+    _pendingSeasonXpGain = pending.xpGain;
+    _pendingMilestoneReached = _detectMilestoneCrossing(
+      season: season,
+      previous: current,
+      updated: updated,
+    );
 
     notifyListeners();
     final persisted = await _service.saveProgress(updated);
@@ -218,10 +431,101 @@ class SeasonProvider extends ChangeNotifier {
       debugPrint(
         '[SeasonProvider] awardDailyRunXp: failed to persist progress',
       );
+      return false;
     }
+    return true;
+  }
+
+  Future<bool> _reconcilePendingDailyRunAwardIfNeeded({
+    required Season season,
+    required String userId,
+  }) async {
+    final pending = await _loadPendingDailyRunAward();
+    if (pending == null ||
+        pending.userId != userId ||
+        (pending.seasonId.isNotEmpty && pending.seasonId != season.seasonId)) {
+      return false;
+    }
+
+    final applied = await _applyDailyRunAwardTransaction(
+      pending,
+      season: season,
+      userId: userId,
+    );
+    if (applied) {
+      await _clearPendingDailyRunAward();
+    }
+    return applied;
   }
 
   // ── Milestone claiming ─────────────────────────────────────────
+
+  Future<_PendingSeasonDailyRunAward?> _loadPendingDailyRunAward() async {
+    if (_pendingDailyRunAward != null) {
+      return _pendingDailyRunAward;
+    }
+
+    final userId = _userId;
+    if (userId == null) return null;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_pendingDailyRunAwardKey(userId));
+    if (raw == null) return null;
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        _pendingDailyRunAward = _PendingSeasonDailyRunAward.fromJson(decoded);
+      }
+    } catch (e) {
+      debugPrint('[SeasonProvider] failed to parse pending award: $e');
+      _pendingDailyRunAward = null;
+    }
+    return _pendingDailyRunAward;
+  }
+
+  Future<void> _persistPendingDailyRunAward(
+    _PendingSeasonDailyRunAward pending,
+  ) async {
+    final userId = _userId;
+    if (userId == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _pendingDailyRunAwardKey(userId),
+      jsonEncode(pending.toJson()),
+    );
+  }
+
+  Future<void> _clearPendingDailyRunAward() async {
+    _pendingDailyRunAward = null;
+    final userId = _userId;
+    if (userId == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingDailyRunAwardKey(userId));
+  }
+
+  String _pendingDailyRunAwardKey(String userId) =>
+      'season_pending_daily_run_award.v1.$userId';
+
+  String _newSeasonAwardTransactionId() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _seasonAwardSequence += 1;
+    return 'season_daily_run_${_userId ?? 'local'}_${now}_$_seasonAwardSequence';
+  }
+
+  SeasonMilestone? _detectMilestoneCrossing({
+    required Season season,
+    required SeasonProgress previous,
+    required SeasonProgress updated,
+  }) {
+    for (final milestone in season.milestones) {
+      if (previous.earnedXp < milestone.xpRequired &&
+          updated.earnedXp >= milestone.xpRequired &&
+          !previous.claimedMilestoneIds.contains(milestone.id)) {
+        return milestone;
+      }
+    }
+    return null;
+  }
 
   Future<SeasonMilestoneClaimResult> claimMilestone(
     SeasonMilestone milestone,
@@ -313,4 +617,11 @@ class SeasonProvider extends ChangeNotifier {
         .where((item) => item.id == id)
         .firstOrNull;
   }
+}
+
+int? _asInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
 }

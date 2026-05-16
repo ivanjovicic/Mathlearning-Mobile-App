@@ -23,7 +23,7 @@ import 'gamified_quiz_feedback_test.mocks.dart';
 import '../test_helper.dart';
 
 @GenerateMocks([FlutterSecureStorage])
-void main() {
+Future<void> main() async {
   setupGlobalMocks();
 
   late MockFlutterSecureStorage mockSecureStorage;
@@ -35,7 +35,7 @@ void main() {
     when(mockSecureStorage.delete(key: anyNamed('key'))).thenAnswer((_) async {});
   });
 
-  bootstrapTests();
+  await bootstrapTests();
 
   GamifiedQuizScreen buildScreen() {
     return GamifiedQuizScreen(

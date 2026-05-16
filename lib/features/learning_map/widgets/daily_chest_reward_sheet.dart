@@ -169,6 +169,8 @@ class _DailyChestRewardSheetState extends State<DailyChestRewardSheet> {
     if (_isApplyingRewards) return;
     _isApplyingRewards = true;
     try {
+      // Keep the reward transaction open until all application callbacks and
+      // the backend-backed post-chest refresh have completed.
       await Future.sync(() => widget.onMarkRewardTransactionStarted?.call());
       await _runRewardSequence();
     } catch (error, stackTrace) {

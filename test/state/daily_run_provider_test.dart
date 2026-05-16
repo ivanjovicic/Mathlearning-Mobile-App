@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mathlearning/state/daily_run_provider.dart';
+import 'package:mathlearning/services/user_scoped_storage.dart';
 
 void main() {
   setUp(() {
@@ -83,6 +84,57 @@ void main() {
       expect(resumedReward!.xp, openedReward!.xp);
       expect(resumedReward.coins, openedReward.coins);
       expect(resumedReward.cosmeticFragment, openedReward.cosmeticFragment);
+    },
+  );
+
+  test(
+    'restart reconstructs missing reward payload instead of losing the claim',
+    () async {
+      final provider = DailyRunProvider();
+      await provider.load('user-4');
+      await provider.markCompleted();
+      final expectedReward = provider.previewReward();
+      final transactionId = 'tx_missing_reward_payload';
+
+      final now = DateTime.now();
+      final month = now.month.toString().padLeft(2, '0');
+      final day = now.day.toString().padLeft(2, '0');
+      final key = UserScopedStorage.scopedKey(
+        'user-4',
+        'daily_run',
+        '${now.year}-$month-$day',
+      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        key,
+        jsonEncode({
+          'isStarted': true,
+          'isCompleted': true,
+          'activeRewardTransactionId': transactionId,
+          'activeRewardTransactionCreatedAt': now.toIso8601String(),
+          'chestOpeningInProgress': true,
+          'rewardsApplied': false,
+          // Intentionally missing activeRewardTransactionReward.
+          'appliedRewardSteps': const [],
+        }),
+      );
+
+      final restarted = DailyRunProvider();
+      await restarted.load('user-4');
+
+      expect(restarted.activeRewardTransactionId, transactionId);
+      expect(restarted.chestOpeningInProgress, isTrue);
+      expect(restarted.chestPermanentlyOpened, isFalse);
+      expect(restarted.activeRewardTransactionReward, isNotNull);
+      expect(restarted.activeRewardTransactionReward!.xp, expectedReward.xp);
+      expect(
+        restarted.activeRewardTransactionReward!.coins,
+        expectedReward.coins,
+      );
+      expect(
+        restarted.activeRewardTransactionReward!.cosmeticFragment,
+        expectedReward.cosmeticFragment,
+      );
     },
   );
 

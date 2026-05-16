@@ -246,6 +246,7 @@ class DailyRunProvider extends ChangeNotifier {
     if (_activeRewardTransactionId != null) {
       _chestOpeningInProgress = true;
       _activeRewardTransactionReward ??= _buildDailyReward();
+      _rewardsApplied = _hasAllRequiredRewardSteps();
       await _persist();
       notifyListeners();
       return _activeRewardTransactionReward;
@@ -404,16 +405,12 @@ class DailyRunProvider extends ChangeNotifier {
     }
 
     if (_activeRewardTransactionReward == null) {
-      // Corrupted/incomplete transaction payload.
-      // Roll back visual "opening" state but keep chest claimable.
-      _chestOpeningInProgress = false;
-      _rewardsApplied = false;
-      _activeRewardTransactionId = null;
-      _activeRewardTransactionCreatedAt = null;
-      _appliedRewardSteps = {};
-      return;
+      // If we crashed before the reward payload was persisted, reconstruct the
+      // deterministic reward instead of dropping the transaction.
+      _activeRewardTransactionReward = _buildDailyReward();
     }
 
+    // Unfinished transactions stay resumable after restart.
     _chestOpeningInProgress = true;
     _rewardsApplied = _hasAllRequiredRewardSteps();
   }
