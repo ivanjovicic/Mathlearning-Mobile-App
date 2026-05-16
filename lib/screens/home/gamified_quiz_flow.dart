@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/question.dart';
-import '../../services/api_service.dart';
+import '../../services/quiz_api_service.dart';
 import 'gamified_quiz_screen.dart';
 
 class GamifiedQuizFlow extends StatefulWidget {
@@ -20,12 +20,12 @@ class GamifiedQuizFlow extends StatefulWidget {
 
 class _GamifiedQuizFlowState extends State<GamifiedQuizFlow> {
   int current = 0;
-  late ApiService api;
+  late QuizApiService api;
 
   @override
   void initState() {
     super.initState();
-    api = ApiService();
+    api = QuizApiService();
     current = widget.startIndex;
   }
 

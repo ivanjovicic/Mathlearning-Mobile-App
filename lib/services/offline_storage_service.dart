@@ -205,12 +205,20 @@ class OfflineStorageService {
         'is_correct': isCorrect ? 1 : 0,
         'user_id': userId,
       });
-      await prefs.setString('pending_answers', jsonEncode(pendingAnswers));
+      final saved = await prefs.setString(
+        'pending_answers',
+        jsonEncode(pendingAnswers),
+      );
+      if (!saved) {
+        throw StateError('Failed to persist pending_answers in SharedPreferences');
+      }
       return;
     }
 
     final db = await database;
-    if (db == null) return;
+    if (db == null) {
+      throw StateError('Offline SQLite storage is unavailable');
+    }
 
     await db.insert(_pendingAnswersTable, {
       'quiz_id': quizId,

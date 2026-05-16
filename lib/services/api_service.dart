@@ -8,6 +8,9 @@ import '../widgets/math/math_content_parser.dart';
 import 'adaptive_content_api_service.dart';
 import 'network/dio_factory.dart';
 import 'leaderboard_api_service.dart';
+import 'quiz_api_service.dart';
+
+export 'quiz_api_service.dart';
 
 // Models
 class ApiResult<T> {
@@ -120,13 +123,11 @@ String? _extractErrorCode(dynamic responseBody, int? statusCode) {
 // Root API Client
 class ApiClient {
   final AuthApi auth;
-  final QuizApi quiz;
   final UserApi user;
   final ProgressApi progress;
 
   ApiClient(Dio dio)
     : auth = AuthApi(dio),
-      quiz = QuizApi(dio),
       user = UserApi(dio),
       progress = ProgressApi(dio);
 }
@@ -159,50 +160,6 @@ class AuthApi {
       final response = await _dio.post(
         '/auth/register',
         data: {'username': username, 'password': password, 'email': email},
-      );
-      return ApiResult(data: response.data);
-    } on DioException catch (e) {
-      return ApiResult.failure(parseError(e));
-    }
-  }
-}
-
-// Quiz API
-class QuizApi {
-  final Dio _dio;
-
-  QuizApi(this._dio);
-
-  Future<ApiResult<Map<String, dynamic>>> startQuiz(
-    int subtopicId,
-    int questionCount,
-  ) async {
-    try {
-      final response = await _dio.post(
-        '/api/quiz/start',
-        data: {'subtopicId': subtopicId, 'questionCount': questionCount},
-      );
-      return ApiResult(data: response.data);
-    } on DioException catch (e) {
-      return ApiResult.failure(parseError(e));
-    }
-  }
-
-  Future<ApiResult<Map<String, dynamic>>> submitAnswer(
-    String quizId,
-    int questionId,
-    String answer,
-    int timeSpentSeconds,
-  ) async {
-    try {
-      final response = await _dio.post(
-        '/api/quiz/answer',
-        data: {
-          'quizId': quizId,
-          'questionId': questionId,
-          'answer': answer,
-          'timeSpentSeconds': timeSpentSeconds,
-        },
       );
       return ApiResult(data: response.data);
     } on DioException catch (e) {
@@ -299,15 +256,6 @@ class RequestDeduplicator {
   }
 }
 
-// Exception used by legacy callers when server responds with 429.
-class ApiRateLimitedException implements Exception {
-  final Duration? retryAfter;
-  ApiRateLimitedException([this.retryAfter]);
-
-  @override
-  String toString() => 'ApiRateLimitedException(retryAfter: $retryAfter)';
-}
-
 // Legacy compatibility: provide `ApiService` class expected by older callers.
 class ApiService {
   static final ApiService _instance = ApiService._();
@@ -319,6 +267,7 @@ class ApiService {
 
   late Dio _dio;
   late ApiClient _client;
+  final QuizApiService _quizApi = QuizApiService();
   final LeaderboardApiService _leaderboardApi = LeaderboardApiService();
   final AdaptiveContentApiService _adaptiveContentApiService =
       AdaptiveContentApiService();
@@ -416,53 +365,29 @@ class ApiService {
     return null;
   }
 
+  @Deprecated('Use QuizApiService instead.')
   Future<List<Map<String, dynamic>>?> getQuestions(
     String topicKey,
     int count,
-  ) async {
-    try {
-      final resp = await _dio.get(
-        '/api/quiz/questions',
-        queryParameters: {'topic': topicKey, 'count': count},
-      );
-      if (resp.data is List) {
-        return (resp.data as List).cast<Map<String, dynamic>>();
-      }
-      if (resp.data is Map && resp.data['questions'] is List) {
-        return (resp.data['questions'] as List).cast<Map<String, dynamic>>();
-      }
-    } catch (_) {}
-    return null;
+  ) {
+    return _quizApi.getQuestions(topicKey, count);
   }
 
+  @Deprecated('Use QuizApiService instead.')
   Future<Map<String, dynamic>?> submitAnswer(
     String quizId,
     int questionId,
     String answer,
     int timeSpentSeconds, [
     String? token,
-  ]) async {
-    try {
-      final resp = await _dio.post(
-        '/api/quiz/answer',
-        data: {
-          'quizId': quizId,
-          'questionId': questionId,
-          'answer': answer,
-          'timeSpentSeconds': timeSpentSeconds,
-        },
-      );
-      return resp.data as Map<String, dynamic>?;
-    } catch (e) {
-      if (e is DioException && e.response?.statusCode == 429) {
-        final retryHeader = e.response?.headers.value('retry-after');
-        final retryAfter = retryHeader != null
-            ? Duration(seconds: int.tryParse(retryHeader) ?? 0)
-            : null;
-        throw ApiRateLimitedException(retryAfter);
-      }
-      return null;
-    }
+  ]) {
+    return _quizApi.submitAnswer(
+      quizId,
+      questionId,
+      answer,
+      timeSpentSeconds,
+      token,
+    );
   }
 
   Future<Map<String, dynamic>?> getDailyHintUsage() async {

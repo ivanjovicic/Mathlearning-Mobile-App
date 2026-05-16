@@ -521,7 +521,7 @@ class QuizProvider extends ChangeNotifier {
         }
 
         // Submit answer (online or queue for offline sync)
-        serverResponse = await _offline.submitAnswer(
+        final submitResult = await _offline.submitAnswer(
           quizId: quizId!,
           questionId: currentQuestion!.id,
           answer: selectedOption?.text ?? answer,
@@ -529,24 +529,26 @@ class QuizProvider extends ChangeNotifier {
           isCorrect: isCorrect,
           token: token,
         );
-      } on ApiRateLimitedException catch (e) {
-        if (context.mounted) {
-          final seconds = (e.retryAfter?.inSeconds ?? 1).clamp(1, 60).toInt();
-          final messenger = ScaffoldMessenger.of(context);
-          messenger.hideCurrentSnackBar();
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(
-                'Server je zauzet (429). Pokusaj za $seconds s. Odgovor je sacuvan offline.',
+        if (submitResult.status == AnswerSubmitStatus.serverConfirmed) {
+          serverResponse = submitResult.serverResponse;
+        } else if (submitResult.status == AnswerSubmitStatus.queuedOffline) {
+          if (context.mounted) {
+            final messenger = ScaffoldMessenger.of(context);
+            messenger.hideCurrentSnackBar();
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('Odgovor je sacuvan offline.'),
               ),
-              duration: Duration(seconds: seconds < 5 ? 5 : seconds),
-            ),
+            );
+          }
+        } else {
+          debugPrint(
+            'Answer submit failed to persist offline for questionId=${currentQuestion!.id}; continuing without guaranteed sync.',
           );
         }
-        // Continue: answer is already queued offline by OfflineManager.
       } catch (e) {
         debugPrint('Error submitting answer: $e');
-        // Continue anyway - answer is saved for sync
+        // Continue anyway - answer may still be available through existing sync paths.
       }
 
       var effectiveXpForQuestion = fallbackXpForQuestion;

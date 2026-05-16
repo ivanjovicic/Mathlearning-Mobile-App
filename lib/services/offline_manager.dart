@@ -3,11 +3,27 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/question.dart';
-import 'api_service.dart';
 import 'auth_service.dart';
 import 'connectivity_service.dart';
 import 'offline_storage_service.dart';
+import 'quiz_api_service.dart';
 import 'srs_service.dart';
+
+enum AnswerSubmitStatus {
+  serverConfirmed,
+  queuedOffline,
+  failed,
+}
+
+class AnswerSubmitResult {
+  final AnswerSubmitStatus status;
+  final Map<String, dynamic>? serverResponse;
+
+  const AnswerSubmitResult({
+    required this.status,
+    this.serverResponse,
+  });
+}
 
 class OfflineManager {
   static OfflineManager? _instance;
@@ -15,7 +31,7 @@ class OfflineManager {
 
   OfflineManager._();
 
-  final ApiService _api = ApiService();
+  final QuizApiService _quizApi = QuizApiService();
   final SrsService _srs = SrsService.instance;
 
   ConnectivityService? _connectivity;
@@ -126,7 +142,7 @@ class OfflineManager {
   }) async {
     if (_isOnlineWithToken) {
       try {
-        final raw = await _api.getQuestions('topic_$subtopicId', count);
+        final raw = await _quizApi.getQuestions('topic_$subtopicId', count);
         if (raw != null && raw.isNotEmpty) {
           await OfflineStorageService.cacheQuestions(subtopicId, raw);
           return raw.map((e) => Question.fromJson(e)).toList();
@@ -192,7 +208,7 @@ class OfflineManager {
 
       try {
         await retryWithBackoff(() async {
-          final result = await _api.submitAnswer(
+          final result = await _quizApi.submitAnswer(
             quizId,
             questionId,
             value,
@@ -316,7 +332,10 @@ class OfflineManager {
   ) async {
     if (_isOnlineWithToken) {
       try {
-        final questions = await _api.getQuestions('topic_$subtopicId', count);
+        final questions = await _quizApi.getQuestions(
+          'topic_$subtopicId',
+          count,
+        );
         if (questions != null) {
           await OfflineStorageService.cacheQuestions(subtopicId, questions);
           return questions;
@@ -334,7 +353,7 @@ class OfflineManager {
       return;
     }
     try {
-      final questions = await _api.getQuestions('topic_$subtopicId', count);
+      final questions = await _quizApi.getQuestions('topic_$subtopicId', count);
       if (questions != null) {
         await OfflineStorageService.cacheQuestions(subtopicId, questions);
       }
@@ -343,7 +362,7 @@ class OfflineManager {
     }
   }
 
-  Future<Map<String, dynamic>?> submitAnswer({
+  Future<AnswerSubmitResult> submitAnswer({
     required String quizId,
     required int questionId,
     required String answer,
@@ -353,7 +372,7 @@ class OfflineManager {
   }) async {
     if (_isOnlineWithToken) {
       try {
-        final result = await _api.submitAnswer(
+        final result = await _quizApi.submitAnswer(
           quizId,
           questionId,
           answer,
@@ -361,37 +380,66 @@ class OfflineManager {
           token,
         );
         if (result != null) {
-          await emitPendingCount();
-          return result;
+          try {
+            await emitPendingCount();
+          } catch (_) {}
+          return AnswerSubmitResult(
+            status: AnswerSubmitStatus.serverConfirmed,
+            serverResponse: result,
+          );
         }
       } on ApiRateLimitedException catch (e) {
         debugPrint(
           'OfflineManager.submitAnswer: rate limited (429). Queueing answer for later (retryAfter=${e.retryAfter}).',
         );
         // Preserve the answer offline, but allow caller to show UI feedback.
-        await OfflineStorageService.savePendingAnswer(
-          quizId: quizId,
-          questionId: questionId,
-          answer: answer,
-          timeSpentSeconds: timeSpentSeconds,
-          isCorrect: isCorrect,
-          userId: _resolveUserId(),
-        );
-        await emitPendingCount();
-        rethrow;
+        try {
+          await OfflineStorageService.savePendingAnswer(
+            quizId: quizId,
+            questionId: questionId,
+            answer: answer,
+            timeSpentSeconds: timeSpentSeconds,
+            isCorrect: isCorrect,
+            userId: _resolveUserId(),
+          );
+          try {
+            await emitPendingCount();
+          } catch (_) {}
+          return const AnswerSubmitResult(
+            status: AnswerSubmitStatus.queuedOffline,
+          );
+        } catch (saveError) {
+          debugPrint('OfflineManager.submitAnswer: failed to queue answer: $saveError');
+          try {
+            await emitPendingCount();
+          } catch (_) {}
+          return const AnswerSubmitResult(status: AnswerSubmitStatus.failed);
+        }
       } catch (_) {}
     }
 
-    await OfflineStorageService.savePendingAnswer(
-      quizId: quizId,
-      questionId: questionId,
-      answer: answer,
-      timeSpentSeconds: timeSpentSeconds,
-      isCorrect: isCorrect,
-      userId: _resolveUserId(),
-    );
-    await emitPendingCount();
-    return null;
+    try {
+      await OfflineStorageService.savePendingAnswer(
+        quizId: quizId,
+        questionId: questionId,
+        answer: answer,
+        timeSpentSeconds: timeSpentSeconds,
+        isCorrect: isCorrect,
+        userId: _resolveUserId(),
+      );
+      try {
+        await emitPendingCount();
+      } catch (_) {}
+      return const AnswerSubmitResult(
+        status: AnswerSubmitStatus.queuedOffline,
+      );
+    } catch (e) {
+      debugPrint('OfflineManager.submitAnswer: failed to queue answer: $e');
+      try {
+        await emitPendingCount();
+      } catch (_) {}
+      return const AnswerSubmitResult(status: AnswerSubmitStatus.failed);
+    }
   }
 
   Future<int> getPendingAnswersCount() async {

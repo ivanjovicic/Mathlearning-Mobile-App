@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:mathlearning/features/learning_map/models/practice_launch_plan.dart';
 import 'package:mathlearning/features/learning_map/models/practice_question.dart';
-import 'package:mathlearning/services/api_service.dart';
+import 'package:mathlearning/services/quiz_api_service.dart';
 import 'package:mathlearning/widgets/math/math_content_parser.dart';
 
 abstract class PracticeRepository {
@@ -13,10 +13,10 @@ abstract class PracticeRepository {
 }
 
 class ApiPracticeRepository implements PracticeRepository {
-  ApiPracticeRepository({ApiService? apiService})
-    : _api = apiService ?? ApiService();
+  ApiPracticeRepository({QuizApiService? quizApiService})
+    : _quizApi = quizApiService ?? QuizApiService();
 
-  final ApiService _api;
+  final QuizApiService _quizApi;
 
   @override
   Future<List<PracticeQuestion>> loadQuestions(
@@ -24,7 +24,7 @@ class ApiPracticeRepository implements PracticeRepository {
     int count = 10,
   }) async {
     final topicKey = _toTopicKey(plan.skillTitle);
-    final payload = await _api.getQuestions(topicKey, count);
+    final payload = await _quizApi.getQuestions(topicKey, count);
     if (payload == null || payload.isEmpty) {
       return _buildFallbackQuestions(plan, count);
     }

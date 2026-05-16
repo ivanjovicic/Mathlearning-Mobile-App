@@ -98,7 +98,12 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     final t = context.t;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final quizProvider = Provider.of<QuizProvider>(context);
+    final masteryPercent =
+        context.select<QuizProvider, double>((q) => q.masteryPercent);
+    final isCooldown = context.select<QuizProvider, bool>((q) => q.isCooldown);
+    final isSubmittingAnswer = context.select<QuizProvider, bool>(
+      (q) => q.isSubmittingAnswer,
+    );
     final progress = widget.totalQuestions > 0
         ? (widget.questionNumber / widget.totalQuestions).clamp(0.0, 1.0)
         : 0.0;
@@ -215,8 +220,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 disabled:
                     answered ||
                     isSubmitting ||
-                    quizProvider.isCooldown ||
-                    quizProvider.isSubmittingAnswer,
+                    isCooldown ||
+                    isSubmittingAnswer,
                 isCorrect: correct,
                 isWrong: wrong,
                 onTap: () => _handleAnswer(opt),
@@ -328,7 +333,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                       _buildMasteryRow(
                         theme: theme,
                         colorScheme: colorScheme,
-                        masteryProgress: quizProvider.masteryPercent,
+                        masteryProgress: masteryPercent,
                       ),
                       if (_combo > 1) ...[
                         SizedBox(height: betweenHeaderGap),
@@ -349,7 +354,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                         ),
                         SizedBox(height: AppSpacing.md),
                       ],
-                      if (quizProvider.isCooldown)
+                      if (isCooldown)
                         Padding(
                           padding: EdgeInsets.only(bottom: AppSpacing.lg),
                           child: const Center(child: CooldownCircle(seconds: 1)),
@@ -367,8 +372,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                                 width: double.infinity,
                                 child: ElevatedButton(
                                   onPressed:
-                                      (isSubmitting ||
-                                          quizProvider.isSubmittingAnswer)
+                                      (isSubmitting || isSubmittingAnswer)
                                       ? null
                                       : _submitAndContinue,
                                   style: ElevatedButton.styleFrom(
@@ -690,8 +694,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     );
   }
 
-  // This XP is a UI preview. QuizProvider remains source of truth for final
-  // session XP after submit/server response.
+  // XP shown here is a UI preview. QuizProvider remains the source of truth for final session XP after submit/server response.
   void _handleAnswer(OptionItem opt) {
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
     final progressProvider = Provider.of<ProgressProvider>(
