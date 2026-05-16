@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mathlearning/models/cosmetic_fragment_progress.dart';
 import 'package:mathlearning/models/cosmetic_item.dart';

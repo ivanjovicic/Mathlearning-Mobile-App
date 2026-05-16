@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'adaptive_content_api_service.dart';
 import 'api_service.dart';
 import 'connectivity_service.dart';
 import 'srs_service.dart';
@@ -94,6 +95,7 @@ class AdaptivePathLoadResult {
 /// Adaptive Learning Service
 class AdaptiveLearningService {
   final ApiService apiService;
+  final AdaptiveContentApiService adaptiveApi;
   final SrsService srsService;
   final RetryExecutor _retryExecutor;
 
@@ -103,8 +105,10 @@ class AdaptiveLearningService {
   AdaptiveLearningService({
     required this.apiService,
     required this.srsService,
+    AdaptiveContentApiService? adaptiveApi,
     RetryExecutor? retryExecutor,
-  }) : _retryExecutor = retryExecutor ??
+  })  : adaptiveApi = adaptiveApi ?? AdaptiveContentApiService(),
+        _retryExecutor = retryExecutor ??
             RetryExecutor(
               canRetry: () async => ConnectivityService.instance.isOnline,
             );
@@ -112,7 +116,7 @@ class AdaptiveLearningService {
   Future<AdaptivePracticeData> fetchPracticeData() async {
     final cachedPractice = await _readMapCache(_practiceCacheKey);
     try {
-      final result = await apiService.getAdaptiveRecommendationsResult();
+      final result = await adaptiveApi.getAdaptiveRecommendationsResult();
       final response = result.data;
       if (response != null && response.isNotEmpty) {
         await _writeMapCache(_practiceCacheKey, response);
@@ -141,7 +145,7 @@ class AdaptiveLearningService {
     }
 
     try {
-      final reviewItems = await apiService.getAdaptiveReview();
+      final reviewItems = await adaptiveApi.getAdaptiveReview();
       if (reviewItems != null && reviewItems.isNotEmpty) {
         return AdaptivePracticeData(
           topic: 'Review',
@@ -214,7 +218,7 @@ class AdaptiveLearningService {
   }
 
   Future<AdaptiveRecommendation> getNextRecommendation() async {
-    final result = await apiService.getAdaptiveRecommendationsResult();
+    final result = await adaptiveApi.getAdaptiveRecommendationsResult();
     final response = result.data;
     if (response == null || response.isEmpty) {
       final cached = await _readMapCache(_practiceCacheKey);
@@ -288,7 +292,7 @@ class AdaptiveLearningService {
     try {
       final raw = await _retryExecutor.run<Map<String, dynamic>>(
         () async {
-          final result = await apiService.getAdaptivePathResult();
+          final result = await adaptiveApi.getAdaptivePathResult();
           if (result.isRateLimited && result.retryAfter != null) {
             throw TimeoutException(
               'Rate limited. Retry after ${result.retryAfter}',

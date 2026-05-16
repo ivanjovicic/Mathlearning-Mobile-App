@@ -404,11 +404,7 @@ class DailyRunProvider extends ChangeNotifier {
       return;
     }
 
-    if (_activeRewardTransactionReward == null) {
-      // If we crashed before the reward payload was persisted, reconstruct the
-      // deterministic reward instead of dropping the transaction.
-      _activeRewardTransactionReward = _buildDailyReward();
-    }
+    _activeRewardTransactionReward ??= _buildDailyReward();
 
     // Unfinished transactions stay resumable after restart.
     _chestOpeningInProgress = true;

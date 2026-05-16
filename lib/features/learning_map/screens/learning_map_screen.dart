@@ -664,7 +664,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                 rootScaffoldMessenger.showSnackBar(
                   const SnackBar(
                     content: Text(
-                      'Claimanje dnevne nagrade trenutno nije dostupno. Pokusaj ponovo.',
+                      'Dnevna nagrada trenutno nije potvrđena. Pokušaj ponovo.',
                     ),
                   ),
                 );

@@ -2,6 +2,7 @@ import 'package:mathlearning/features/learning_map/models/adaptive_learning_path
 import 'package:mathlearning/features/learning_map/models/practice_recommendation.dart';
 import 'package:mathlearning/features/learning_map/models/skill_mastery.dart';
 import 'package:mathlearning/services/api_service.dart';
+import 'package:mathlearning/services/adaptive_content_api_service.dart';
 
 abstract class LearningMapDataSource {
   Future<ApiResult<AdaptiveLearningPath>> fetchPath(String userId);
@@ -17,13 +18,15 @@ abstract class LearningMapDataSource {
 
 class LearningMapService implements LearningMapDataSource {
   LearningMapService({ApiService? apiService})
-    : _api = apiService ?? ApiService();
+    : _api = apiService ?? ApiService(),
+      _adaptiveApi = AdaptiveContentApiService();
 
   final ApiService _api;
+  final AdaptiveContentApiService _adaptiveApi;
 
   @override
   Future<ApiResult<AdaptiveLearningPath>> fetchPath(String userId) async {
-    final result = await _api.getAdaptivePathForUserResult(userId);
+    final result = await _adaptiveApi.getAdaptivePathForUserResult(userId);
     if (result.data == null || result.error != null) {
       return _mapFailure(result);
     }
