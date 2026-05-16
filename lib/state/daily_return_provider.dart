@@ -211,6 +211,7 @@ class DailyReturnProvider extends ChangeNotifier {
     );
   }
 
+  // UI_PREVIEW_ONLY: adjusts the chest preview payload before the claim flow finalizes.
   DailyChestReward applyRewardModifiers(
     DailyChestReward reward, {
     DateTime? now,
@@ -257,6 +258,7 @@ class DailyReturnProvider extends ChangeNotifier {
     );
   }
 
+  // LOCAL_AUTHORITY_TODO: this local comeback-chest bookkeeping should be backend-confirmed later.
   Future<void> markChestOpened({
     DateTime? now,
     bool wasComebackChest = false,

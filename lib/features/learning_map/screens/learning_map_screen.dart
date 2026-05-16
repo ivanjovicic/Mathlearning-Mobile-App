@@ -689,8 +689,9 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
               'coins=${backendReward.coins}, '
               'fragment=${backendReward.cosmeticFragment}',
             );
-            // TODO(server-authoritative-rewards): build the chest sheet from backend claim response once the endpoint is stable.
+            // TODO(server-authoritative-rewards): Future: initialize sheet from backend claim reward or replace preview before final animation.
 
+            // SERVER_REFRESHED: backend claim is the source of truth after chest claim.
             await progressProvider.loadProgress(forceRefresh: true);
             await coinProvider.loadCoinsAndHints(forceRefresh: true);
             await avatarProvider.load();

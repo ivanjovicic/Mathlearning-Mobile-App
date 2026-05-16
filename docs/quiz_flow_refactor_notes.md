@@ -1,17 +1,27 @@
 # Quiz Flow Refactor Notes
 
 ## Current Problem
-`QuizProvider.answer()` currently owns submit, progress updates, SnackBar feedback, completion navigation, and dialogs.
+`QuizProvider.answer()` currently owns submit, progress update, SnackBar, completion navigation, and summary construction.
 
 ## Target
-`QuizProvider.answer()` should return a `QuizAnswerResult`, and the UI should own SnackBars, dialogs, and navigation.
+`QuizProvider.answer()` should return a `QuizAnswerResult` and not require `BuildContext`. Screens should own SnackBars and navigation.
+
+## Proposed Result Model
+- `isCorrect`
+- `submitStatus`
+- `queuedOffline`
+- `failedToPersist`
+- `completedQuiz`
+- `summaryStats` nullable
+- `awardedXp`
 
 ## Migration Plan
-1. Introduce `QuizAnswerResult` in `quiz_provider.dart`.
-2. Keep the old `answer()` path temporarily during migration.
-3. Move completion navigation into the screen layer.
-4. Remove `BuildContext` from the provider once callers are updated.
-5. Preserve current runtime behavior while the UI takes over the side effects.
+1. Introduce `answerWithoutContext` or `answerResult`.
+2. Keep the old `answer()` wrapper temporarily.
+3. Update `QuizScreen`.
+4. Update `GamifiedQuizScreen`.
+5. Update the Daily Review screen if applicable.
+6. Delete the old wrapper once callers are migrated.
 
 ## Affected Files
 - `lib/state/quiz_provider.dart`
@@ -20,5 +30,4 @@
 - daily review screen if it calls `QuizProvider.answer()`
 
 ## Notes
-- This refactor should stay incremental.
-- No business logic changes should happen in the first pass.
+- Preserve result navigation, offline SnackBar behavior, and LevelUp/Achievement popup behavior during migration.

@@ -169,8 +169,7 @@ class CoinProvider extends ChangeNotifier {
     return true;
   }
 
-  // TODO(server-authoritative-rewards): this local mutation should be replaced by backend claim/refresh.
-  // Add coins (for rewards, purchases, etc.)
+  // LOCAL_AUTHORITY_TODO: this coin mutation should be backend-confirmed on claim/refresh.
   void addCoins(int amount) {
     _coins += amount;
     notifyListeners();

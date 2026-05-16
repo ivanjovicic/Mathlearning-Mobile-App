@@ -152,7 +152,7 @@ class SeasonProvider extends ChangeNotifier {
     return v;
   }
 
-  /// Predicts season rewards for a Daily Run without mutating persisted state.
+  /// UI_PREVIEW_ONLY: predicts season rewards for a Daily Run without mutating persisted state.
   SeasonDailyRunPreview? previewDailyRunXp(double streakMultiplier) {
     final season = _season;
     final userId = _userId;
@@ -283,6 +283,7 @@ class SeasonProvider extends ChangeNotifier {
   /// Awards season XP for a completed Daily Run.
   ///
   /// [streakMultiplier] should come from [DailyRunProvider.displayedXpMultiplier].
+  // LOCAL_AUTHORITY_TODO: this local XP award is still applied client-side until a backend season-claim exists.
   Future<SeasonDailyRunAwardResult> awardDailyRunXp(
     double streakMultiplier,
   ) async {

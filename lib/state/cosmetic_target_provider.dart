@@ -111,6 +111,7 @@ class CosmeticTargetProvider extends ChangeNotifier {
     await _save(target);
   }
 
+  // UI_PREVIEW_ONLY: Daily Run target progress here is for animation/preview, not final authority.
   Future<CosmeticTargetProgressEvent?> applyDailyRunGrant(
     DailyRunCosmeticGrantResult result,
   ) async {

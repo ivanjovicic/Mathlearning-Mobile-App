@@ -181,8 +181,7 @@ class AvatarProvider extends ChangeNotifier {
 
   // ─────────────────────── UNLOCK ─────────────────────────────────
 
-  /// Grants an item to the user's inventory (called by game events).
-  // TODO(server-authoritative-rewards): this local mutation should be replaced by backend claim/refresh.
+  /// LOCAL_AUTHORITY_TODO: inventory unlock stays local until claim/refresh is authoritative.
   Future<CosmeticItem?> grantItem({
     required String itemId,
     required String sourceType,
@@ -205,7 +204,7 @@ class AvatarProvider extends ChangeNotifier {
     return null;
   }
 
-  // TODO(server-authoritative-rewards): this local mutation should be replaced by backend claim/refresh.
+  // LOCAL_AUTHORITY_TODO: daily-run fragment unlock stays local until claim/refresh is authoritative.
   Future<DailyRunCosmeticGrantResult> grantDailyRunFragment(
     String fragmentName,
   ) async {

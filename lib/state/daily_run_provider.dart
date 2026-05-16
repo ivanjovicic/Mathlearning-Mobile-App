@@ -98,6 +98,7 @@ class DailyRunProvider extends ChangeNotifier {
   bool _chestPermanentlyOpened = false;
   String? _activeRewardTransactionId;
   DateTime? _activeRewardTransactionCreatedAt;
+  // Stored reward is preview payload until backend claim succeeds.
   DailyChestReward? _activeRewardTransactionReward;
   Set<DailyChestRewardStep> _appliedRewardSteps = {};
 
@@ -452,6 +453,7 @@ class DailyRunProvider extends ChangeNotifier {
     await storage.setString(_storageKey(userId, now), jsonEncode(payload));
   }
 
+  // This is a deterministic local preview for animation/resume only. Backend claim response is authoritative.
   DailyChestReward _buildDailyReward() {
     final userId = _userId ?? '';
     final now = DateTime.now();
