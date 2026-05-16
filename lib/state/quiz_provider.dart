@@ -34,6 +34,11 @@ class QuizProvider extends ChangeNotifier {
     _progress = progress;
   }
 
+  void updateAuthContext({String? token, bool isDemoMode = false}) {
+    this.token = token;
+    _isDemoMode = isDemoMode;
+  }
+
   String? token;
   String? quizId;
   Question? currentQuestion;
@@ -47,6 +52,7 @@ class QuizProvider extends ChangeNotifier {
   List<Map<String, dynamic>>? _cachedDailySrsQuestions;
   DateTime? _cachedDailySrsAt;
   Future<List<Map<String, dynamic>>>? _dailySrsFetchInFlight;
+  bool _isDemoMode = false;
 
   // Hint system state
   String? _currentClue;
@@ -80,6 +86,7 @@ class QuizProvider extends ChangeNotifier {
   final List<WrongQuestion> _wrongQuestions = [];
   final Set<int> _rewardedQuestionIds = <int>{};
   final Set<String> _awardedQuestionFingerprints = <String>{};
+  final Set<String> _usedHintTypesForCurrentQuestion = <String>{};
 
   int get correctCount => _correctCount;
   int get sessionXp => _sessionXp;
@@ -100,6 +107,15 @@ class QuizProvider extends ChangeNotifier {
     if (_usedHintForCurrentQuestion) return;
     _usedHintForCurrentQuestion = true;
     notifyListeners();
+  }
+
+  bool markHintTypeUsedForCurrentQuestion(String hintType) {
+    final added = _usedHintTypesForCurrentQuestion.add(hintType);
+    if (added) {
+      _usedHintForCurrentQuestion = true;
+      notifyListeners();
+    }
+    return added;
   }
 
   void resetAwardHistory() {
@@ -191,23 +207,7 @@ class QuizProvider extends ChangeNotifier {
       _resetHints();
       resetMastery();
 
-      // 1ï¸âƒ£ FIRST: Try to get SRS questions (priority)
-      final srsQuestions = await _fetchDailySrsQuestions();
-
-      if (srsQuestions.isNotEmpty) {
-        debugPrint('âœ… Found ${srsQuestions.length} SRS questions for review');
-        _allQuestions = srsQuestions.map((q) => Question.fromJson(q)).toList();
-        _allQuestions = _dedupeQuestionsByContent(_allQuestions);
-        _isSrsMode = true;
-        quizId = "srs-quiz-${DateTime.now().millisecondsSinceEpoch}";
-        currentQuestion = _allQuestions[0];
-        _syncStepsFromCurrentQuestion();
-        _questionStartTime = DateTime.now().millisecondsSinceEpoch;
-        notifyListeners();
-        return true;
-      }
-
-      // 2ï¸âƒ£ FALLBACK: Try to get normal topic questions
+      // Load only normal topic/cache questions here.
       final questionsData = await _offline.getQuestions(
         subtopicId,
         count,
@@ -221,6 +221,7 @@ class QuizProvider extends ChangeNotifier {
 
         // Generate quiz ID
         quizId = "quiz-${DateTime.now().millisecondsSinceEpoch}";
+        _isSrsMode = false;
 
         // Set first question
         currentQuestion = _allQuestions[0];
@@ -233,8 +234,17 @@ class QuizProvider extends ChangeNotifier {
       debugPrint('Start quiz failed: $e');
     }
 
-    // Use fallback questions for demo mode
-    return await _startFallbackQuiz();
+    if (_isDemoMode) {
+      return await _startFallbackQuiz();
+    }
+
+    quizId = null;
+    currentQuestion = null;
+    _allQuestions = [];
+    _syncStepsFromCurrentQuestion();
+    _isSrsMode = false;
+    notifyListeners();
+    return false;
   }
 
   Future<List<Map<String, dynamic>>> _fetchDailySrsQuestions({
@@ -484,12 +494,14 @@ class QuizProvider extends ChangeNotifier {
       // Calculate time spent on this question
       final currentTime = DateTime.now().millisecondsSinceEpoch;
       final timeMs = currentTime - _questionStartTime;
+      final timeSpentSeconds = (timeMs / 1000).ceil().clamp(1, 600).toInt();
       final localTotalXpBefore = _currentProgressTotalXp();
+      final progress = _progress;
 
       final questionFingerprint = _questionFingerprint(currentQuestion!);
       final shouldRewardProgress =
-          _rewardedQuestionIds.add(currentQuestion!.id) &&
-          _awardedQuestionFingerprints.add(questionFingerprint);
+          !_rewardedQuestionIds.contains(currentQuestion!.id) &&
+          !_awardedQuestionFingerprints.contains(questionFingerprint);
       final fallbackXpForQuestion = isCorrect
           ? _baseXpReward + (_usedHintForCurrentQuestion ? 0 : _noHintBonusXp)
           : 0;
@@ -513,7 +525,7 @@ class QuizProvider extends ChangeNotifier {
           quizId: quizId!,
           questionId: currentQuestion!.id,
           answer: selectedOption?.text ?? answer,
-          timeSpentSeconds: 3, // Could be calculated dynamically
+          timeSpentSeconds: timeSpentSeconds,
           isCorrect: isCorrect,
           token: token,
         );
@@ -582,15 +594,22 @@ class QuizProvider extends ChangeNotifier {
         }
       }
 
-      if (shouldRewardProgress) {
-        _progress?.applyAnswerResult(
+      if (shouldRewardProgress && progress != null) {
+        progress.applyAnswerResult(
           isCorrect: isCorrect,
           xpForQuestion: isCorrect ? effectiveXpForQuestion : 0,
         );
-        await _progress?.persistLocalProgress();
+        await progress.persistLocalProgress();
+
+        _rewardedQuestionIds.add(currentQuestion!.id);
+        _awardedQuestionFingerprints.add(questionFingerprint);
         if (isCorrect && effectiveXpForQuestion > 0) {
           _sessionXp += effectiveXpForQuestion;
         }
+      } else if (shouldRewardProgress && progress == null) {
+        debugPrint(
+          'Skipping XP reward because ProgressProvider is not attached for questionId=${currentQuestion!.id}',
+        );
       } else {
         debugPrint(
           'Skipping duplicate XP reward for questionId=${currentQuestion!.id}, fingerprint=$questionFingerprint',
@@ -1118,5 +1137,6 @@ class QuizProvider extends ChangeNotifier {
     _eliminatedOptions = [];
     _isLoadingHint = false;
     _usedHintForCurrentQuestion = false;
+    _usedHintTypesForCurrentQuestion.clear();
   }
 }

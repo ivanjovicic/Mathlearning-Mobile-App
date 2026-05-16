@@ -63,7 +63,10 @@ class SessionCoordinator {
       userId: scopedUserId,
     );
     leaderboard.onTokenUpdated(auth.token, isDemoMode: auth.isDemoMode);
-    quiz.token = auth.token;
+    quiz.updateAuthContext(
+      token: auth.token,
+      isDemoMode: auth.isDemoMode,
+    );
 
     if (previousScopedUserId != null && previousScopedUserId != scopedUserId) {
       // TODO: User-scoped persistent data should be cleared only after successful sync or explicit "clear local data" action.

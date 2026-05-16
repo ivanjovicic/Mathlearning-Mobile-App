@@ -8,7 +8,7 @@ import 'user_scoped_storage.dart';
 class OfflineStorageService {
   static Database? _database;
   static const String _dbName = 'mathlearning_offline.db';
-  static const int _version = 1;
+  static const int _version = 2;
 
   // Database tables
   static const String _questionsTable = 'questions';
@@ -40,7 +40,12 @@ class OfflineStorageService {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _dbName);
 
-    return await openDatabase(path, version: _version, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: _version,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
   }
 
   static Future _createDB(Database db, int version) async {
@@ -65,7 +70,8 @@ class OfflineStorageService {
         answer TEXT NOT NULL,
         time_spent_seconds INTEGER NOT NULL,
         timestamp INTEGER NOT NULL,
-        is_correct INTEGER NOT NULL
+        is_correct INTEGER NOT NULL,
+        user_id TEXT NOT NULL DEFAULT 'legacy'
       )
     ''');
 
@@ -81,6 +87,16 @@ class OfflineStorageService {
         last_updated INTEGER NOT NULL
       )
     ''');
+  }
+
+  static Future<void> _upgradeDB(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE $_pendingAnswersTable ADD COLUMN user_id TEXT');
+    }
   }
 
   // === QUESTIONS OFFLINE CACHE ===
@@ -174,6 +190,7 @@ class OfflineStorageService {
     required String answer,
     required int timeSpentSeconds,
     required bool isCorrect,
+    required String userId,
   }) async {
     if (kIsWeb) {
       // Use SharedPreferences for web
@@ -186,6 +203,7 @@ class OfflineStorageService {
         'time_spent_seconds': timeSpentSeconds,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
         'is_correct': isCorrect ? 1 : 0,
+        'user_id': userId,
       });
       await prefs.setString('pending_answers', jsonEncode(pendingAnswers));
       return;
@@ -201,16 +219,21 @@ class OfflineStorageService {
       'time_spent_seconds': timeSpentSeconds,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
       'is_correct': isCorrect ? 1 : 0,
+      'user_id': userId,
     });
   }
 
-  static Future<List<Map<String, dynamic>>> getPendingAnswers() async {
+  static Future<List<Map<String, dynamic>>> getPendingAnswers({
+    String? userId,
+  }) async {
     if (kIsWeb) {
       // Use SharedPreferences for web
       final prefs = await SharedPreferences.getInstance();
       final pendingAnswersJson = prefs.getString('pending_answers');
       if (pendingAnswersJson != null) {
-        return List<Map<String, dynamic>>.from(jsonDecode(pendingAnswersJson));
+        final all = List<Map<String, dynamic>>.from(jsonDecode(pendingAnswersJson));
+        if (userId == null) return all;
+        return all.where((answer) => _pendingAnswerMatchesUserId(answer, userId)).toList();
       }
       return [];
     }
@@ -218,20 +241,56 @@ class OfflineStorageService {
     final db = await database;
     if (db == null) return [];
 
-    return await db.query(_pendingAnswersTable, orderBy: 'timestamp ASC');
+    final rows = await db.query(_pendingAnswersTable, orderBy: 'timestamp ASC');
+    if (userId == null) return rows;
+    return rows.where((answer) => _pendingAnswerMatchesUserId(answer, userId)).toList();
   }
 
-  static Future<void> clearPendingAnswers() async {
+  static Future<void> clearPendingAnswers({String? userId}) async {
     if (kIsWeb) {
       // Use SharedPreferences for web
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('pending_answers');
+      if (userId == null) {
+        await prefs.remove('pending_answers');
+        return;
+      }
+
+      final pendingAnswers = await getPendingAnswers();
+      final remaining = pendingAnswers
+          .where((answer) => !_pendingAnswerMatchesUserId(answer, userId))
+          .toList();
+      await prefs.setString('pending_answers', jsonEncode(remaining));
       return;
     }
 
     final db = await database;
     if (db == null) return;
-    await db.delete(_pendingAnswersTable);
+
+    if (userId == null) {
+      await db.delete(_pendingAnswersTable);
+      return;
+    }
+
+    final args = <Object?>[userId];
+    final where =
+        'user_id = ?${_shouldIncludeLegacyPendingAnswers(userId) ? " OR user_id IS NULL OR user_id = 'legacy'" : ""}';
+    await db.delete(_pendingAnswersTable, where: where, whereArgs: args);
+  }
+
+  static bool _shouldIncludeLegacyPendingAnswers(String userId) {
+    return userId == 'local' || userId == 'default';
+  }
+
+  static bool _pendingAnswerMatchesUserId(
+    Map<String, dynamic> answer,
+    String userId,
+  ) {
+    final answerUserId = answer['user_id']?.toString();
+    if (answerUserId == userId) return true;
+    if (_shouldIncludeLegacyPendingAnswers(userId)) {
+      return answerUserId == null || answerUserId == 'legacy';
+    }
+    return false;
   }
 
   // === USER PROGRESS CACHE ===

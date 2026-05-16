@@ -61,7 +61,16 @@ class _QuizScreenState extends State<QuizScreen>
         }
       }
 
-      await quiz.startQuiz(_subtopicId, 10);
+      final started = await quiz.startQuiz(_subtopicId, 10);
+
+      if (!started) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = 'Pitanja trenutno nisu dostupna. Proveri konekciju i pokušaj ponovo.';
+        });
+        return;
+      }
 
       if (!mounted) return;
       setState(() {
@@ -92,9 +101,10 @@ class _QuizScreenState extends State<QuizScreen>
       _isAnswering = true;
     });
     await quiz.answer(id, context);
+    if (!mounted || quiz.currentQuestion == null) return;
     // Show correct/wrong feedback for 1.2s before advancing
     await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
+    if (!mounted || quiz.currentQuestion == null) return;
     setState(() {
       _lastAnswerId = null;
       _isAnswering = false;

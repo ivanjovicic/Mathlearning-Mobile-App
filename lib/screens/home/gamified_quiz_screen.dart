@@ -690,6 +690,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     );
   }
 
+  // This XP is a UI preview. QuizProvider remains source of truth for final
+  // session XP after submit/server response.
   void _handleAnswer(OptionItem opt) {
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
     final progressProvider = Provider.of<ProgressProvider>(
@@ -994,8 +996,13 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 : null,
             onTap: stepByStepFormula != null
                 ? () {
-                    quizProvider.markHintUsedForCurrentQuestion();
-                    progress.penalizeXp(5);
+                    final isNewHintType =
+                        quizProvider.markHintTypeUsedForCurrentQuestion(
+                          'formula',
+                        );
+                    if (isNewHintType) {
+                      progress.penalizeXp(5);
+                    }
                     Navigator.pop(
                       sheetContext,
                       _HintSelection(
@@ -1015,8 +1022,13 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 : null,
             onTap: resolvedLightHint != null
                 ? () {
-                    quizProvider.markHintUsedForCurrentQuestion();
-                    progress.penalizeXp(1);
+                    final isNewHintType =
+                        quizProvider.markHintTypeUsedForCurrentQuestion(
+                          'light',
+                        );
+                    if (isNewHintType) {
+                      progress.penalizeXp(1);
+                    }
                     Navigator.pop(
                       sheetContext,
                       _HintSelection(
@@ -1035,8 +1047,13 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 : null,
             onTap: resolvedMediumHint != null
                 ? () {
-                    quizProvider.markHintUsedForCurrentQuestion();
-                    progress.penalizeXp(3);
+                    final isNewHintType =
+                        quizProvider.markHintTypeUsedForCurrentQuestion(
+                          'medium',
+                        );
+                    if (isNewHintType) {
+                      progress.penalizeXp(3);
+                    }
                     Navigator.pop(
                       sheetContext,
                       _HintSelection(
@@ -1055,8 +1072,13 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
                 : null,
             onTap: hasStepExplanations || resolvedFullHint != null
                 ? () {
-                    quizProvider.markHintUsedForCurrentQuestion();
-                    progress.penalizeXp(5);
+                    final isNewHintType =
+                        quizProvider.markHintTypeUsedForCurrentQuestion(
+                          'full',
+                        );
+                    if (isNewHintType) {
+                      progress.penalizeXp(5);
+                    }
                     if (hasStepExplanations) {
                       Navigator.pop(sheetContext);
                       FormulaHintBottomSheet.showSteps(context, stepItems);

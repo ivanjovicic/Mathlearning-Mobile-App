@@ -67,9 +67,12 @@ class OfflineManager {
 
   Future<void> emitPendingCount() async {
     if (_pendingCountController.isClosed) return;
-    final answers = await OfflineStorageService.getPendingAnswers();
+    final userId = _resolveUserId();
+    final answers = await OfflineStorageService.getPendingAnswers(
+      userId: userId,
+    );
     final srs = await OfflineStorageService.getPendingSrsUpdates(
-      userId: _resolveUserId(),
+      userId: userId,
     );
     _pendingCountController.add(answers.length + srs.length);
   }
@@ -167,7 +170,10 @@ class OfflineManager {
   }
 
   Future<void> _syncPendingAnswers() async {
-    final pendingAnswers = await OfflineStorageService.getPendingAnswers();
+    final userId = _resolveUserId();
+    final pendingAnswers = await OfflineStorageService.getPendingAnswers(
+      userId: userId,
+    );
     if (pendingAnswers.isEmpty) return;
 
     final failed = <Map<String, dynamic>>[];
@@ -214,7 +220,7 @@ class OfflineManager {
     }
 
     // Replace full queue with only the failed items
-    await OfflineStorageService.clearPendingAnswers();
+    await OfflineStorageService.clearPendingAnswers(userId: userId);
     for (final answer in failed) {
       await OfflineStorageService.savePendingAnswer(
         quizId: answer['quiz_id'].toString(),
@@ -222,6 +228,7 @@ class OfflineManager {
         answer: answer['answer'].toString(),
         timeSpentSeconds: (answer['time_spent_seconds'] as num).toInt(),
         isCorrect: (answer['is_correct'] as num?)?.toInt() == 1,
+        userId: answer['user_id']?.toString() ?? userId,
       );
     }
 
@@ -344,7 +351,7 @@ class OfflineManager {
     required bool isCorrect,
     String? token,
   }) async {
-    if (isOnline) {
+    if (_isOnlineWithToken) {
       try {
         final result = await _api.submitAnswer(
           quizId,
@@ -368,6 +375,7 @@ class OfflineManager {
           answer: answer,
           timeSpentSeconds: timeSpentSeconds,
           isCorrect: isCorrect,
+          userId: _resolveUserId(),
         );
         await emitPendingCount();
         rethrow;
@@ -380,13 +388,16 @@ class OfflineManager {
       answer: answer,
       timeSpentSeconds: timeSpentSeconds,
       isCorrect: isCorrect,
+      userId: _resolveUserId(),
     );
     await emitPendingCount();
     return null;
   }
 
   Future<int> getPendingAnswersCount() async {
-    final pending = await OfflineStorageService.getPendingAnswers();
+    final pending = await OfflineStorageService.getPendingAnswers(
+      userId: _resolveUserId(),
+    );
     return pending.length;
   }
 
