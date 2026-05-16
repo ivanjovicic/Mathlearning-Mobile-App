@@ -302,7 +302,7 @@ class OfflineManager {
     required bool isCorrect,
     required int timeMs,
   }) async {
-    if (isOnline) {
+    if (_isOnlineWithToken) {
       try {
         final ok = await _srs.updateSrs(
           questionId: questionId,

@@ -15,6 +15,14 @@ class QuizApiService {
 
   QuizApiService({Dio? dio}) : _dio = dio ?? DioFactory.create();
 
+  List<Map<String, dynamic>> _parseQuestionList(dynamic raw) {
+    if (raw is! List) return const <Map<String, dynamic>>[];
+    return raw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
   Future<List<Map<String, dynamic>>?> getQuestions(
     String topicKey,
     int count,
@@ -25,10 +33,12 @@ class QuizApiService {
         queryParameters: {'topic': topicKey, 'count': count},
       );
       if (resp.data is List) {
-        return (resp.data as List).cast<Map<String, dynamic>>();
+        final parsed = _parseQuestionList(resp.data);
+        return parsed.isEmpty ? null : parsed;
       }
       if (resp.data is Map && resp.data['questions'] is List) {
-        return (resp.data['questions'] as List).cast<Map<String, dynamic>>();
+        final parsed = _parseQuestionList(resp.data['questions']);
+        return parsed.isEmpty ? null : parsed;
       }
     } catch (_) {}
     return null;

@@ -718,6 +718,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
       isCorrect = opt.isCorrect;
       _combo = opt.isCorrect ? _combo + 1 : 0;
       _lastBonusXp = awardBonus ? _noHintBonusXp : 0;
+      // Future: replace preview XP with final awarded XP returned from QuizProvider.answer result.
       _awardedXpPreview = awardedXp;
     });
 
@@ -771,7 +772,8 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     });
 
     await widget.onSubmit(selectedAnswer);
-    if (!mounted) return;
+    final quizProvider = Provider.of<QuizProvider>(context, listen: false);
+    if (!mounted || quizProvider.currentQuestion == null) return;
 
     setState(() {
       isSubmitting = false;
@@ -787,7 +789,7 @@ class _GamifiedQuizScreenState extends State<GamifiedQuizScreen> {
     // Wait 1 second for cooldown
     await Future.delayed(const Duration(seconds: 1));
 
-    if (!mounted) return;
+    if (!mounted || quizProvider.currentQuestion == null) return;
 
     // Move to next question
     quizProvider.goToNextQuestion();

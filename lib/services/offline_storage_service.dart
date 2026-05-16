@@ -95,7 +95,10 @@ class OfflineStorageService {
     int newVersion,
   ) async {
     if (oldVersion < 2) {
-      await db.execute('ALTER TABLE $_pendingAnswersTable ADD COLUMN user_id TEXT');
+      // Keep upgraded DB schema aligned with fresh installs.
+      await db.execute(
+        'ALTER TABLE $_pendingAnswersTable ADD COLUMN user_id TEXT NOT NULL DEFAULT \'legacy\'',
+      );
     }
   }
 

@@ -281,6 +281,11 @@ class QuizProvider extends ChangeNotifier {
     return task;
   }
 
+  void invalidateDailySrsCache() {
+    _cachedDailySrsQuestions = null;
+    _cachedDailySrsAt = null;
+  }
+
   Future<bool> _startFallbackQuiz() async {
     // Demo quiz for offline use with multiple questions
     quizId = "demo-quiz-${DateTime.now().millisecondsSinceEpoch}";
@@ -515,6 +520,7 @@ class QuizProvider extends ChangeNotifier {
             isCorrect: isCorrect,
             timeMs: timeMs,
           );
+          invalidateDailySrsCache();
           debugPrint(
             'SRS processed: Q${currentQuestion!.id}, correct=$isCorrect, time=${timeMs}ms',
           );
