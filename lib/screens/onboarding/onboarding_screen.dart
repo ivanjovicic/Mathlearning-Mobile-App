@@ -121,6 +121,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         content: _DailyReviewToggle(
           value: ob.dailyReview,
           label: t.obEnableReminder,
+          timeLabel: t.obReminderTimeDefault,
           onChanged: ob.setDailyReview,
         ),
         onNext: _finish,
@@ -261,11 +262,13 @@ class _DifficultyPicker extends StatelessWidget {
 class _DailyReviewToggle extends StatelessWidget {
   final bool value;
   final String label;
+  final String timeLabel;
   final ValueChanged<bool> onChanged;
 
   const _DailyReviewToggle({
     required this.value,
     required this.label,
+    required this.timeLabel,
     required this.onChanged,
   });
 
@@ -288,7 +291,7 @@ class _DailyReviewToggle extends StatelessWidget {
           style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
-          '18:00',
+          timeLabel,
           style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5)),
         ),
         onChanged: onChanged,

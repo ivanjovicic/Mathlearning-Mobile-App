@@ -3,6 +3,10 @@ import '../services/auth_service.dart';
 import '../services/offline_manager.dart';
 
 const String networkErrorKey = '__network_error__';
+const String authLoginFailedKey = '__auth_login_failed__';
+const String authInvalidCredentialsKey = '__auth_invalid_credentials__';
+const String authUsernameTakenKey = '__auth_username_taken__';
+const String authEmailTakenKey = '__auth_email_taken__';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService.instance;
@@ -64,7 +68,7 @@ class AuthProvider extends ChangeNotifier {
       } else {
         debugPrint('[AUTH_PROVIDER] login failed: error=${result.error}');
         _setError(
-          _localizeAuthError(result.error, fallback: 'Prijava nije uspela'),
+          _localizeAuthError(result.error, fallbackKey: authLoginFailedKey),
         );
         return false;
       }
@@ -91,7 +95,7 @@ class AuthProvider extends ChangeNotifier {
         _setError(
           _localizeAuthError(
             result.error,
-            fallback: 'Registracija nije uspela',
+            fallbackKey: authLoginFailedKey,
           ),
         );
         return false;
@@ -125,23 +129,23 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
   }
 
-  String _localizeAuthError(String? rawError, {required String fallback}) {
+  String _localizeAuthError(String? rawError, {required String fallbackKey}) {
     final raw = (rawError ?? '').trim();
-    if (raw.isEmpty) return fallback;
+    if (raw.isEmpty) return fallbackKey;
 
     final value = raw.toLowerCase();
     if (value.contains('invalid credentials') ||
         value.contains('wrong password') ||
         value.contains('unauthorized')) {
-      return 'Pogresni podaci za prijavu.';
+      return authInvalidCredentialsKey;
     }
     if (value.contains('username') &&
         (value.contains('exists') || value.contains('taken'))) {
-      return 'Korisnicko ime je zauzeto.';
+      return authUsernameTakenKey;
     }
     if (value.contains('email') &&
         (value.contains('exists') || value.contains('taken'))) {
-      return 'Imejl adresa je vec zauzeta.';
+      return authEmailTakenKey;
     }
     if (value.contains('network') ||
         value.contains('timeout') ||
@@ -149,6 +153,6 @@ class AuthProvider extends ChangeNotifier {
         value.contains('socket')) {
       return networkErrorKey;
     }
-    return fallback;
+    return fallbackKey;
   }
 }

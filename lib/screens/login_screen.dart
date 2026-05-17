@@ -18,6 +18,23 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  String _localizedAuthError(AppI18n t, String errorKey) {
+    switch (errorKey) {
+      case networkErrorKey:
+        return t.authNetworkError;
+      case authLoginFailedKey:
+        return t.authLoginFailed;
+      case authInvalidCredentialsKey:
+        return t.authInvalidCredentials;
+      case authUsernameTakenKey:
+        return t.authUsernameTaken;
+      case authEmailTakenKey:
+        return t.authEmailTaken;
+      default:
+        return errorKey;
+    }
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -128,9 +145,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        authProvider.error == networkErrorKey
-                                            ? t.networkError
-                                            : authProvider.error!,
+                                        _localizedAuthError(
+                                          t,
+                                          authProvider.error!,
+                                        ),
                                         style: TextStyle(
                                           color: colorScheme.onErrorContainer,
                                         ),

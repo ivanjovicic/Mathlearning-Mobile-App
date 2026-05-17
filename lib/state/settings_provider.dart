@@ -150,6 +150,10 @@ class SettingsProvider extends ChangeNotifier {
           );
         }
 
+        if (settings.languageCode != null) {
+          _language = _languageFromCode(settings.languageCode, _language);
+        }
+
         notifyListeners();
         await _persist();
       }
@@ -170,6 +174,7 @@ class SettingsProvider extends ChangeNotifier {
         dailyReminderEnabled: _dailyReminderEnabled,
         dailyReminderHour: _dailyReminderTime.hour,
         dailyReminderMinute: _dailyReminderTime.minute,
+        languageCode: _languageCode(_language),
       );
 
       await _settingsService.updateUserSettings(_userId!, settings);
@@ -212,6 +217,7 @@ class SettingsProvider extends ChangeNotifier {
     _profileConfigured = true;
     notifyListeners();
     await _persist();
+    await _syncToBackend(); // Sync to backend
   }
 
   Future<void> setHintsEnabled(bool value) async {
@@ -382,6 +388,34 @@ class SettingsProvider extends ChangeNotifier {
   void _syncSoundService() {
     SoundService.instance.setMuted(!_soundEnabled);
     SoundService.instance.setHapticsEnabled(_vibrationEnabled);
+  }
+
+  AppLanguage _languageFromCode(String? code, AppLanguage fallback) {
+    switch (code?.trim().toLowerCase()) {
+      case 'sr':
+        return AppLanguage.serbian;
+      case 'en':
+        return AppLanguage.english;
+      case 'de':
+        return AppLanguage.german;
+      case 'es':
+        return AppLanguage.spanish;
+      default:
+        return fallback;
+    }
+  }
+
+  String _languageCode(AppLanguage language) {
+    switch (language) {
+      case AppLanguage.serbian:
+        return 'sr';
+      case AppLanguage.english:
+        return 'en';
+      case AppLanguage.german:
+        return 'de';
+      case AppLanguage.spanish:
+        return 'es';
+    }
   }
 
   TimeOfDay _timeFromMinutes(int minutes) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_i18n.dart';
 import '../../theme/astrax_theme.dart';
 import '../../widgets/astrax_buttons.dart';
 import '../../widgets/astrax_card.dart';
@@ -27,11 +28,12 @@ class QuizQuestionView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final showResult = correctIndex != null && selectedIndex != null;
+    final t = context.t;
 
     return Scaffold(
       backgroundColor: AstraXTheme.bg,
       appBar: AppBar(
-        title: const Text('Quick Quiz'),
+        title: Text(t.quizQuickTitle),
         backgroundColor: Colors.transparent,
       ),
       body: Padding(
@@ -42,12 +44,9 @@ class QuizQuestionView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Question',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 14,
-                    ),
+                  Text(
+                    t.quizQuestionLabel,
+                    style: const TextStyle(color: Colors.white54, fontSize: 14),
                   ),
                   const SizedBox(height: 8),
                   MathRenderer(
@@ -128,10 +127,10 @@ class QuizQuestionView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            const AstraXPBar(progress: 0.4, label: 'XP progress'),
+            AstraXPBar(progress: 0.4, label: t.quizXpProgress),
             const SizedBox(height: 14),
             AstraNeonButton(
-              text: showResult ? 'Next' : 'Confirm',
+              text: showResult ? t.quizNext : t.quizConfirm,
               onTap: onNext,
             ),
           ],

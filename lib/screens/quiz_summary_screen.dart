@@ -62,7 +62,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
             children: [
               const Icon(Icons.quiz_rounded, size: 40),
               const SizedBox(height: 12),
-              Text('No stats available', style: theme.textTheme.bodyLarge),
+              Text(t.qsErrorNoStats, style: theme.textTheme.bodyLarge),
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: context.goHome,
@@ -582,6 +582,7 @@ class _SummaryStatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = context.t;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -589,7 +590,7 @@ class _SummaryStatRow extends StatelessWidget {
         Expanded(
           child: _StatCard(
             icon: Icons.check_circle_rounded,
-            label: 'Correct',
+            label: t.qsCorrect,
             value: '${stats.correct}',
             color: cs.primary,
             cs: cs,
@@ -599,7 +600,7 @@ class _SummaryStatRow extends StatelessWidget {
         Expanded(
           child: _StatCard(
             icon: Icons.timer,
-            label: 'Total',
+            label: t.qsTotal,
             value: '${stats.total}',
             color: cs.secondary,
             cs: cs,
@@ -609,7 +610,7 @@ class _SummaryStatRow extends StatelessWidget {
         Expanded(
           child: _StatCard(
             icon: Icons.star_rounded,
-            label: 'XP',
+            label: t.qsXp,
             value: '${stats.xpEarned}',
             color: Colors.amber,
             cs: cs,
@@ -693,7 +694,7 @@ class SummaryActions extends StatelessWidget {
         Expanded(
           child: FilledButton(
             onPressed: () => context.openQuiz(),
-            child: const Text('Retry'),
+            child: Text(t.qsRetry),
           ),
         ),
         const SizedBox(width: 12),

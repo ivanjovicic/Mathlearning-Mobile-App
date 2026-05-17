@@ -161,14 +161,14 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  String _formatDailyReviewSubtitle(int count) {
+  String _formatDailyReviewSubtitle(AppI18n t, int count) {
     if (count == 0) {
-      return "Nema SRS pitanja za danas";
+      return t.homeDailyReviewEmpty;
     }
 
     final totalSeconds = (count * 45);
     final minutes = (totalSeconds / 60).round().clamp(1, 99);
-    return "Danas imas $count SRS pitanja - ~$minutes min";
+    return t.homeDailyReviewSubtitle(count, minutes);
   }
 
   TopicProgress? _findRecommendedTopic(ProgressProvider progress) {
@@ -271,8 +271,8 @@ class _HomeScreenState extends State<HomeScreen>
         isEmpty: !_isBootstrapping && _error == null && progress.topics.isEmpty,
         error: _error,
         onRetry: _retryBootstrap,
-        emptyTitle: "Nema dostupnih tema",
-        emptySubtitle: "Osvezi ekran ili pokusaj ponovo kasnije.",
+        emptyTitle: t.homeNoTopicsTitle,
+        emptySubtitle: t.homeNoTopicsSubtitle,
         emptyIcon: Icons.auto_stories_outlined,
         child: SafeArea(
           child: Center(
@@ -415,7 +415,7 @@ class _HomeScreenState extends State<HomeScreen>
                     _LearningPathBanner(),
                     SizedBox(height: AppSpacing.md),
                     AppSection(
-                      title: "Daily Review",
+                      title: t.homeDailyReviewTitle,
                       padding: EdgeInsets.only(bottom: AppSpacing.md),
                       child: FutureBuilder<int>(
                         future: _dailyReviewCountFuture,
@@ -426,12 +426,12 @@ class _HomeScreenState extends State<HomeScreen>
                                   ConnectionState.waiting ||
                               _isRefreshingDailyReview;
                           final subtitle = isLoading
-                              ? "Ucitavam dnevni review..."
-                              : _formatDailyReviewSubtitle(count);
+                              ? t.homeDailyReviewLoading
+                              : _formatDailyReviewSubtitle(t, count);
                           final isEnabled = !isLoading && count > 0;
 
                           final card = _buildDailyReviewCard(
-                            title: "Daily Review",
+                            title: t.homeDailyReviewTitle,
                             subtitle: subtitle,
                             enabled: isEnabled,
                             onTap: isEnabled
@@ -447,8 +447,8 @@ class _HomeScreenState extends State<HomeScreen>
                             onDisabledTap: !isEnabled
                                 ? () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("Nema pitanja za danas."),
+                                      SnackBar(
+                                        content: Text(t.homeNoQuestionsToday),
                                       ),
                                     );
                                   }
@@ -814,7 +814,7 @@ class _HomeScreenState extends State<HomeScreen>
                 if (onRefresh != null)
                   Semantics(
                     button: true,
-                    label: "Osvezi",
+                    label: context.t.homeRefresh,
                     child: InkResponse(
                       onTap: () {
                         _safeSelectionHaptic();
@@ -943,14 +943,15 @@ class _LearningPathBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final t = context.t;
     final provider = context.watch<LearningPathProvider?>();
     final recommended = provider?.recommended;
     final String title = recommended != null
         ? recommended.topicName
-        : 'Start your path';
+        : t.homeLearningPathStart;
     final String subtitle = recommended != null
-        ? (recommended.recommendationReason ?? 'Continue where you left off')
-        : 'Build skills step by step';
+        ? (recommended.recommendationReason ?? t.homeLearningPathContinue)
+        : t.homeLearningPathBuild;
     return GestureDetector(
       onTap: () => context.goLearnMap(focusNodeId: recommended?.id),
       child: Container(
@@ -988,7 +989,7 @@ class _LearningPathBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Open Learning Map',
+                    t.homeLearningMapOpen,
                     style: tt.labelMedium?.copyWith(
                       color: cs.primary,
                       fontWeight: FontWeight.w700,

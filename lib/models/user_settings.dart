@@ -5,6 +5,7 @@ class UserSettings {
   final bool dailyReminderEnabled;
   final int? dailyReminderHour;
   final int? dailyReminderMinute;
+  final String? languageCode;
 
   const UserSettings({
     this.hintsEnabled = true,
@@ -13,6 +14,7 @@ class UserSettings {
     this.dailyReminderEnabled = false,
     this.dailyReminderHour,
     this.dailyReminderMinute,
+    this.languageCode,
   });
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,8 @@ class UserSettings {
           json['dailyReminderHour'] ?? json['daily_reminder_hour'],
       dailyReminderMinute:
           json['dailyReminderMinute'] ?? json['daily_reminder_minute'],
+      languageCode:
+          json['languageCode'] ?? json['language_code'] ?? json['language'],
     );
   }
 
@@ -40,6 +44,7 @@ class UserSettings {
       'dailyReminderEnabled': dailyReminderEnabled,
       'dailyReminderHour': dailyReminderHour,
       'dailyReminderMinute': dailyReminderMinute,
+      'languageCode': languageCode,
     };
   }
 
@@ -50,6 +55,7 @@ class UserSettings {
     bool? dailyReminderEnabled,
     int? dailyReminderHour,
     int? dailyReminderMinute,
+    String? languageCode,
   }) {
     return UserSettings(
       hintsEnabled: hintsEnabled ?? this.hintsEnabled,
@@ -58,6 +64,7 @@ class UserSettings {
       dailyReminderEnabled: dailyReminderEnabled ?? this.dailyReminderEnabled,
       dailyReminderHour: dailyReminderHour ?? this.dailyReminderHour,
       dailyReminderMinute: dailyReminderMinute ?? this.dailyReminderMinute,
+      languageCode: languageCode ?? this.languageCode,
     );
   }
 }

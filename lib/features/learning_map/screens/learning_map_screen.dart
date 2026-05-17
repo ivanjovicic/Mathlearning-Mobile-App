@@ -25,6 +25,7 @@ import 'package:mathlearning/features/learning_map/widgets/quest_progress_list.d
 import 'package:mathlearning/features/learning_map/widgets/skill_graph_view.dart';
 import 'package:mathlearning/features/learning_map/widgets/streak_card.dart';
 import 'package:mathlearning/features/learning_map/widgets/xp_level_chip.dart';
+import 'package:mathlearning/l10n/app_i18n.dart';
 import 'package:mathlearning/services/connectivity_service.dart';
 import 'package:mathlearning/services/daily_run_api_service.dart';
 import 'package:mathlearning/services/cosmetics_service.dart';
@@ -108,6 +109,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     final dailyRun = context.watch<DailyRunProvider>();
     final colorScheme = Theme.of(context).colorScheme;
     final isOnline = ConnectivityService.instance.isOnline;
+    final t = context.t;
     final dailyRewardState = provider.isDailyRewardOpenedToday
         ? DailyRewardChestState.opened
         : progress.isStreakDoneToday
@@ -123,8 +125,8 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
       appBar: AppBar(
         title: Text(
           auth.username?.isNotEmpty == true
-              ? '${auth.username}\'s Adventure Map'
-              : 'Your Adventure Map',
+              ? t.learningMapTitleWithUsername(auth.username!)
+              : t.learningMapTitleDefault,
         ),
         actions: [
           Padding(
@@ -144,12 +146,15 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
             if (provider.error != null && path == null) {
               return _ErrorState(
                 message: provider.error!,
+                retryLabel: t.tryAgain,
                 onRetry: () => provider.refresh(widget.userId),
               );
             }
 
             if (path == null || path.nodes.isEmpty) {
               return _EmptyState(
+                message: t.learningMapBuildYourMapHint,
+                retryLabel: t.tryAgain,
                 onRetry: () => provider.refresh(widget.userId),
               );
             }
@@ -180,7 +185,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'You\'re offline — showing your saved progress.',
+                              t.learningMapOfflineProgressBanner,
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
@@ -260,7 +265,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     child: Text(
-                      'Quests',
+                      t.learningMapQuests,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -297,7 +302,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
                     child: Text(
-                      'Your Levels',
+                      t.learningMapYourLevels,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -392,6 +397,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   }
 
   void _onNodeTap(BuildContext context, String nodeId) {
+    final t = context.t;
     final provider = context.read<LearningMapProvider>();
     final node = provider.findNodeById(nodeId);
     if (node == null) {
@@ -400,20 +406,16 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
 
     final state = provider.getNodeState(node);
     if (state == SkillNodeState.locked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Beat the level before this one to unlock it!'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.learningMapLockedLevelHint)));
       return;
     }
 
     if (!ConnectivityService.instance.isOnline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You need Wi-Fi or data to play this round!'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.learningMapOnlineRequired)));
       return;
     }
 
@@ -421,12 +423,11 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   }
 
   void _openPracticeForNode(String nodeId) {
+    final t = context.t;
     if (!ConnectivityService.instance.isOnline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You need Wi-Fi or data to play this round!'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.learningMapOnlineRequired)));
       return;
     }
     final provider = context.read<LearningMapProvider>();
@@ -439,12 +440,11 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   }
 
   Future<void> _startDailyRun() async {
+    final t = context.t;
     if (!ConnectivityService.instance.isOnline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You need Wi-Fi or data to play this round!'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.learningMapOnlineRequired)));
       return;
     }
 
@@ -582,6 +582,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
   }
 
   Future<void> _openDailyChest() async {
+    final t = context.t;
     final dailyRun = context.read<DailyRunProvider>();
     final progressProvider = context.read<ProgressProvider>();
     final streakFreezeProvider = context.read<StreakFreezeProvider>();
@@ -663,18 +664,15 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
               );
               if (rootScaffoldMessenger.mounted) {
                 rootScaffoldMessenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Dnevna nagrada trenutno nije potvrđena. Pokušaj ponovo.',
-                    ),
-                  ),
+                  SnackBar(content: Text(t.learningMapDailyRewardNotConfirmed)),
                 );
               }
               // TODO(server-authoritative-rewards): remove temporary failure UI once backend claim endpoint is contract-tested.
               throw Exception('Daily Run chest claim unavailable.');
             }
             final backendReward = claimResponse.reward;
-            final previewMismatch = backendReward.xp != reward.xp ||
+            final previewMismatch =
+                backendReward.xp != reward.xp ||
                 backendReward.coins != reward.coins ||
                 backendReward.cosmeticFragment != reward.cosmeticFragment;
             if (previewMismatch) {
@@ -733,7 +731,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
             await avatarProvider.equipItem(item);
             if (!mounted) return;
             rootScaffoldMessenger.showSnackBar(
-              SnackBar(content: Text('${item.name} equipped!')),
+              SnackBar(content: Text(t.learningMapItemEquipped(item.name))),
             );
           },
           onViewCollection: openCollectionFromSheet,
@@ -759,9 +757,9 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tomorrow\'s chest is even better 👀')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(t.learningMapTomorrowChestTeaser)));
   }
 
   T? _maybeRead<T>(BuildContext context) {
@@ -789,7 +787,8 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     }
 
     final now = DateTime.now();
-    final required = current?.requiredFragments ??
+    final required =
+        current?.requiredFragments ??
         CosmeticsService.dailyRunRequiredFragments;
     final alreadyOwned = current?.isUnlocked == true;
     final previous = alreadyOwned
@@ -915,20 +914,15 @@ class _CoinHudChip extends StatelessWidget {
   }
 }
 
-String _recommendationReasonCopy(String reason) {
-  return switch (reason.toLowerCase()) {
-    'low_mastery' => 'You\'re almost there — keep training!',
-    'weak' => 'Time to level up your weak spot!',
-    'review' => 'Quick review — lock in what you learned!',
-    _ => 'You\'re on a roll — keep it up! 🔥',
-  };
+String _recommendationReasonCopy(AppI18n t, String reason) {
+  return t.learningMapRecommendationReason(reason);
 }
 
-String _difficultyPromptCopy(SkillDifficulty difficulty) {
+String _difficultyPromptCopy(AppI18n t, SkillDifficulty difficulty) {
   return switch (difficulty) {
-    SkillDifficulty.easy => 'Perfect starting point — jump in! 🎯',
-    SkillDifficulty.medium => 'You\'ve got this — go for it! ⚡',
-    SkillDifficulty.hard => 'Boss level unlocked — do you dare? 🏆',
+    SkillDifficulty.easy => t.learningMapDifficultyPromptEasy,
+    SkillDifficulty.medium => t.learningMapDifficultyPromptMedium,
+    SkillDifficulty.hard => t.learningMapDifficultyPromptHard,
   };
 }
 
@@ -946,23 +940,24 @@ class _PracticeNextButton extends StatelessWidget {
   final bool isOnline;
   final VoidCallback onTap;
 
-  String _contextLine() {
+  String _contextLine(AppI18n t) {
     // Try to find a matching recommendation for this node's topic.
     final rec = recommendations
         .where((r) => r.topicId == node.topicId)
         .firstOrNull;
 
     if (rec != null) {
-      return _recommendationReasonCopy(rec.reason);
+      return _recommendationReasonCopy(t, rec.reason);
     }
 
-    return _difficultyPromptCopy(node.recommendedDifficulty);
+    return _difficultyPromptCopy(t, node.recommendedDifficulty);
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final t = context.t;
 
     return Material(
       color: cs.primary,
@@ -1003,8 +998,8 @@ class _PracticeNextButton extends StatelessWidget {
                     ),
                     Text(
                       isOnline
-                          ? _contextLine()
-                          : 'Connect to Wi-Fi to play! 📶',
+                          ? _contextLine(t)
+                          : t.learningMapConnectWifiPrompt,
                       style: tt.bodySmall?.copyWith(
                         color: cs.onPrimary.withValues(alpha: 0.80),
                       ),
@@ -1036,11 +1031,12 @@ class _RecommendationSection extends StatelessWidget {
     final items = provider.recommendations.take(3).toList(growable: false);
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final t = context.t;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Up Next for You',
+          t.learningMapUpNextForYou,
           style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 10),
@@ -1067,7 +1063,7 @@ class _RecommendationSection extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _recommendationReasonCopy(item.reason),
+                        _recommendationReasonCopy(t, item.reason),
                         style: textTheme.bodySmall?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
@@ -1078,7 +1074,7 @@ class _RecommendationSection extends StatelessWidget {
                 const SizedBox(width: 10),
                 FilledButton.tonal(
                   onPressed: () => onPracticeTap(item.topicId),
-                  child: const Text('Play →'),
+                  child: Text(t.learningMapPlayArrow),
                 ),
               ],
             ),
@@ -1090,9 +1086,14 @@ class _RecommendationSection extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
+  const _ErrorState({
+    required this.message,
+    required this.retryLabel,
+    required this.onRetry,
+  });
 
   final String message;
+  final String retryLabel;
   final VoidCallback onRetry;
 
   @override
@@ -1115,10 +1116,7 @@ class _ErrorState extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Center(
-          child: FilledButton(
-            onPressed: onRetry,
-            child: const Text('Try again'),
-          ),
+          child: FilledButton(onPressed: onRetry, child: Text(retryLabel)),
         ),
       ],
     );
@@ -1126,8 +1124,14 @@ class _ErrorState extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onRetry});
+  const _EmptyState({
+    required this.message,
+    required this.retryLabel,
+    required this.onRetry,
+  });
 
+  final String message;
+  final String retryLabel;
   final VoidCallback onRetry;
 
   @override
@@ -1138,9 +1142,7 @@ class _EmptyState extends StatelessWidget {
         const SizedBox(height: 80),
         const Icon(Icons.route_rounded, size: 48),
         const SizedBox(height: 12),
-        const Center(
-          child: Text('Do a few practice rounds to build your map!'),
-        ),
+        Center(child: Text(message)),
         const SizedBox(height: 12),
         Center(
           child: OutlinedButton(
@@ -1148,7 +1150,7 @@ class _EmptyState extends StatelessWidget {
               HapticFeedback.selectionClick();
               onRetry();
             },
-            child: const Text('Try again'),
+            child: Text(retryLabel),
           ),
         ),
       ],
