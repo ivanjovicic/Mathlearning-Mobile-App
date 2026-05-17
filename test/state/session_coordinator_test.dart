@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,7 +19,6 @@ import 'package:mathlearning/state/settings_provider.dart';
 import 'package:mathlearning/state/streak_freeze_provider.dart';
 import 'package:mathlearning/state/user_profile_provider.dart';
 import 'package:mathlearning/state/weekly_featured_provider.dart';
-import 'package:mathlearning/services/user_scoped_storage.dart';
 import 'package:mathlearning/models/cosmetic_target.dart';
 
 void main() {
@@ -31,7 +32,7 @@ void main() {
       authenticated: true,
       token: 'token-123',
       userId: 'user-a',
-      isDemoMode: false,
+      isDemoMode: true,
     );
     final harness = TestHarness();
     final coordinator = SessionCoordinator();
@@ -56,14 +57,30 @@ void main() {
 
     expect(harness.progress.recordedToken, 'token-123');
     expect(harness.progress.recordedUserId, 'user-a');
-    expect(harness.progress.recordedIsDemoMode, isFalse);
+    expect(harness.progress.recordedIsDemoMode, isTrue);
     expect(harness.quiz.recordedToken, 'token-123');
-    expect(harness.quiz.recordedIsDemoMode, isFalse);
+    expect(harness.quiz.recordedIsDemoMode, isTrue);
     expect(harness.leaderboard.recordedToken, 'token-123');
-    expect(harness.leaderboard.recordedIsDemoMode, isFalse);
+    expect(harness.leaderboard.recordedIsDemoMode, isTrue);
   });
 
   test('logout clears in-memory user-scoped providers', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'pending_answers',
+      jsonEncode([
+        {
+          'quiz_id': 'quiz-1',
+          'question_id': 11,
+          'answer': '2',
+          'time_spent_seconds': 5,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'is_correct': 1,
+          'user_id': 'user-a',
+        },
+      ]),
+    );
+
     final auth = FakeAuthProvider(
       authenticated: true,
       token: 'token-123',
@@ -129,17 +146,14 @@ void main() {
     expect(harness.progress.recordedUserId, isNull);
     expect(harness.leaderboard.recordedToken, isNull);
     expect(harness.leaderboard.recordedIsDemoMode, isFalse);
+    final pendingRaw = prefs.getString('pending_answers');
+    expect(pendingRaw, isNotNull);
+    final pending = List<Map<String, dynamic>>.from(jsonDecode(pendingRaw!));
+    expect(pending.length, 1);
+    expect(pending.first['user_id'], 'user-a');
   });
 
-  test('user switch does not auto-delete persistent user-scoped storage', () async {
-    final scopedKey = UserScopedStorage.scopedKey(
-      'user-a',
-      'progress',
-      'cache',
-    );
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(scopedKey, 'keep-me');
-
+  test('rapid user switch keeps latest auth context on providers', () async {
     final auth = FakeAuthProvider(
       authenticated: true,
       token: 'token-a',
@@ -171,7 +185,7 @@ void main() {
       authenticated: true,
       token: 'token-b',
       userId: 'user-b',
-      isDemoMode: false,
+      isDemoMode: true,
     );
 
     await coordinator.synchronize(
@@ -192,7 +206,13 @@ void main() {
       streakFreeze: harness.streakFreeze,
     );
 
-    expect(prefs.getString(scopedKey), 'keep-me');
+    expect(harness.progress.recordedToken, 'token-b');
+    expect(harness.progress.recordedUserId, 'user-b');
+    expect(harness.progress.recordedIsDemoMode, isTrue);
+    expect(harness.quiz.recordedToken, 'token-b');
+    expect(harness.quiz.recordedIsDemoMode, isTrue);
+    expect(harness.leaderboard.recordedToken, 'token-b');
+    expect(harness.leaderboard.recordedIsDemoMode, isTrue);
   });
 }
 

@@ -117,6 +117,33 @@ void main() {
     expect(provider.isRewardStepApplied(DailyChestRewardStep.xp), isTrue);
   });
 
+  test('reward step with result is idempotent and action runs once', () async {
+    final provider = DailyRunProvider();
+    final tx = await startOpenedChestTransaction(provider);
+
+    var calls = 0;
+    Future<int> action() async {
+      calls += 1;
+      return 42;
+    }
+
+    final first = await provider.applyRewardStepWithResult<int>(
+      expectedTransactionId: tx,
+      step: DailyChestRewardStep.xp,
+      action: action,
+    );
+    final second = await provider.applyRewardStepWithResult<int>(
+      expectedTransactionId: tx,
+      step: DailyChestRewardStep.xp,
+      action: action,
+    );
+
+    expect(first, 42);
+    expect(second, isNull);
+    expect(calls, 1);
+    expect(provider.isRewardStepApplied(DailyChestRewardStep.xp), isTrue);
+  });
+
   test(
     'full transaction can permanently open only after all required steps',
     () async {
