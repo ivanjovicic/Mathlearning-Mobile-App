@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_i18n.dart';
 import '../models/cosmetic_target.dart';
 import '../models/social_cosmetic_loadout.dart';
 import '../navigation/app_routes.dart';
@@ -34,6 +35,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final t = context.t;
     final progress = context.watch<ProgressProvider>();
     final badges = context.watch<BadgeProvider>().badges;
     final auth = context.watch<AuthProvider>();
@@ -73,7 +75,7 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Profil',
+          t.sectionProfile,
           style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -84,42 +86,42 @@ class ProfileScreen extends StatelessWidget {
         actions: [
           PopupMenuButton<_ProfileMenuAction>(
             icon: Icon(Icons.more_vert, color: colorScheme.onSurface),
-            tooltip: context.safeTooltip('Meni'),
+            tooltip: context.safeTooltip(t.profileMenu),
             onSelected: (value) => _onMenuAction(context, value, auth),
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _ProfileMenuAction.settings,
                 child: _MenuItem(
                   icon: Icons.settings_outlined,
-                  text: 'Podesavanja',
+                  text: t.sectionSettings,
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _ProfileMenuAction.themes,
                 child: _MenuItem(
                   icon: Icons.palette_outlined,
-                  text: 'Tema i kretanje',
+                  text: t.sectionThemeAndMotion,
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _ProfileMenuAction.userSearch,
                 child: _MenuItem(
                   icon: Icons.search,
-                  text: 'Pretraga korisnika',
+                  text: t.userSearch,
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _ProfileMenuAction.editProfile,
                 child: _MenuItem(
                   icon: Icons.edit_outlined,
-                  text: 'Izmeni profil',
+                  text: t.editProfile,
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _ProfileMenuAction.customizeAvatar,
                 child: _MenuItem(
                   icon: Icons.face_retouching_natural,
-                  text: 'Prilagodi avatar',
+                  text: t.customizeAvatar,
                 ),
               ),
               PopupMenuItem(
@@ -128,7 +130,7 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     Icon(Icons.logout, color: colorScheme.error),
                     const SizedBox(width: 10),
-                    Text('Odjava', style: TextStyle(color: colorScheme.error)),
+                    Text(t.logout, style: TextStyle(color: colorScheme.error)),
                   ],
                 ),
               ),
@@ -158,17 +160,17 @@ class ProfileScreen extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 16),
-            const ThemeAccessibilityMiniPreview(
-              title: 'Profil: pregled pristupacnosti',
+            ThemeAccessibilityMiniPreview(
+              title: t.profileAccessibilityPreview,
               compact: true,
             ),
             const SizedBox(height: 16),
             AppSection(
-              title: 'Cosmetic showcase',
+              title: t.cosmeticShowcase,
               padding: const EdgeInsets.only(bottom: 16),
               child: _CosmeticShowcase(
                 userId: auth.userId ?? 'local',
-                displayName: auth.username ?? 'Korisnik',
+                displayName: auth.username ?? t.defaultUser,
                 loadout: socialLoadout,
                 target: target,
               ),
@@ -179,7 +181,7 @@ class ProfileScreen extends StatelessWidget {
             if (identity != null) ...[
               const SizedBox(height: 16),
               AppSection(
-                title: 'Player Identity',
+                title: t.playerIdentity,
                 padding: const EdgeInsets.only(bottom: 16),
                 child: IdentityShowcaseSection(
                   userId: auth.userId ?? 'local',
@@ -187,7 +189,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ],
             AppSection(
-              title: 'Brze opcije',
+              title: t.quickOptions,
               padding: const EdgeInsets.only(bottom: 16),
               child: Column(
                 children: [
@@ -197,8 +199,8 @@ class ProfileScreen extends StatelessWidget {
                         Icons.rate_review_outlined,
                         color: colorScheme.primary,
                       ),
-                      title: const Text('My Feedback'),
-                      subtitle: const Text('Pregled poslatog UX/UI feedback-a'),
+                      title: Text(t.myFeedback),
+                      subtitle: Text(t.feedbackHistorySubtitle),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: context.openFeedback,
                     ),
@@ -207,7 +209,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             AppSection(
-              title: 'Statistika igraca',
+              title: t.playerStats,
               padding: const EdgeInsets.only(bottom: 16),
               child: Column(
                 children: [
@@ -218,7 +220,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             AppSection(
-              title: 'Bedzevi',
+              title: t.badges,
               padding: EdgeInsets.zero,
               child: _buildBadgeList(context, badges),
             ),
@@ -260,6 +262,7 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildRankCard(BuildContext context, ProgressProvider progress) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final t = context.t;
     final rank = _calculateRank(progress.level, progress.xp);
 
     return Container(
@@ -278,7 +281,7 @@ class ProfileScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Rang',
+                t.rank,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: colorScheme.onSurface.withAlpha((0.7 * 255).round()),
                   fontSize: 16,
@@ -302,6 +305,7 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildStreakCard(BuildContext context, ProgressProvider progress) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final t = context.t;
 
     return Container(
       width: double.infinity,
@@ -319,14 +323,14 @@ class ProfileScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Niz',
+                t.qsStreak,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: colorScheme.onSurface.withAlpha((0.7 * 255).round()),
                   fontSize: 16,
                 ),
               ),
               Text(
-                '${progress.streak} dana',
+                t.streakDays(progress.streak),
                 style: TextStyle(
                   color: colorScheme.onSurface,
                   fontSize: 22,
@@ -343,6 +347,7 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildBadgeList(BuildContext context, List badges) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final t = context.t;
 
     if (badges.isEmpty) {
       return Container(
@@ -354,7 +359,7 @@ class ProfileScreen extends StatelessWidget {
           border: Border.all(color: colorScheme.outlineVariant),
         ),
         child: Text(
-          'Jos uvek nema bedzeva. Odigraj jos kvizova!',
+          t.noBadgesYet,
           style: theme.textTheme.bodyMedium,
         ),
       );
@@ -423,6 +428,7 @@ class ProfileScreen extends StatelessWidget {
 
   void _showEditProfileDialog(BuildContext context) {
     final userService = UserService.instance;
+    final t = context.t;
     final displayNameController = TextEditingController();
     final emailController = TextEditingController();
 
@@ -437,23 +443,23 @@ class ProfileScreen extends StatelessWidget {
             24,
             24 + MediaQuery.viewInsetsOf(context).bottom,
           ),
-          title: const Text('Izmena profila'),
+          title: Text(t.editProfileDialogTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: displayNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Prikazano ime',
-                  hintText: 'Unesi novo prikazano ime',
+                decoration: InputDecoration(
+                  labelText: t.displayName,
+                  hintText: t.enterNewDisplayName,
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Imejl',
-                  hintText: 'Unesi novi imejl',
+                decoration: InputDecoration(
+                  labelText: t.emailLabel,
+                  hintText: t.enterNewEmail,
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -462,7 +468,7 @@ class ProfileScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Otkazi'),
+              child: Text(t.cancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -480,7 +486,7 @@ class ProfileScreen extends StatelessWidget {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: const Text('Profil je uspesno azuriran!'),
+                          content: Text(t.profileUpdatedSuccess),
                           backgroundColor: Theme.of(
                             context,
                           ).colorScheme.tertiary,
@@ -491,7 +497,9 @@ class ProfileScreen extends StatelessWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Azuriranje profila nije uspelo: $e'),
+                          content: Text(
+                            t.profileUpdateFailedWithError(e.toString()),
+                          ),
                           backgroundColor: Theme.of(context).colorScheme.error,
                         ),
                       );
@@ -499,7 +507,7 @@ class ProfileScreen extends StatelessWidget {
                   }
                 }
               },
-              child: const Text('Sacuvaj'),
+              child: Text(t.save),
             ),
           ],
         );
@@ -520,6 +528,7 @@ class _ChaseRaceSectionForProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
     ChaseRaceProvider provider;
     try {
       provider = context.watch<ChaseRaceProvider>();
@@ -539,7 +548,7 @@ class _ChaseRaceSectionForProfile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: AppSection(
-        title: 'Chase Race',
+        title: t.chaseRace,
         padding: EdgeInsets.zero,
         child: Container(
           key: const Key('profile_chase_race_section'),
@@ -569,8 +578,8 @@ class _ChaseRaceSectionForProfile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       isFirst
-                          ? 'First to Unlock! 🏆'
-                          : 'Race rank: #${myEntry.rank} of ${race.participants.length}',
+                          ? t.firstToUnlock
+                          : t.raceRank(myEntry.rank, race.participants.length),
                       key: const Key('profile_race_rank_label'),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w700,
@@ -585,7 +594,7 @@ class _ChaseRaceSectionForProfile extends StatelessWidget {
                 key: const Key('profile_view_race_button'),
                 onPressed: () => showChaseRaceSheet(context),
                 style: TextButton.styleFrom(foregroundColor: color),
-                child: const Text('View race'),
+                child: Text(t.viewRace),
               ),
             ],
           ),
@@ -612,6 +621,7 @@ class _CosmeticShowcase extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final t = context.t;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -640,8 +650,8 @@ class _CosmeticShowcase extends StatelessWidget {
                   children: [
                     Text(
                       loadout.hasEquippedCosmetics
-                          ? 'Equipped cosmetics'
-                          : 'Default avatar',
+                          ? t.equippedCosmetics
+                          : t.defaultAvatar,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -654,7 +664,7 @@ class _CosmeticShowcase extends StatelessWidget {
                       )
                     else
                       Text(
-                        'Unlock and equip frames, trails, and gear to show off here.',
+                        t.unlockCosmeticsHint,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
@@ -671,7 +681,7 @@ class _CosmeticShowcase extends StatelessWidget {
         ],
         const SizedBox(height: 12),
         Text(
-          'Recent unlocks',
+          t.recentUnlocks,
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w800,
           ),
@@ -679,8 +689,7 @@ class _CosmeticShowcase extends StatelessWidget {
         const SizedBox(height: 8),
         RecentUnlocksStrip(
           unlocks: loadout.recentRareUnlocks,
-          emptyText:
-              'No cosmetic unlocks yet. Daily Run chests can change that.',
+          emptyText: t.noCosmeticUnlocksYet,
         ),
       ],
     );
@@ -755,6 +764,7 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final t = context.t;
 
     return Column(
       children: [
@@ -782,7 +792,7 @@ class _ProfileHeader extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          '@${username ?? 'Korisnik'}',
+          '@${username ?? t.defaultUser}',
           style: theme.textTheme.bodyLarge?.copyWith(
             fontSize: 18,
             color: colorScheme.onSurface.withAlpha((0.8 * 255).round()),
@@ -790,7 +800,7 @@ class _ProfileHeader extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          'Nivo ${progress.level}',
+          t.levelWithValue(progress.level),
           style: theme.textTheme.headlineMedium?.copyWith(
             fontSize: 26,
             fontWeight: FontWeight.bold,

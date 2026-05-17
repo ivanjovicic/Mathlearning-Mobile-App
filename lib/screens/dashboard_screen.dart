@@ -226,9 +226,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   String _formatDailyReviewSubtitle(int count) {
-    if (count == 0) return 'Nema SRS pitanja za danas';
+    final t = context.t;
+    if (count == 0) return t.homeDailyReviewEmpty;
     final minutes = ((count * 45) / 60).round().clamp(1, 99);
-    return 'Danas imas $count SRS pitanja - ~$minutes min';
+    return t.homeDailyReviewSubtitle(count, minutes);
   }
 
   @override
@@ -253,8 +254,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         isEmpty: !_isBootstrapping && _error == null && progress.topics.isEmpty,
         error: _error,
         onRetry: _retryBootstrap,
-        emptyTitle: 'Nema dostupnih tema',
-        emptySubtitle: 'Osvezi ekran ili pokusaj ponovo kasnije.',
+        emptyTitle: t.homeNoTopicsTitle,
+        emptySubtitle: t.homeNoTopicsSubtitle,
         emptyIcon: Icons.auto_stories_outlined,
         child: SafeArea(
           child: CustomScrollView(
@@ -373,7 +374,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: AppSpacing.base),
                   child: AppSection(
-                    title: 'Daily Review',
+                    title: t.homeDailyReviewTitle,
                     padding: EdgeInsets.only(bottom: AppSpacing.md),
                     child: FutureBuilder<int>(
                       future: _dailyReviewCountFuture,
@@ -384,11 +385,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 ConnectionState.waiting ||
                             _isRefreshingDailyReview;
                         final subtitle = isLoading
-                            ? 'Ucitavam dnevni review...'
+                            ? t.homeDailyReviewLoading
                             : _formatDailyReviewSubtitle(count);
                         final isEnabled = !isLoading && count > 0;
                         return _DailyReviewCard(
-                          title: 'Daily Review',
+                          title: t.homeDailyReviewTitle,
                           subtitle: subtitle,
                           enabled: isEnabled,
                           subtitleLoading: isLoading,
@@ -409,9 +410,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           onDisabledTap: !isEnabled
                               ? () {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Nema pitanja za danas.'),
-                                    ),
+                                    SnackBar(content: Text(t.homeNoQuestionsToday)),
                                   );
                                 }
                               : null,
@@ -570,7 +569,7 @@ class _DashboardHeaderDelegate extends SliverPersistentHeaderDelegate {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'Demo režim',
+                            t.demoMode,
                             style: TextStyle(
                               color: colorScheme.onPrimaryContainer,
                               fontSize: AppScale.font(11, min: 10, max: 14),
@@ -677,7 +676,7 @@ class _DashboardHeaderDelegate extends SliverPersistentHeaderDelegate {
                     ),
                     const Spacer(),
                     Text(
-                      '$xp / $xpToNextLevel XP',
+                      t.xpProgressShort(xp, xpToNextLevel),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -734,7 +733,7 @@ class _DailyMissionsSection extends StatelessWidget {
     return [
       _DailyMission(
         icon: Icons.auto_awesome,
-        title: 'Daily Review',
+        title: t.homeDailyReviewTitle,
         progress: streakProgress,
         xpReward: 30,
       ),
@@ -759,7 +758,7 @@ class _DailyMissionsSection extends StatelessWidget {
     final spacing = context.spacing;
 
     return AppSection(
-      title: 'Dnevne misije',
+      title: t.dailyMissions,
       padding: EdgeInsets.only(bottom: spacing.m),
       child: RepaintBoundary(
         child: SizedBox(
@@ -789,11 +788,15 @@ class _DailyMissionCard extends StatelessWidget {
     final spacing = context.spacing;
     final radius = context.radius;
     final theme = Theme.of(context);
+    final t = context.t;
     final isDone = mission.progress >= 1.0;
 
     return Semantics(
-      label:
-          '${mission.title}, ${(mission.progress * 100).toInt()}% complete, +${mission.xpReward} XP',
+      label: t.dailyMissionSemantics(
+        mission.title,
+        (mission.progress * 100).toInt(),
+        mission.xpReward,
+      ),
       child: Container(
         width: AppScale.s(140),
         padding: EdgeInsets.all(spacing.m),
@@ -829,7 +832,7 @@ class _DailyMissionCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(radius.pill),
                   ),
                   child: Text(
-                    '+${mission.xpReward} XP',
+                    t.xpRewardShort(mission.xpReward),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: colors.masteryStrong,
                       fontWeight: FontWeight.bold,
@@ -1020,8 +1023,8 @@ class _LeaderboardPreviewSection extends StatelessWidget {
     final theme = Theme.of(context);
 
     return AppSection(
-      title: 'Rang lista',
-      trailing: TextButton(onPressed: onSeeAll, child: const Text('Sve')),
+      title: t.leaderboardTitle,
+      trailing: TextButton(onPressed: onSeeAll, child: Text(t.seeAll)),
       padding: EdgeInsets.only(bottom: spacing.m),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1029,7 +1032,7 @@ class _LeaderboardPreviewSection extends StatelessWidget {
           // My rank chip
           if (me != null) ...[
             Semantics(
-              label: 'Moj rang: #${me.rank}, Top ${me.percentile}%',
+              label: t.myRankTop(me.rank, me.percentile),
               child: Container(
                 padding: EdgeInsets.symmetric(
                   horizontal: spacing.m,
@@ -1050,7 +1053,7 @@ class _LeaderboardPreviewSection extends StatelessWidget {
                     ),
                     SizedBox(width: spacing.s),
                     Text(
-                      'Moj rang: #${me.rank}',
+                      t.myRank(me.rank),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colors.textPrimary,
                         fontWeight: FontWeight.bold,
@@ -1058,7 +1061,7 @@ class _LeaderboardPreviewSection extends StatelessWidget {
                     ),
                     SizedBox(width: spacing.m),
                     Text(
-                      'Top ${me.percentile}%',
+                      t.topPercent(me.percentile),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -1081,7 +1084,7 @@ class _LeaderboardPreviewSection extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: spacing.m),
               child: Center(
                 child: Text(
-                  'Nema podataka',
+                  t.noData,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -1107,7 +1110,7 @@ class _LeaderboardPreviewSection extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onSeeAll,
               icon: const Icon(Icons.leaderboard),
-              label: const Text('Pogledaj celu rang listu'),
+              label: Text(t.viewFullLeaderboard),
             ),
           ),
         ],
@@ -1139,7 +1142,7 @@ class _AchievementsSection extends StatelessWidget {
 
     return AppSection(
       title: t.badges,
-      trailing: TextButton(onPressed: onSeeAll, child: const Text('Sve')),
+      trailing: TextButton(onPressed: onSeeAll, child: Text(t.seeAll)),
       padding: EdgeInsets.only(bottom: spacing.m),
       child: RepaintBoundary(
         child: SizedBox(
@@ -1166,10 +1169,12 @@ class _BadgeChip extends StatelessWidget {
     final colors = context.colors;
     final radius = context.radius;
     final theme = Theme.of(context);
+    final t = context.t;
 
     return Semantics(
-      label:
-          '${badge.name}, ${badge.unlocked ? "unlocked" : "${(badge.progress * 100).toInt()}% progress"}',
+      label: badge.unlocked
+          ? '${badge.name}, ${t.unlockedLabel}'
+          : '${badge.name}, ${t.progressPercent((badge.progress * 100).toInt())}',
       child: Opacity(
         opacity: badge.unlocked ? 1.0 : 0.55,
         child: Container(
@@ -1241,7 +1246,7 @@ class _LearningProgressGrid extends StatelessWidget {
     final masteryValue = (accuracy / 100.0).clamp(0.0, 1.0);
 
     return AppSection(
-      title: 'Napredak učenja',
+      title: t.learningProgressTitle,
       padding: EdgeInsets.only(bottom: spacing.m),
       child: RepaintBoundary(
         child: GridView.builder(
@@ -1261,7 +1266,7 @@ class _LearningProgressGrid extends StatelessWidget {
 
             return Semantics(
               label:
-                  '${topic.name}, ${locked ? t.unlockAtLevel(topic.requiredLevel) : "${(progress * 100).toInt()}% ${t.masteryLabel}"}',
+                  '${topic.name}, ${locked ? t.unlockAtLevel(topic.requiredLevel) : t.masteryPercentLabel((progress * 100).toInt())}',
               child: Container(
                 padding: EdgeInsets.all(spacing.s),
                 decoration: BoxDecoration(
@@ -1554,7 +1559,7 @@ class _DailyReviewCard extends StatelessWidget {
                       icon: const Icon(Icons.refresh),
                       iconSize: AppScale.icon(20, min: 18, max: 26),
                       color: colorScheme.secondary,
-                      tooltip: 'Refresh',
+                      tooltip: context.t.homeRefresh,
                     ),
                   )
                 else if (showRefreshSuccess)
@@ -1579,14 +1584,15 @@ class _LearningPathBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final t = context.t;
     final provider = context.watch<LearningPathProvider?>();
     final recommended = provider?.recommended;
     final String title = recommended != null
         ? recommended.topicName
-        : 'Start your path';
+        : t.homeLearningPathStart;
     final String subtitle = recommended != null
-        ? (recommended.recommendationReason ?? 'Continue where you left off')
-        : 'Build skills step by step';
+        ? (recommended.recommendationReason ?? t.homeLearningPathContinue)
+        : t.homeLearningPathBuild;
     return GestureDetector(
       onTap: () => context.goLearnMap(focusNodeId: recommended?.id),
       child: Container(
@@ -1624,7 +1630,7 @@ class _LearningPathBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Open Learning Map',
+                    t.homeLearningMapOpen,
                     style: tt.labelMedium?.copyWith(
                       color: cs.primary,
                       fontWeight: FontWeight.w700,

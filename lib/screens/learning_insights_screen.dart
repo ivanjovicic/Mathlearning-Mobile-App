@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_i18n.dart';
 import '../models/path_node.dart';
 import '../navigation/navigation_extensions.dart';
 import '../state/adaptive_provider.dart';
@@ -57,18 +58,19 @@ class _LearningInsightsScreenState extends State<LearningInsightsScreen>
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = context.t;
     final adaptive = context.watch<AdaptiveProvider>();
     final pathProvider = context.watch<LearningPathProvider>();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Learning Insights'),
+        title: Text(t.learningInsightsTitle),
         bottom: TabBar(
           controller: _tabs,
-          tabs: const [
-            Tab(text: 'Overview'),
-            Tab(text: 'Mastery'),
-            Tab(text: 'Weak Topics'),
+          tabs: [
+            Tab(text: t.overview),
+            Tab(text: t.qsMastery),
+            Tab(text: t.weakTopics),
           ],
         ),
       ),
@@ -86,7 +88,7 @@ class _LearningInsightsScreenState extends State<LearningInsightsScreen>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: context.goLearnMap,
         icon: const Icon(Icons.route_rounded),
-        label: const Text('Open Map'),
+        label: Text(t.openMap),
         backgroundColor: cs.primaryContainer,
         foregroundColor: cs.onPrimaryContainer,
       ),
@@ -104,6 +106,7 @@ class _OverviewTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final t = context.t;
     final nodes = pathProvider.nodes;
 
     if (pathProvider.isLoading && nodes.isEmpty) {
@@ -129,21 +132,21 @@ class _OverviewTab extends StatelessWidget {
           children: [
             _StatCard(
               icon: Icons.check_circle_outline,
-              label: 'Completed',
+              label: t.completed,
               value: '$completed / $total',
               color: cs.primary,
             ).animate().fadeIn(delay: 0.ms).slideY(begin: 0.1),
             const SizedBox(width: 8),
             _StatCard(
               icon: Icons.bar_chart_rounded,
-              label: 'Avg Mastery',
+              label: t.avgMastery,
               value: '${avgMastery.round()}%',
               color: cs.secondary,
             ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.1),
             const SizedBox(width: 8),
             _StatCard(
               icon: Icons.replay_circle_filled_outlined,
-              label: 'Due Reviews',
+              label: t.dueReviews,
               value: '$dueCount',
               color: cs.tertiary,
             ).animate().fadeIn(delay: 160.ms).slideY(begin: 0.1),
@@ -154,7 +157,7 @@ class _OverviewTab extends StatelessWidget {
         // Up Next card
         if (recommended != null) ...[
           Text(
-            'Up Next',
+            t.upNext,
             style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 10),
@@ -166,7 +169,7 @@ class _OverviewTab extends StatelessWidget {
 
         // Path progress bar
         Text(
-          'Path Progress',
+          t.pathProgress,
           style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 10),
@@ -182,8 +185,8 @@ class _OverviewTab extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           total == 0
-              ? 'No nodes loaded yet'
-              : '${(completed / total * 100).round()}% of your learning path done',
+              ? t.noNodesLoadedYet
+              : t.learningPathDonePercent((completed / total * 100).round()),
           style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
         ),
 
@@ -201,7 +204,7 @@ class _OverviewTab extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Showing offline path — connect to sync with your progress.',
+                    t.showingOfflinePath,
                     style: tt.bodySmall?.copyWith(
                       color: cs.onTertiaryContainer,
                     ),
@@ -331,6 +334,7 @@ class _MasteryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
+    final t = context.t;
     final nodes = pathProvider.nodes;
 
     if (pathProvider.isLoading && nodes.isEmpty) {
@@ -352,7 +356,7 @@ class _MasteryTab extends StatelessWidget {
     if (sorted.isEmpty) {
       return Center(
         child: Text(
-          'No mastery data yet',
+          t.noMasteryDataYet,
           style: tt.bodyLarge?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -369,7 +373,7 @@ class _MasteryTab extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              'All Topics',
+              t.allTopics,
               style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           );
@@ -397,6 +401,7 @@ class _WeakTopicsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final t = context.t;
     final weakTopics = adaptiveProvider.weakTopics;
 
     if (adaptiveProvider.isLoading && weakTopics.isEmpty) {
@@ -410,12 +415,12 @@ class _WeakTopicsTab extends StatelessWidget {
             Icon(Icons.check_circle_outline, size: 56, color: cs.primary),
             const SizedBox(height: 12),
             Text(
-              'No weak topics — great work!',
+              t.noWeakTopicsGreatWork,
               style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(
-              'Keep practicing to maintain your mastery.',
+              t.keepPracticingMastery,
               style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             ),
           ],
@@ -435,12 +440,12 @@ class _WeakTopicsTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Needs Work',
+                  t.needsWork,
                   style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${weakTopics.length} topic${weakTopics.length == 1 ? '' : 's'} below 70% accuracy',
+                  t.topicsBelowAccuracy(weakTopics.length, 70),
                   style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                 ),
               ],

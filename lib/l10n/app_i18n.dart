@@ -74,6 +74,41 @@ class AppI18n {
     en: 'Pick a topic and continue quiz',
     sr: 'Izaberi temu i nastavi kviz',
   );
+  String get learningInsightsTitle =>
+      _pick(en: 'Learning Insights', sr: 'Uvid u učenje');
+  String get overview => _pick(en: 'Overview', sr: 'Pregled');
+  String get weakTopics => _pick(en: 'Weak Topics', sr: 'Slabe teme');
+  String get openMap => _pick(en: 'Open Map', sr: 'Otvori mapu');
+  String get completed => _pick(en: 'Completed', sr: 'Završeno');
+  String get avgMastery => _pick(en: 'Avg Mastery', sr: 'Prosečna savladanost');
+  String get dueReviews => _pick(en: 'Due Reviews', sr: 'Za ponavljanje');
+  String get upNext => _pick(en: 'Up Next', sr: 'Sledeće');
+  String get pathProgress => _pick(en: 'Path Progress', sr: 'Napredak putanje');
+  String get noNodesLoadedYet =>
+      _pick(en: 'No nodes loaded yet', sr: 'Čvorovi još nisu učitani');
+  String learningPathDonePercent(int percent) => _pick(
+    en: '$percent% of your learning path done',
+    sr: '$percent% tvoje putanje učenja je završeno',
+  );
+  String get showingOfflinePath => _pick(
+    en: 'Showing offline path — connect to sync with your progress.',
+    sr: 'Prikazuje se oflajn putanja — poveži se radi sinhronizacije napretka.',
+  );
+  String get noMasteryDataYet =>
+      _pick(en: 'No mastery data yet', sr: 'Još nema podataka o savladanosti');
+  String get noWeakTopicsGreatWork => _pick(
+    en: 'No weak topics — great work!',
+    sr: 'Nema slabih tema — sjajan posao!',
+  );
+  String get keepPracticingMastery => _pick(
+    en: 'Keep practicing to maintain your mastery.',
+    sr: 'Nastavi da vežbaš kako bi održao savladanost.',
+  );
+  String get needsWork => _pick(en: 'Needs Work', sr: 'Treba doraditi');
+  String topicsBelowAccuracy(int count, int threshold) => _pick(
+    en: '$count topic${count == 1 ? '' : 's'} below $threshold% accuracy',
+    sr: '$count tema ispod $threshold% tačnosti',
+  );
   String noTopicsAvailable() =>
       _pick(en: 'No topics available.', sr: 'Nema dostupnih tema.');
   String learningMapTitleWithUsername(String username) =>
@@ -162,6 +197,8 @@ class AppI18n {
 
   String coins(int value) => _pick(en: '$value coins', sr: '$value novčića');
   String level(int value) => _pick(en: 'Level $value', sr: 'Nivo $value');
+  String xpProgressShort(int current, int target) =>
+      _pick(en: '$current / $target XP', sr: '$current / $target XP');
 
   String get nextLevelHint => _pick(
     en: 'Earn XP to reach the next level',
@@ -197,6 +234,12 @@ class AppI18n {
   String get homeNoQuestionsToday =>
       _pick(en: 'No questions for today.', sr: 'Nema pitanja za danas.');
   String get homeRefresh => _pick(en: 'Refresh', sr: 'Osveži');
+  String get dailyMissions => _pick(en: 'Daily missions', sr: 'Dnevne misije');
+  String dailyMissionSemantics(String title, int percent, int xpReward) => _pick(
+    en: '$title, $percent% complete, +$xpReward XP',
+    sr: '$title, $percent% završeno, +$xpReward XP',
+  );
+  String xpRewardShort(int value) => _pick(en: '+$value XP', sr: '+$value XP');
   String get homeLearningMapOpen =>
       _pick(en: 'Open Learning Map', sr: 'Otvori mapu učenja');
   String get homeLearningPathStart =>
@@ -224,6 +267,21 @@ class AppI18n {
     sr: 'Arena prikaz pristupacnosti',
   );
   String get homeArena => _pick(en: 'Home Arena', sr: 'Početna arena');
+  String get leaderboardTitle => _pick(en: 'Leaderboard', sr: 'Rang lista');
+  String get seeAll => _pick(en: 'All', sr: 'Sve');
+  String myRankTop(int rank, int percentile) =>
+      _pick(en: 'My rank: #$rank, Top $percentile%', sr: 'Moj rang: #$rank, Top $percentile%');
+  String myRank(int rank) => _pick(en: 'My rank: #$rank', sr: 'Moj rang: #$rank');
+  String topPercent(int percentile) =>
+      _pick(en: 'Top $percentile%', sr: 'Top $percentile%');
+  String get noData => _pick(en: 'No data', sr: 'Nema podataka');
+  String get viewFullLeaderboard =>
+      _pick(en: 'View full leaderboard', sr: 'Pogledaj celu rang listu');
+  String get unlockedLabel => _pick(en: 'unlocked', sr: 'otključano');
+  String progressPercent(int percent) =>
+      _pick(en: '$percent% progress', sr: '$percent% napretka');
+  String get learningProgressTitle =>
+      _pick(en: 'Learning progress', sr: 'Napredak učenja');
   String get launchNextQuiz =>
       _pick(en: 'Launch next quiz', sr: 'Pokreni sledeći kviz');
   String get navHome => _pick(en: 'Home', sr: 'Početna');
@@ -259,6 +317,8 @@ class AppI18n {
     en: 'Mastery $percent% reached',
     sr: 'Savladanost $percent% dostignuta',
   );
+  String masteryPercentLabel(int percent) =>
+      _pick(en: '$percent% Mastery', sr: '$percent% savladanost');
   String get masteryMax =>
       _pick(en: 'Mastery complete', sr: 'Savladanost završena');
   String get tryAgain => _pick(en: 'Try again', sr: 'Pokušaj ponovo');
@@ -312,8 +372,85 @@ class AppI18n {
   );
 
   String get sectionProfile => _pick(en: 'Profile', sr: 'Profil');
+  String get profileMenu => _pick(en: 'Menu', sr: 'Meni');
+  String get sectionSettings => _pick(en: 'Settings', sr: 'Podešavanja');
+  String get sectionThemeAndMotion =>
+      _pick(en: 'Theme and motion', sr: 'Tema i kretanje');
+  String get userSearch =>
+      _pick(en: 'User search', sr: 'Pretraga korisnika');
+  String get editProfile => _pick(en: 'Edit profile', sr: 'Izmeni profil');
+  String get customizeAvatar =>
+      _pick(en: 'Customize avatar', sr: 'Prilagodi avatar');
+  String get logout => _pick(en: 'Logout', sr: 'Odjava');
   String get profileCardSubtitle =>
       _pick(en: 'Manage your account info', sr: 'Uredi informacije o nalogu');
+  String get cosmeticShowcase =>
+      _pick(en: 'Cosmetic showcase', sr: 'Prikaz kozmetike');
+  String get playerIdentity =>
+      _pick(en: 'Player identity', sr: 'Identitet igrača');
+  String get profileAccessibilityPreview => _pick(
+    en: 'Profile: accessibility preview',
+    sr: 'Profil: pregled pristupačnosti',
+  );
+  String get defaultUser => _pick(en: 'User', sr: 'Korisnik');
+  String get quickOptions => _pick(en: 'Quick options', sr: 'Brze opcije');
+  String get myFeedback => _pick(en: 'My feedback', sr: 'Moj feedback');
+  String get feedbackHistorySubtitle => _pick(
+    en: 'Overview of submitted UX/UI feedback',
+    sr: 'Pregled poslatih UX/UI povratnih informacija',
+  );
+  String get playerStats =>
+      _pick(en: 'Player statistics', sr: 'Statistika igrača');
+  String get rank => _pick(en: 'Rank', sr: 'Rang');
+  String get noBadgesYet => _pick(
+    en: 'No badges yet. Play more quizzes!',
+    sr: 'Još uvek nema bedževa. Odigraj još kvizova!',
+  );
+  String get editProfileDialogTitle =>
+      _pick(en: 'Edit profile', sr: 'Izmena profila');
+  String get displayName =>
+      _pick(en: 'Display name', sr: 'Prikazano ime');
+  String get enterNewDisplayName =>
+      _pick(en: 'Enter new display name', sr: 'Unesi novo prikazano ime');
+  String get emailLabel => _pick(en: 'Email', sr: 'Imejl');
+  String get enterNewEmail =>
+      _pick(en: 'Enter new email', sr: 'Unesi novi imejl');
+  String get cancel => _pick(en: 'Cancel', sr: 'Otkaži');
+  String get save => _pick(en: 'Save', sr: 'Sačuvaj');
+  String get profileUpdatedSuccess => _pick(
+    en: 'Profile updated successfully!',
+    sr: 'Profil je uspešno ažuriran!',
+  );
+  String profileUpdateFailedWithError(String error) => _pick(
+    en: 'Profile update failed: $error',
+    sr: 'Ažuriranje profila nije uspelo: $error',
+  );
+  String get chaseRace => _pick(en: 'Chase Race', sr: 'Trka potere');
+  String get firstToUnlock => _pick(
+    en: 'First to unlock! 🏆',
+    sr: 'Prvi do otključavanja! 🏆',
+  );
+  String raceRank(int rank, int total) => _pick(
+    en: 'Race rank: #$rank of $total',
+    sr: 'Rang trke: #$rank od $total',
+  );
+  String get viewRace => _pick(en: 'View race', sr: 'Prikaži trku');
+  String get equippedCosmetics =>
+      _pick(en: 'Equipped cosmetics', sr: 'Opremljena kozmetika');
+  String get defaultAvatar =>
+      _pick(en: 'Default avatar', sr: 'Podrazumevani avatar');
+  String get unlockCosmeticsHint => _pick(
+    en: 'Unlock and equip frames, trails, and gear to show off here.',
+    sr: 'Otključaj i opremi okvire, tragove i opremu da se prikažu ovde.',
+  );
+  String get recentUnlocks =>
+      _pick(en: 'Recent unlocks', sr: 'Nedavna otključavanja');
+  String get noCosmeticUnlocksYet => _pick(
+    en: 'No cosmetic unlocks yet. Daily Run chests can change that.',
+    sr: 'Još nema otključane kozmetike. Kovčezi Dnevnog izazova to mogu promeniti.',
+  );
+  String levelWithValue(int value) =>
+      _pick(en: 'Level $value', sr: 'Nivo $value');
   String get sectionQuizExperience =>
       _pick(en: 'Quiz experience', sr: 'Kviz iskustvo');
   String get hintsToggleTitle => _pick(en: 'Hints', sr: 'Pomoći');
@@ -421,11 +558,18 @@ class AppI18n {
 }
 
 extension AppI18nContextX on BuildContext {
+  // Non-reactive lookup: safe for callbacks and one-off reads.
   AppI18n get t {
     final language = Provider.of<SettingsProvider>(
       this,
       listen: false,
     ).language;
+    return AppI18n(language);
+  }
+
+  // Reactive lookup: use inside build methods when UI must rebuild on language change.
+  AppI18n get tw {
+    final language = watch<SettingsProvider>().language;
     return AppI18n(language);
   }
 }

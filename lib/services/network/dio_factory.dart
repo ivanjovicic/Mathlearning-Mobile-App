@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/config.dart';
 import '../auth/token_storage.dart';
 
 class DioFactory {
   static final TokenStorage _tokenStorage = TokenStorage();
+  static const String _languageKey = 'settings_language';
 
   static Dio create({bool withAuth = true}) {
     final dio = Dio(
@@ -36,7 +38,30 @@ class DioFactory {
       attachAuthHeaderInterceptor(dio);
     }
 
+    attachLanguageHeaderInterceptor(dio);
+
     return dio;
+  }
+
+  static void attachLanguageHeaderInterceptor(Dio dio) {
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          try {
+            final languageCode = await _readLanguageCode();
+            if (languageCode != null &&
+                languageCode.isNotEmpty &&
+                !options.headers.containsKey('Accept-Language')) {
+              // Backend may still prefer persisted user settings; this header is a runtime hint.
+              options.headers['Accept-Language'] = languageCode;
+            }
+          } catch (_) {
+            // Do not block requests if language preference cannot be read.
+          }
+          handler.next(options);
+        },
+      ),
+    );
   }
 
   static void attachAuthHeaderInterceptor(Dio dio) {
@@ -51,5 +76,23 @@ class DioFactory {
         },
       ),
     );
+  }
+
+  static Future<String?> _readLanguageCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final languageIndex = prefs.getInt(_languageKey);
+
+    switch (languageIndex) {
+      case 1:
+        return 'sr';
+      case 0:
+        return 'en';
+      case 2:
+        return 'de';
+      case 3:
+        return 'es';
+      default:
+        return null;
+    }
   }
 }
