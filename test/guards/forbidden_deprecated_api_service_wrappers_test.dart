@@ -8,63 +8,65 @@ void main() {
     () async {
       final libDir = Directory('lib');
       final matches = <String, List<String>>{};
-
-      final simplePatterns = <String, RegExp>{
-        '.getAdaptivePath(': RegExp(r'\.\s*getAdaptivePath\s*\('),
-        '.getAdaptivePathResult(': RegExp(r'\.\s*getAdaptivePathResult\s*\('),
-        '.getAdaptiveReview(': RegExp(r'\.\s*getAdaptiveReview\s*\('),
-        '.getAdaptiveReviewResult(': RegExp(r'\.\s*getAdaptiveReviewResult\s*\('),
-        '.getAdaptiveRecommendations(': RegExp(
-          r'\.\s*getAdaptiveRecommendations\s*\(',
-        ),
-        '.getAdaptiveRecommendationsResult(': RegExp(
-          r'\.\s*getAdaptiveRecommendationsResult\s*\(',
-        ),
-        '.fetchLeaderboardRivals(': RegExp(r'\.\s*fetchLeaderboardRivals\s*\('),
-        '.fetchSchoolLeaderboard(': RegExp(r'\.\s*fetchSchoolLeaderboard\s*\('),
-        '.fetchSchoolLeaderboardDetail(': RegExp(
-          r'\.\s*fetchSchoolLeaderboardDetail\s*\(',
-        ),
-        '.fetchSchoolLeaderboardHistory(': RegExp(
-          r'\.\s*fetchSchoolLeaderboardHistory\s*\(',
-        ),
-      };
-
-      final sensitivePatterns = <String, RegExp>{
-        '.getQuestions(': RegExp(r'\.\s*getQuestions\s*\('),
-        '.submitAnswer(': RegExp(r'\.\s*submitAnswer\s*\('),
-      };
-      final typedServiceMarkers = <String>[
-        'QuizApiService',
-        'AdaptiveContentApiService',
-        'LeaderboardApiService',
-        'PracticeSessionApiService',
+      final forbiddenWrapperNames = <String>[
+        'getAdaptivePath',
+        'getAdaptivePathResult',
+        'getAdaptiveReview',
+        'getAdaptiveReviewResult',
+        'getAdaptiveRecommendations',
+        'getAdaptiveRecommendationsResult',
+        'fetchLeaderboardRivals',
+        'fetchSchoolLeaderboard',
+        'fetchSchoolLeaderboardDetail',
+        'fetchSchoolLeaderboardHistory',
       ];
 
-      await for (final entity
-          in libDir.list(recursive: true, followLinks: false)) {
-        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      final apiServiceVars = RegExp(
+        r'\b(?:final|var|late\s+final|late)\s+(?:ApiService\s+)?([A-Za-z_]\w*)\s*=\s*ApiService\s*\(\s*\)',
+        multiLine: true,
+      );
+      final apiServiceFields = RegExp(
+        r'\bfinal\s+ApiService\s+([A-Za-z_]\w*)\s*;',
+        multiLine: true,
+      );
 
-        final normalizedPath = entity.path.replaceAll('\\', '/');
-        if (normalizedPath.endsWith('lib/services/api_service.dart')) continue;
-
-        final content = await entity.readAsString();
-        final usesTypedDomainService = typedServiceMarkers.any(content.contains);
-        if (usesTypedDomainService) {
+      await for (final entity in libDir.list(recursive: true, followLinks: false)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) {
           continue;
         }
 
-        for (final entry in simplePatterns.entries) {
-          if (entry.value.hasMatch(content)) {
-            matches.putIfAbsent(normalizedPath, () => []).add(entry.key);
-          }
+        final normalizedPath = entity.path.replaceAll('\\', '/');
+        if (normalizedPath.endsWith('lib/services/api_service.dart')) {
+          continue;
         }
 
-        // These two names are intentionally ignored in files that use the
-        // typed quiz domain service, because the same method names exist there.
-        for (final entry in sensitivePatterns.entries) {
-          if (entry.value.hasMatch(content) && !content.contains('_offline.')) {
-            matches.putIfAbsent(normalizedPath, () => []).add(entry.key);
+        final content = await entity.readAsString();
+        final candidateReceivers = <String>{
+          ...apiServiceVars
+              .allMatches(content)
+              .map((m) => m.group(1))
+              .whereType<String>(),
+          ...apiServiceFields
+              .allMatches(content)
+              .map((m) => m.group(1))
+              .whereType<String>(),
+        };
+
+        for (final method in forbiddenWrapperNames) {
+          final directCall = RegExp(
+            '\\bApiService\\s*\\(\\s*\\)\\s*\\.\\s*$method\\s*\\(',
+          );
+          if (directCall.hasMatch(content)) {
+            matches.putIfAbsent(normalizedPath, () => []).add('$method(');
+          }
+
+          for (final receiver in candidateReceivers) {
+            final receiverCall = RegExp(
+              '\\b$receiver\\s*\\.\\s*$method\\s*\\(',
+            );
+            if (receiverCall.hasMatch(content)) {
+              matches.putIfAbsent(normalizedPath, () => []).add('$method(');
+            }
           }
         }
       }

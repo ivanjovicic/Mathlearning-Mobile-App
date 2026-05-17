@@ -1,15 +1,17 @@
 # Mobile API Contract
 
-## Canonical Quiz Endpoints
+This document defines runtime mobile endpoints currently supported by the app.
+
+## Quiz
 - `GET /api/quiz/questions`
 - `POST /api/quiz/answer`
 
-## Canonical Practice Flow
+## Practice
 - `POST /api/practice/session/start`
 - `POST /api/practice/session/{sessionId}/answer`
 - `POST /api/practice/session/{sessionId}/complete`
 
-## Valid Adaptive Content Endpoints
+## Adaptive Content
 - `GET /api/adaptive/path`
 - `GET /api/adaptive/reviews/due`
 - `GET /api/adaptive/recommendations`
@@ -22,6 +24,3 @@
 - `/api/adaptive/session/answer`
 - `/api/analytics/mastery`
 - `/api/chase/`
-
-## Note
-Backend OpenAPI/codegen should eventually replace this manual contract.
