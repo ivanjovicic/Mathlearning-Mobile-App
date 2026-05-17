@@ -9,6 +9,8 @@ class OfflineStorageService {
   static Database? _database;
   static const String _dbName = 'mathlearning_offline.db';
   static const int _version = 2;
+  static const int _maxWebPendingAnswers = 200;
+  static const Duration _cachedQuestionsTtl = Duration(days: 7);
 
   // Database tables
   static const String _questionsTable = 'questions';
@@ -108,11 +110,13 @@ class OfflineStorageService {
     int subtopicId,
     List<Map<String, dynamic>> questions,
   ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
     if (kIsWeb) {
       // Use SharedPreferences for web
       final prefs = await SharedPreferences.getInstance();
       final key = 'cached_questions_$subtopicId';
       await prefs.setString(key, jsonEncode(questions));
+      await prefs.setInt('cached_questions_${subtopicId}_updated_at', now);
       return;
     }
 
@@ -135,7 +139,7 @@ class OfflineStorageService {
           'text': question['text'],
           'correct_answer_id': question['correctAnswerId'],
           'options': jsonEncode(question['options']),
-          'created_at': DateTime.now().millisecondsSinceEpoch,
+          'created_at': now,
         });
       }
     });
@@ -145,10 +149,16 @@ class OfflineStorageService {
     int subtopicId,
     int count,
   ) async {
+    final staleBefore =
+        DateTime.now().subtract(_cachedQuestionsTtl).millisecondsSinceEpoch;
     if (kIsWeb) {
       // Use SharedPreferences for web
       final prefs = await SharedPreferences.getInstance();
       final key = 'cached_questions_$subtopicId';
+      final updatedAt = prefs.getInt('cached_questions_${subtopicId}_updated_at');
+      if (updatedAt != null && updatedAt < staleBefore) {
+        return null;
+      }
       final questionsJson = prefs.getString(key);
       if (questionsJson != null) {
         final questions = List<Map<String, dynamic>>.from(
@@ -164,8 +174,8 @@ class OfflineStorageService {
 
     final List<Map<String, dynamic>> maps = await db.query(
       _questionsTable,
-      where: 'subtopic_id = ?',
-      whereArgs: [subtopicId],
+      where: 'subtopic_id = ? AND created_at >= ?',
+      whereArgs: [subtopicId, staleBefore],
       limit: count,
       orderBy: 'RANDOM()',
     );
@@ -195,19 +205,38 @@ class OfflineStorageService {
     required bool isCorrect,
     required String userId,
   }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
     if (kIsWeb) {
       // Use SharedPreferences for web
       final prefs = await SharedPreferences.getInstance();
       final pendingAnswers = await getPendingAnswers();
-      pendingAnswers.add({
+      pendingAnswers.removeWhere((item) {
+        return item['user_id']?.toString() == userId &&
+            item['quiz_id']?.toString() == quizId &&
+            (item['question_id'] as num?)?.toInt() == questionId;
+      });
+      pendingAnswers.add(<String, dynamic>{
         'quiz_id': quizId,
         'question_id': questionId,
         'answer': answer,
         'time_spent_seconds': timeSpentSeconds,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'timestamp': now,
         'is_correct': isCorrect ? 1 : 0,
         'user_id': userId,
       });
+      if (pendingAnswers.length > _maxWebPendingAnswers) {
+        pendingAnswers.sort((a, b) {
+          final aTs = (a['timestamp'] as num?)?.toInt() ?? 0;
+          final bTs = (b['timestamp'] as num?)?.toInt() ?? 0;
+          return aTs.compareTo(bTs);
+        });
+        final trimmed = pendingAnswers.sublist(
+          pendingAnswers.length - _maxWebPendingAnswers,
+        );
+        pendingAnswers
+          ..clear()
+          ..addAll(trimmed);
+      }
       final saved = await prefs.setString(
         'pending_answers',
         jsonEncode(pendingAnswers),
@@ -223,12 +252,18 @@ class OfflineStorageService {
       throw StateError('Offline SQLite storage is unavailable');
     }
 
+    await db.delete(
+      _pendingAnswersTable,
+      where: 'user_id = ? AND quiz_id = ? AND question_id = ?',
+      whereArgs: [userId, quizId, questionId],
+    );
+
     await db.insert(_pendingAnswersTable, {
       'quiz_id': quizId,
       'question_id': questionId,
       'answer': answer,
       'time_spent_seconds': timeSpentSeconds,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'timestamp': now,
       'is_correct': isCorrect ? 1 : 0,
       'user_id': userId,
     });

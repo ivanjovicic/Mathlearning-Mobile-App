@@ -42,6 +42,14 @@ class OfflineManager {
       StreamController<int>.broadcast();
   Stream<int> get pendingCountStream => _pendingCountController.stream;
 
+  DateTime? _lastSyncAttemptAt;
+  DateTime? _lastSyncSuccessAt;
+  String? _lastSyncError;
+
+  DateTime? get lastSyncAttemptAt => _lastSyncAttemptAt;
+  DateTime? get lastSyncSuccessAt => _lastSyncSuccessAt;
+  String? get lastSyncError => _lastSyncError;
+
   String _resolveUserId() => AuthService.instance.userId ?? 'default';
 
   Future<void> initialize() async {
@@ -117,6 +125,7 @@ class OfflineManager {
   }
 
   Future<void> syncPendingData() async {
+    _lastSyncAttemptAt = DateTime.now();
     if (!_isOnlineWithToken) {
       await emitPendingCount();
       return;
@@ -125,7 +134,10 @@ class OfflineManager {
     try {
       await _syncPendingAnswers();
       await _syncPendingSrs();
+      _lastSyncSuccessAt = DateTime.now();
+      _lastSyncError = null;
     } catch (e) {
+      _lastSyncError = e.toString();
       debugPrint('Offline sync error: $e');
     } finally {
       await emitPendingCount();
@@ -147,8 +159,10 @@ class OfflineManager {
           await OfflineStorageService.cacheQuestions(subtopicId, raw);
           return raw.map((e) => Question.fromJson(e)).toList();
         }
-      } catch (_) {
-        // fallback to cache
+      } catch (e) {
+        debugPrint(
+          'OfflineManager.getQuizQuestions: online fetch failed, using cache: $e',
+        );
       }
     }
 
@@ -173,8 +187,10 @@ class OfflineManager {
           );
           return raw.map((e) => Question.fromJson(e)).toList();
         }
-      } catch (_) {
-        // fallback to cache
+      } catch (e) {
+        debugPrint(
+          'OfflineManager.getDailyReviewQuestions: online fetch failed, using cache: $e',
+        );
       }
     }
 
@@ -313,7 +329,11 @@ class OfflineManager {
           await emitPendingCount();
           return;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          'OfflineManager.submitSrsUpdate: online submit failed, queueing: $e',
+        );
+      }
     }
 
     await OfflineStorageService.savePendingSrsUpdate(
@@ -382,7 +402,11 @@ class OfflineManager {
         if (result != null) {
           try {
             await emitPendingCount();
-          } catch (_) {}
+          } catch (e) {
+            debugPrint(
+              'OfflineManager.submitAnswer: failed to emit pending count after server submit: $e',
+            );
+          }
           return AnswerSubmitResult(
             status: AnswerSubmitStatus.serverConfirmed,
             serverResponse: result,
@@ -404,7 +428,11 @@ class OfflineManager {
           );
           try {
             await emitPendingCount();
-          } catch (_) {}
+          } catch (e) {
+            debugPrint(
+              'OfflineManager.submitAnswer: failed to emit pending count after queueing rate-limited answer: $e',
+            );
+          }
           return const AnswerSubmitResult(
             status: AnswerSubmitStatus.queuedOffline,
           );
@@ -412,10 +440,18 @@ class OfflineManager {
           debugPrint('OfflineManager.submitAnswer: failed to queue answer: $saveError');
           try {
             await emitPendingCount();
-          } catch (_) {}
+          } catch (e) {
+            debugPrint(
+              'OfflineManager.submitAnswer: failed to emit pending count after queue failure: $e',
+            );
+          }
           return const AnswerSubmitResult(status: AnswerSubmitStatus.failed);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          'OfflineManager.submitAnswer: online submit failed, queueing: $e',
+        );
+      }
     }
 
     try {
@@ -429,7 +465,11 @@ class OfflineManager {
       );
       try {
         await emitPendingCount();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          'OfflineManager.submitAnswer: failed to emit pending count after queueing answer: $e',
+        );
+      }
       return const AnswerSubmitResult(
         status: AnswerSubmitStatus.queuedOffline,
       );
@@ -437,7 +477,11 @@ class OfflineManager {
       debugPrint('OfflineManager.submitAnswer: failed to queue answer: $e');
       try {
         await emitPendingCount();
-      } catch (_) {}
+      } catch (emitError) {
+        debugPrint(
+          'OfflineManager.submitAnswer: failed to emit pending count after queue error: $emitError',
+        );
+      }
       return const AnswerSubmitResult(status: AnswerSubmitStatus.failed);
     }
   }

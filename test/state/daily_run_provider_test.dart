@@ -165,6 +165,36 @@ void main() {
   );
 
   test(
+    'wrong expectedTransactionId throws StateError and does not mutate state',
+    () async {
+      final provider = DailyRunProvider();
+      final tx = await startOpenedChestTransaction(provider);
+      const wrongTx = 'daily_chest_tx_wrong';
+
+      expect(
+        () => provider.markChestPermanentlyOpened(
+          expectedTransactionId: wrongTx,
+        ),
+        throwsStateError,
+      );
+      expect(
+        () => provider.applyRewardStep(
+          expectedTransactionId: wrongTx,
+          step: DailyChestRewardStep.xp,
+          action: () async {},
+        ),
+        throwsStateError,
+      );
+
+      expect(provider.activeRewardTransactionId, tx);
+      expect(provider.chestOpeningInProgress, isTrue);
+      expect(provider.chestPermanentlyOpened, isFalse);
+      expect(provider.rewardsApplied, isFalse);
+      expect(provider.isRewardStepApplied(DailyChestRewardStep.xp), isFalse);
+    },
+  );
+
+  test(
     'crash/restart before rewards applied keeps resumable transaction',
     () async {
       final provider = DailyRunProvider();
