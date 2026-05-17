@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -283,6 +285,124 @@ void main() {
       final manager = OfflineManager.instance;
       // Verify the method exists and is callable
       expect(manager.manualSync, isA<Function>());
+    });
+  });
+
+  group('OfflineStorageService hardening guards', () {
+    late String source;
+
+    setUpAll(() async {
+      source = await File(
+        'lib/services/offline_storage_service.dart',
+      ).readAsString();
+    });
+
+    test(
+      'savePendingAnswer dedupes by userId + quizId + questionId',
+      () {
+        expect(
+          source,
+          contains('pendingAnswers.removeWhere((item)'),
+        );
+        expect(
+          source,
+          contains("item['user_id']?.toString() == userId"),
+        );
+        expect(
+          source,
+          contains("item['quiz_id']?.toString() == quizId"),
+        );
+        expect(
+          source,
+          contains("(item['question_id'] as num?)?.toInt() == questionId"),
+        );
+        expect(
+          source,
+          contains("where: 'user_id = ? AND quiz_id = ? AND question_id = ?'"),
+        );
+      },
+    );
+
+    test('different users keep separate pending answers identity', () {
+      expect(
+        source,
+        contains("whereArgs: [userId, quizId, questionId]"),
+      );
+      expect(
+        source,
+        contains("item['user_id']?.toString() == userId &&"),
+      );
+    });
+
+    test('web queue keeps newest max 200 pending answers', () {
+      expect(source, contains('static const int _maxWebPendingAnswers = 200;'));
+      expect(
+        source,
+        contains('if (pendingAnswers.length > _maxWebPendingAnswers)'),
+      );
+      expect(source, contains('pendingAnswers.sort((a, b)'));
+      expect(
+        source,
+        contains('pendingAnswers.length - _maxWebPendingAnswers'),
+      );
+    });
+
+    test('stale cached questions are excluded via TTL checks', () {
+      expect(
+        source,
+        contains(
+          'static const Duration _cachedQuestionsTtl = Duration(days: 7);',
+        ),
+      );
+      expect(
+        source,
+        contains("prefs.setInt('cached_questions_\${subtopicId}_updated_at', now);"),
+      );
+      expect(
+        source,
+        contains('if (updatedAt != null && updatedAt < staleBefore)'),
+      );
+      expect(
+        source,
+        contains("where: 'subtopic_id = ? AND created_at >= ?'"),
+      );
+    });
+  });
+
+  group('OfflineManager diagnostics guards', () {
+    late String managerSource;
+
+    setUpAll(() async {
+      managerSource = await File(
+        'lib/services/offline_manager.dart',
+      ).readAsString();
+    });
+
+    test('required offline fallback diagnostics are present', () {
+      expect(
+        managerSource,
+        contains(
+          'OfflineManager.getQuizQuestions: online fetch failed, using cache: \$e',
+        ),
+      );
+      expect(
+        managerSource,
+        contains(
+          'OfflineManager.getDailyReviewQuestions: online fetch failed, using cache: \$e',
+        ),
+      );
+      expect(
+        managerSource,
+        contains(
+          'OfflineManager.submitSrsUpdate: online submit failed, queueing: \$e',
+        ),
+      );
+      expect(
+        managerSource,
+        contains(
+          'OfflineManager.submitAnswer: online submit failed, queueing: \$e',
+        ),
+      );
     });
   });
 }
