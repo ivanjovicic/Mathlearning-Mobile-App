@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:dio/dio.dart';
 
@@ -32,13 +33,20 @@ class AuthService {
   String? _userId;
   String? _username;
   bool _isDemoMode = false;
+  final StreamController<void> _sessionExpiredController =
+      StreamController<void>.broadcast();
 
   AuthService._() {
     _dio = DioFactory.create(withAuth: false);
     _tokenStorage = TokenStorage();
     _repo = AuthRepository(_dio, _tokenStorage);
-    AuthClient(_dio, _tokenStorage, _repo);
     controller = AuthController(_repo);
+    AuthClient(
+      _dio,
+      _tokenStorage,
+      _repo,
+      onSessionExpired: _handleSessionExpiredFromClient,
+    );
   }
 
   Future<void> initialize() async {
@@ -47,6 +55,7 @@ class AuthService {
   }
 
   Dio get client => _dio;
+  Stream<void> get sessionExpiredStream => _sessionExpiredController.stream;
 
   Future<AuthResultShim> login(String username, String password) async {
     final res = await controller.login(username, password);
@@ -113,6 +122,11 @@ class AuthService {
     _userId = null;
     _username = null;
     _isDemoMode = false;
+  }
+
+  Future<void> _handleSessionExpiredFromClient() async {
+    await logout();
+    _sessionExpiredController.add(null);
   }
 
   String? get userId => _userId;

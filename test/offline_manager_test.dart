@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -404,5 +405,105 @@ void main() {
         ),
       );
     });
+  });
+
+  // syncPendingData concurrency
+
+  group('syncPendingData concurrency', () {
+    test(
+      'overlapping calls never run _syncPendingDataOnce concurrently',
+      () async {
+        final manager = OfflineManager.createForTest();
+
+        var inFlight = 0;
+        var maxConcurrency = 0;
+        var totalRuns = 0;
+
+        manager.syncPendingDataOnceOverride = () async {
+          inFlight++;
+          if (inFlight > maxConcurrency) maxConcurrency = inFlight;
+          totalRuns++;
+          // Delay long enough for other callers to call syncPendingData
+          // before this run finishes, exercising real overlap.
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          inFlight--;
+        };
+
+        // Fire three overlapping syncs without awaiting earlier ones.
+        final f1 = manager.syncPendingData();
+        final f2 = manager.syncPendingData();
+        final f3 = manager.syncPendingData();
+        await Future.wait([f1, f2, f3]);
+
+        // Serialization guarantee: the body never runs concurrently.
+        expect(
+          maxConcurrency,
+          1,
+          reason: '_syncPendingDataOnce must never overlap',
+        );
+        // Three callers coalesce: one run for the in-flight request plus at
+        // most one more for the queued remainder, never three separate runs.
+        expect(
+          totalRuns,
+          lessThanOrEqualTo(2),
+          reason: 'concurrent callers should coalesce, not fan out',
+        );
+      },
+    );
+
+    test(
+      'second caller shares the in-flight future and waits for completion',
+      () async {
+        final manager = OfflineManager.createForTest();
+        final barrier = Completer<void>();
+        manager.syncPendingDataOnceOverride = () => barrier.future;
+
+        final f1 = manager.syncPendingData();
+        final f2 = manager.syncPendingData();
+
+        var f1Done = false;
+        var f2Done = false;
+        // ignore: unawaited_futures
+        f1.then((_) => f1Done = true);
+        // ignore: unawaited_futures
+        f2.then((_) => f2Done = true);
+
+        // Give microtasks a chance to run; both futures should still be pending.
+        await Future<void>.value();
+        expect(f1Done, isFalse, reason: 'f1 must not complete before barrier');
+        expect(f2Done, isFalse, reason: 'f2 must not complete before barrier');
+
+        // Unblock the shared sync.
+        barrier.complete();
+        await Future.wait([f1, f2]);
+
+        expect(f1Done, isTrue);
+        expect(f2Done, isTrue);
+      },
+    );
+
+    test(
+      '_syncInFlight is cleared after all callers finish so later calls start fresh',
+      () async {
+        final manager = OfflineManager.createForTest();
+        manager.syncPendingDataOnceOverride = () => Future<void>.value();
+
+        await manager.syncPendingData();
+
+        // A subsequent independent call must trigger a new run, not reuse a
+        // stale completed future.
+        var secondRunTriggered = false;
+        manager.syncPendingDataOnceOverride = () async {
+          secondRunTriggered = true;
+        };
+
+        await manager.syncPendingData();
+        expect(
+          secondRunTriggered,
+          isTrue,
+          reason: '_syncInFlight must be null after completion',
+        );
+      },
+    );
   });
 }

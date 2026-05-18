@@ -22,6 +22,8 @@ class ProgressProvider extends ChangeNotifier {
   // When true, indicates that no progress data is available (no cache + API failed)
   bool progressUnavailable = false;
   bool topicsUnavailable = false;
+  bool _lastProgressLoadUsedFallback = false;
+  Object? _lastProgressLoadError;
 
   final ProgressService _progressService = ProgressService.instance;
   static const Duration _reloadDebounce = Duration(seconds: 4);
@@ -68,6 +70,38 @@ class ProgressProvider extends ChangeNotifier {
     _userId = UserScopedStorage.normalizeUserId(userId);
   }
 
+  /// Clears in-memory user-visible progress so a newly authenticated user
+  /// never briefly sees the previous user's stats.
+  /// Does NOT touch the offline pending-events queue.
+  void clearForUserSwitch() {
+    level = 1;
+    xp = 0;
+    xpToNextLevel = 100;
+    streak = 0;
+    totalAttempts = 0;
+    accuracy = 0;
+    _lastStreakDay = null;
+    topics = [];
+    dailyProgress = {};
+    _pendingLocalProgress = PendingLocalProgress.empty;
+    _pendingStreakRollEvent = null;
+    progressUnavailable = false;
+    topicsUnavailable = false;
+    _lastProgressLoadUsedFallback = false;
+    _lastProgressLoadError = null;
+    // Null the timestamps so the next loadProgress(forceRefresh: true) is
+    // never short-circuited by the debounce / fresh-data check.
+    _lastProgressLoadedAt = null;
+    _lastTopicsLoadedAt = null;
+    // Null the in-flight references so callers can start a fresh load.
+    // The underlying coroutines, if still running, will complete harmlessly
+    // since auth context was already updated via updateAuthContext.
+    _loadProgressInFlight = null;
+    _loadTopicsInFlight = null;
+    _loadHomeDataInFlight = null;
+    notifyListeners();
+  }
+
   int _pendingEventSequence = 0;
 
   String _newPendingEventId(String type) {
@@ -104,6 +138,8 @@ class ProgressProvider extends ChangeNotifier {
 
   bool get hasPendingEvents =>
       _pendingLocalProgress.hasPending || _pendingStreakRollEvent != null;
+  bool get lastProgressLoadUsedFallback => _lastProgressLoadUsedFallback;
+  Object? get lastProgressLoadError => _lastProgressLoadError;
 
   // Display getters combine permanent state + pending optimistic deltas
   int get displayTotalAttempts =>
@@ -307,6 +343,8 @@ class ProgressProvider extends ChangeNotifier {
   Future<void> _loadProgressInternal() async {
     // Reset unavailable flag at start of each load attempt
     progressUnavailable = false;
+    _lastProgressLoadUsedFallback = false;
+    _lastProgressLoadError = null;
     await _loadPendingEvents();
     // 1) Try from cache first (instant UI)
     var cached = await OfflineStorageService.getCachedUserProgressForUser(
@@ -342,9 +380,12 @@ class ProgressProvider extends ChangeNotifier {
         'code=${result.errorCode} offline=${result.isOffline} '
         'auth=${result.isAuthError} msg=${result.error?.message}',
       );
+      _lastProgressLoadError =
+          result.error ?? result.errorCode ?? result.statusCode ?? 'unknown';
 
       // Already loaded from cache above, so UI still has data
       if (cached != null) {
+        _lastProgressLoadUsedFallback = true;
         notifyListeners();
         return;
       }
@@ -359,6 +400,7 @@ class ProgressProvider extends ChangeNotifier {
     // 3) Fallback demo data (explicit demo mode or tests-only fallback)
     if (cached == null) {
       if (allowDemoFallback) {
+        _lastProgressLoadUsedFallback = true;
         totalAttempts = 15;
         accuracy = 75.0;
         streak = 3;
@@ -654,7 +696,8 @@ class ProgressProvider extends ChangeNotifier {
     await loadProgress();
   }
 
-  // Test method to manually add XP
+  // LOCAL_AUTHORITY_TODO: local pending XP mutation; Daily Run chest XP should
+  // come from backend claim + SERVER_REFRESHED progress.
   void addXP(int amount) {
     final event = PendingProgressEvent(
       id: _newPendingEventId('bonusXp'),
@@ -671,6 +714,7 @@ class ProgressProvider extends ChangeNotifier {
     required int xpEarned,
     DateTime? now,
   }) async {
+    // LOCAL_AUTHORITY_TODO: practice reward XP is queued locally until sync.
     final day = _dateOnly(now ?? DateTime.now());
     final event = PendingProgressEvent(
       id: _newPendingEventId('practiceReward'),

@@ -226,6 +226,11 @@ class _AppRootState extends State<_AppRoot> {
   CosmeticTargetProvider? _targetProvider;
   String? _lastChaseTargetKey;
 
+  // Session-sync serialization: at most one _syncSession runs at a time.
+  // A second request while one is in-flight is remembered and re-run after.
+  Future<void>? _sessionSyncInFlight;
+  bool _sessionSyncRequested = false;
+
   @override
   void initState() {
     super.initState();
@@ -273,7 +278,7 @@ class _AppRootState extends State<_AppRoot> {
     _sessionWired = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(_syncSession());
+      _requestSessionSync();
       _onTargetChanged();
     });
   }
@@ -288,7 +293,31 @@ class _AppRootState extends State<_AppRoot> {
   }
 
   void _onAuthChanged() {
-    unawaited(_syncSession());
+    _requestSessionSync();
+  }
+
+  /// Schedules a session sync. If one is already running, the next sync will
+  /// be queued and run immediately after the current one completes, ensuring
+  /// syncs never overlap but no auth change is ever lost.
+  void _requestSessionSync() {
+    _sessionSyncRequested = true;
+    if (_sessionSyncInFlight != null) return;
+    final future = _runSerializedSessionSync();
+    _sessionSyncInFlight = future;
+    unawaited(
+      future.whenComplete(() {
+        if (identical(_sessionSyncInFlight, future)) {
+          _sessionSyncInFlight = null;
+        }
+      }),
+    );
+  }
+
+  Future<void> _runSerializedSessionSync() async {
+    while (mounted && _sessionSyncRequested) {
+      _sessionSyncRequested = false;
+      await _syncSession();
+    }
   }
 
   Future<void> _syncSession() async {

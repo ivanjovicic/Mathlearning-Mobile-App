@@ -41,6 +41,8 @@ class DailyRunChestClaimResponse {
     required this.alreadyClaimed,
     required this.reward,
     required this.balances,
+    this.message,
+    this.error,
   });
 
   final bool success;
@@ -49,6 +51,8 @@ class DailyRunChestClaimResponse {
   final bool alreadyClaimed;
   final DailyRunChestClaimReward reward;
   final DailyRunChestClaimBalances balances;
+  final String? message;
+  final String? error;
 
   factory DailyRunChestClaimResponse.fromJson(Map<String, dynamic> json) {
     return DailyRunChestClaimResponse(
@@ -56,6 +60,8 @@ class DailyRunChestClaimResponse {
       date: json['date']?.toString() ?? '',
       transactionId: json['transactionId']?.toString() ?? '',
       alreadyClaimed: json['alreadyClaimed'] == true,
+      message: json['message']?.toString(),
+      error: json['error']?.toString(),
       reward: DailyRunChestClaimReward.fromJson(
         Map<String, dynamic>.from(json['reward'] as Map? ?? const {}),
       ),

@@ -13,6 +13,7 @@ import 'package:mathlearning/state/quiz_provider.dart';
 
 class TestAuthProvider extends ChangeNotifier implements AuthProvider {
   bool _isLoading;
+  bool _isResolved;
   final String? _error;
   bool _isAuthenticated;
   String? _token;
@@ -21,12 +22,14 @@ class TestAuthProvider extends ChangeNotifier implements AuthProvider {
 
   TestAuthProvider({
     bool isLoading = false,
+    bool isResolved = true,
     bool isAuthenticated = true,
     String? token = 'demo_token_test',
     String? userId = '1',
     String? username = 'Alex',
     String? error,
   }) : _isLoading = isLoading,
+       _isResolved = isResolved,
        _isAuthenticated = isAuthenticated,
        _token = token,
        _userId = userId,
@@ -48,6 +51,9 @@ class TestAuthProvider extends ChangeNotifier implements AuthProvider {
 
   @override
   bool get isLoading => _isLoading;
+
+  @override
+  bool get isResolved => _isResolved;
 
   @override
   String? get error => _error;
@@ -73,6 +79,7 @@ class TestAuthProvider extends ChangeNotifier implements AuthProvider {
     notifyListeners();
     await Future<void>.delayed(Duration.zero);
     _isLoading = false;
+    _isResolved = true;
     notifyListeners();
     return _isAuthenticated;
   }
@@ -80,6 +87,7 @@ class TestAuthProvider extends ChangeNotifier implements AuthProvider {
   @override
   Future<bool> login(String username, String password) async {
     _isAuthenticated = true;
+    _isResolved = true;
     _username = username;
     _token = 'demo_token_login';
     notifyListeners();
@@ -94,6 +102,7 @@ class TestAuthProvider extends ChangeNotifier implements AuthProvider {
   @override
   Future<void> logout() async {
     _isAuthenticated = false;
+    _isResolved = true;
     _token = null;
     _userId = null;
     _username = null;

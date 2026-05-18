@@ -91,6 +91,27 @@ void main() {
     expect(provider.streak, 4);
   });
 
+  test(
+    'clearForUserSwitch clears visible pending progress only in memory',
+    () async {
+      final provider = ProgressProvider()
+        ..xp = 20
+        ..totalAttempts = 3;
+
+      await provider.applyPracticeRoundReward(xpEarned: 10);
+
+      expect(provider.displayXp, 30);
+      expect(provider.hasPendingEvents, isTrue);
+
+      provider.clearForUserSwitch();
+
+      expect(provider.xp, 0);
+      expect(provider.totalAttempts, 0);
+      expect(provider.displayXp, 0);
+      expect(provider.hasPendingEvents, isFalse);
+    },
+  );
+
   test('explicit demo mode still uses demo fallback when no cache', () async {
     Future<ApiResult<Map<String, dynamic>>> fakeFail() async =>
         ApiResult.failure(

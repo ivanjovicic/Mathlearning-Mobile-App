@@ -215,6 +215,8 @@ class AvatarProvider extends ChangeNotifier {
       fragmentName: fragmentName,
     );
     if (result.unlockedCosmetic != null && !owns(result.item.id)) {
+      // LOCAL_AUTHORITY_TODO: local inventory update remains until backend
+      // claim/refresh can be the sole cosmetic authority.
       _inventory = [..._inventory, result.unlockedCosmetic!];
       notifyListeners();
     }

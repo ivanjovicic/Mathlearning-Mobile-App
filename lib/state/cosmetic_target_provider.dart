@@ -185,6 +185,8 @@ class CosmeticTargetProvider extends ChangeNotifier {
   Future<void> refreshFromFragmentProgress() async {
     final current = _target;
     if (current == null) return;
+    // LOCAL_AUTHORITY_TODO: cosmetic target refresh currently reconciles from
+    // local fragment progress cache; backend target progress should replace it.
     final progress = await CosmeticsService.instance.loadFragmentProgress();
     final match = progress
         .where((entry) => entry.itemId == current.targetCosmeticItemId)

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/offline_manager.dart';
@@ -12,9 +14,22 @@ class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService.instance;
 
   bool _isLoading = false;
+  bool _isResolved = false;
   String? _error;
+  Future<bool>? _autoLoginInFlight;
+  late final StreamSubscription<void> _sessionExpiredSubscription;
+
+  AuthProvider() {
+    _sessionExpiredSubscription = _authService.sessionExpiredStream.listen((_) {
+      _isLoading = false;
+      _isResolved = true;
+      _error = null;
+      notifyListeners();
+    });
+  }
 
   bool get isLoading => _isLoading;
+  bool get isResolved => _isResolved;
   String? get error => _error;
   bool get isAuthenticated => _authService.isLoggedIn;
   String? get token => _authService.accessToken;
@@ -22,8 +37,14 @@ class AuthProvider extends ChangeNotifier {
   String? get username => _authService.username;
   bool get isDemoMode => _authService.isDemoMode;
 
-  // Auto-login on app start
-  Future<bool> autoLogin() async {
+  // Auto-login on app start: concurrent callers share the same
+  // in-flight future and all receive the same result.
+  Future<bool> autoLogin() {
+    _autoLoginInFlight ??= _autoLoginInternal();
+    return _autoLoginInFlight!;
+  }
+
+  Future<bool> _autoLoginInternal() async {
     _setLoading(true);
 
     try {
@@ -43,6 +64,8 @@ class AuthProvider extends ChangeNotifier {
       // Silent fallback to login screen (without noisy startup error).
       debugPrint('Auto-login fallback: $e');
     } finally {
+      _autoLoginInFlight = null;
+      _isResolved = true;
       _setLoading(false);
     }
 
@@ -77,6 +100,7 @@ class AuthProvider extends ChangeNotifier {
       _setError(networkErrorKey);
       return false;
     } finally {
+      _isResolved = true;
       _setLoading(false);
     }
   }
@@ -93,10 +117,7 @@ class AuthProvider extends ChangeNotifier {
         return true;
       } else {
         _setError(
-          _localizeAuthError(
-            result.error,
-            fallbackKey: authLoginFailedKey,
-          ),
+          _localizeAuthError(result.error, fallbackKey: authLoginFailedKey),
         );
         return false;
       }
@@ -104,6 +125,7 @@ class AuthProvider extends ChangeNotifier {
       _setError(networkErrorKey);
       return false;
     } finally {
+      _isResolved = true;
       _setLoading(false);
     }
   }
@@ -111,6 +133,7 @@ class AuthProvider extends ChangeNotifier {
   // Logout
   Future<void> logout() async {
     await _authService.logout();
+    _isResolved = true;
     notifyListeners();
   }
 
@@ -127,6 +150,12 @@ class AuthProvider extends ChangeNotifier {
 
   void _clearError() {
     _error = null;
+  }
+
+  @override
+  void dispose() {
+    _sessionExpiredSubscription.cancel();
+    super.dispose();
   }
 
   String _localizeAuthError(String? rawError, {required String fallbackKey}) {

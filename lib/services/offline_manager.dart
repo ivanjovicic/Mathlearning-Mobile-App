@@ -31,6 +31,12 @@ class OfflineManager {
 
   OfflineManager._();
 
+  /// Creates a fresh isolated instance for unit tests.
+  /// [syncPendingDataOnceOverride] can be set after construction to replace
+  /// the real sync body without touching storage or network.
+  @visibleForTesting
+  static OfflineManager createForTest() => OfflineManager._();
+
   final QuizApiService _quizApi = QuizApiService();
   final SrsService _srs = SrsService.instance;
 
@@ -45,6 +51,14 @@ class OfflineManager {
   DateTime? _lastSyncAttemptAt;
   DateTime? _lastSyncSuccessAt;
   String? _lastSyncError;
+
+  Future<void>? _syncInFlight;
+  bool _syncRequested = false;
+
+  /// When set, replaces the real [_syncPendingDataOnce] body in tests.
+  /// This allows concurrency assertions without real storage or network.
+  @visibleForTesting
+  Future<void> Function()? syncPendingDataOnceOverride;
 
   DateTime? get lastSyncAttemptAt => _lastSyncAttemptAt;
   DateTime? get lastSyncSuccessAt => _lastSyncSuccessAt;
@@ -124,7 +138,26 @@ class OfflineManager {
     }
   }
 
-  Future<void> syncPendingData() async {
+  Future<void> syncPendingData() {
+    _syncRequested = true;
+    if (_syncInFlight != null) return _syncInFlight!;
+    _syncInFlight = _runSerializedSync().whenComplete(() {
+      _syncInFlight = null;
+    });
+    return _syncInFlight!;
+  }
+
+  Future<void> _runSerializedSync() async {
+    while (_syncRequested) {
+      _syncRequested = false;
+      await _syncPendingDataOnce();
+    }
+  }
+
+  Future<void> _syncPendingDataOnce() async {
+    final override = syncPendingDataOnceOverride;
+    if (override != null) return override();
+
     _lastSyncAttemptAt = DateTime.now();
     if (!_isOnlineWithToken) {
       await emitPendingCount();

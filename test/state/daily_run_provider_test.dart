@@ -64,6 +64,11 @@ void main() {
     return tx!;
   }
 
+  String dayKey(DateTime value) {
+    final day = DateTime(value.year, value.month, value.day);
+    return '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+  }
+
   test(
     'cannot permanently open chest before all required reward steps',
     () async {
@@ -188,6 +193,70 @@ void main() {
       expect(providerB.chestOpeningInProgress, isTrue);
       expect(providerB.isRewardStepApplied(DailyChestRewardStep.xp), isTrue);
       expect(providerB.chestPermanentlyOpened, isFalse);
+    },
+  );
+
+  test(
+    'recovered cross-midnight transaction keeps original claim day',
+    () async {
+      final reloadDay = DateTime.now();
+      final originalDay = DateTime(
+        reloadDay.year,
+        reloadDay.month,
+        reloadDay.day,
+      ).subtract(const Duration(days: 1));
+      final originalCreatedAt = originalDay.add(
+        const Duration(hours: 23, minutes: 58),
+      );
+
+      final provider = DailyRunProvider();
+      await provider.load('user-midnight');
+      await provider.startRun();
+      await provider.markCompleted();
+      final reward = await provider.openChest();
+      final transactionId = provider.activeRewardTransactionId;
+      expect(reward, isNotNull);
+      expect(transactionId, isNotNull);
+
+      await provider.markRewardTransactionStarted(
+        expectedTransactionId: transactionId,
+      );
+
+      // Simulate a true D+1 reload: the unfinished transaction exists only
+      // under yesterday's day key, while the provider loads using today.
+      final prefs = await SharedPreferences.getInstance();
+      final currentDayKey = UserScopedStorage.scopedKey(
+        'user-midnight',
+        'daily_run',
+        dayKey(reloadDay),
+      );
+      final originalDayKey = UserScopedStorage.scopedKey(
+        'user-midnight',
+        'daily_run',
+        dayKey(originalDay),
+      );
+      final raw = prefs.getString(currentDayKey);
+      expect(raw, isNotNull);
+
+      final payload = Map<String, dynamic>.from(
+        jsonDecode(raw!) as Map<dynamic, dynamic>,
+      );
+      payload['activeRewardTransactionCreatedAt'] = originalCreatedAt
+          .toIso8601String();
+      await prefs.setString(originalDayKey, jsonEncode(payload));
+      await prefs.remove(currentDayKey);
+      expect(prefs.getString(currentDayKey), isNull);
+
+      final restarted = DailyRunProvider();
+      await restarted.load('user-midnight');
+
+      expect(restarted.activeRewardTransactionId, transactionId);
+      expect(restarted.chestOpeningInProgress, isTrue);
+      expect(restarted.chestPermanentlyOpened, isFalse);
+      expect(restarted.activeRewardTransactionDay, originalDay);
+
+      final claimDate = restarted.activeRewardTransactionDay ?? DateTime.now();
+      expect(dayKey(claimDate), dayKey(originalDay));
     },
   );
 

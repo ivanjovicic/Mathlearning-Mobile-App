@@ -10,9 +10,19 @@ class AuthClient {
   final TokenStorage _tokenStorage;
   final AuthRepository _authRepository;
 
-  AuthClient(this._dio, this._tokenStorage, this._authRepository) {
+  AuthClient(
+    this._dio,
+    this._tokenStorage,
+    this._authRepository, {
+    Future<void> Function()? onSessionExpired,
+  }) {
     _dio.interceptors.add(
-      _AuthInterceptor(_dio, _tokenStorage, _authRepository),
+      _AuthInterceptor(
+        _dio,
+        _tokenStorage,
+        _authRepository,
+        onSessionExpired: onSessionExpired,
+      ),
     );
   }
 }
@@ -21,9 +31,15 @@ class _AuthInterceptor extends Interceptor {
   final Dio _dio;
   final TokenStorage _tokenStorage;
   final AuthRepository _authRepository;
+  final Future<void> Function()? _onSessionExpired;
   Completer<bool>? _refreshCompleter;
 
-  _AuthInterceptor(this._dio, this._tokenStorage, this._authRepository);
+  _AuthInterceptor(
+    this._dio,
+    this._tokenStorage,
+    this._authRepository, {
+    Future<void> Function()? onSessionExpired,
+  }) : _onSessionExpired = onSessionExpired;
 
   @override
   Future<void> onRequest(
@@ -67,11 +83,25 @@ class _AuthInterceptor extends Interceptor {
         final retryRequest = await _retry(err.requestOptions);
         return handler.resolve(retryRequest);
       } else {
-        await _authRepository.logout();
+        await _handleSessionExpired();
         return handler.reject(err);
       }
     }
     handler.next(err);
+  }
+
+  Future<void> _handleSessionExpired() async {
+    final onSessionExpired = _onSessionExpired;
+    if (onSessionExpired == null) {
+      await _authRepository.logout();
+      return;
+    }
+
+    try {
+      await onSessionExpired();
+    } catch (_) {
+      await _authRepository.logout();
+    }
   }
 
   Future<Response> _retry(RequestOptions requestOptions) async {

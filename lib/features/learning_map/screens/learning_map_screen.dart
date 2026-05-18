@@ -42,10 +42,16 @@ import 'package:mathlearning/state/season_provider.dart';
 import 'package:mathlearning/widgets/weekly_featured_banner.dart';
 
 class LearningMapScreen extends StatefulWidget {
-  const LearningMapScreen({super.key, required this.userId, this.focusNodeId});
+  const LearningMapScreen({
+    super.key,
+    required this.userId,
+    this.focusNodeId,
+    this.dailyRunApiService,
+  });
 
   final String userId;
   final String? focusNodeId;
+  final DailyRunApiService? dailyRunApiService;
 
   @override
   State<LearningMapScreen> createState() => _LearningMapScreenState();
@@ -570,6 +576,8 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
 
     switch (reward.type) {
       case DailyRewardType.xp:
+        // LOCAL_AUTHORITY_TODO: legacy daily reward XP still uses local pending
+        // progress; Daily Run chest XP is handled by backend claim + refresh.
         progressProvider.addXP(reward.xpAmount ?? 0);
         unawaited(progressProvider.persistLocalProgress());
         break;
@@ -588,12 +596,13 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     final streakFreezeProvider = context.read<StreakFreezeProvider>();
     final avatarProvider = context.read<AvatarProvider>();
     final coinProvider = context.read<CoinProvider>();
+    final authProvider = context.read<AuthProvider>();
     final targetProvider = _maybeRead<CosmeticTargetProvider>(context);
     final rootScaffoldMessenger = ScaffoldMessenger.of(context);
     final weeklyFeatured = _maybeRead<WeeklyFeaturedProvider>(context);
     final dailyReturn = _maybeRead<DailyReturnProvider>(context);
     final seasonProvider = _maybeRead<SeasonProvider>(context);
-    final dailyRunApi = DailyRunApiService();
+    final dailyRunApi = widget.dailyRunApiService ?? DailyRunApiService();
     final baseReward = await dailyRun.openChest();
     final transactionId = dailyRun.activeRewardTransactionId;
     final featuredReward = baseReward == null
@@ -649,14 +658,36 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
             );
           },
           onGrantCosmeticFragments: (fragmentName, copies) async {
-            return _previewDailyRunFragmentGrant(fragmentName, copies);
+            final result = await dailyRun
+                .applyRewardStepWithResult<DailyRunCosmeticGrantResult>(
+                  expectedTransactionId: transactionId,
+                  step: DailyChestRewardStep.cosmeticFragments,
+                  action: () async {
+                    return _previewDailyRunFragmentGrant(fragmentName, copies);
+                  },
+                );
+            return result ??
+                _previewDailyRunFragmentGrant(fragmentName, copies);
           },
-          onApplyTargetProgress: (result) =>
-              _previewTargetProgress(result, targetProvider),
+          onApplyTargetProgress: (result) async {
+            final event = await dailyRun
+                .applyRewardStepWithResult<CosmeticTargetProgressEvent?>(
+                  expectedTransactionId: transactionId,
+                  step: DailyChestRewardStep.targetChaseProgress,
+                  action: () async {
+                    return _previewTargetProgress(result, targetProvider);
+                  },
+                );
+            return event ?? _previewTargetProgress(result, targetProvider);
+          },
           onApplyPostChestRewards: () async {
+            // Use transaction day for retry/resume so cross-midnight pending
+            // claims do not shift to today's date.
+            final claimDay =
+                dailyRun.activeRewardTransactionDay ?? DateTime.now();
             final claimResponse = await dailyRunApi.claimChest(
               transactionId: transactionId,
-              date: DateTime.now(),
+              date: claimDay,
             );
             if (claimResponse == null) {
               debugPrint(
@@ -670,16 +701,39 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
               // TODO(server-authoritative-rewards): remove temporary failure UI once backend claim endpoint is contract-tested.
               throw Exception('Daily Run chest claim unavailable.');
             }
+            if (!claimResponse.success) {
+              debugPrint(
+                '[DailyRun] Chest claim rejected for transactionId=$transactionId '
+                'backendTransactionId=${claimResponse.transactionId} '
+                'alreadyClaimed=${claimResponse.alreadyClaimed} '
+                'message=${claimResponse.message ?? ''} '
+                'error=${claimResponse.error ?? ''}',
+              );
+              if (rootScaffoldMessenger.mounted) {
+                rootScaffoldMessenger.showSnackBar(
+                  SnackBar(content: Text(t.learningMapDailyRewardNotConfirmed)),
+                );
+              }
+              throw Exception('Daily Run chest claim rejected.');
+            }
+            if (claimResponse.alreadyClaimed) {
+              debugPrint(
+                '[DailyRun] Chest claim already confirmed; resuming '
+                'transactionId=$transactionId '
+                'backendTransactionId=${claimResponse.transactionId}',
+              );
+            }
             final backendReward = claimResponse.reward;
             final previewMismatch =
                 backendReward.xp != reward.xp ||
                 backendReward.coins != reward.coins ||
-                backendReward.cosmeticFragment != reward.cosmeticFragment;
+                backendReward.cosmeticFragment != reward.cosmeticFragment ||
+                backendReward.fragmentCopies != reward.fragmentCopies;
             if (previewMismatch) {
               debugPrint(
                 '[DailyRun] Chest reward preview/backend mismatch for transactionId=$transactionId '
-                'preview(xp=${reward.xp}, coins=${reward.coins}, fragment=${reward.cosmeticFragment}) '
-                'backend(xp=${backendReward.xp}, coins=${backendReward.coins}, fragment=${backendReward.cosmeticFragment})',
+                'preview(xp=${reward.xp}, coins=${reward.coins}, fragment=${reward.cosmeticFragment}, fragmentCopies=${reward.fragmentCopies}) '
+                'backend(xp=${backendReward.xp}, coins=${backendReward.coins}, fragment=${backendReward.cosmeticFragment}, fragmentCopies=${backendReward.fragmentCopies})',
               );
             }
             debugPrint(
@@ -690,12 +744,32 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
             );
             // TODO(server-authoritative-rewards): Future: initialize sheet from backend claim reward or replace preview before final animation.
 
-            // SERVER_REFRESHED: backend claim is the source of truth after chest claim.
-            await progressProvider.loadProgress(forceRefresh: true);
-            await coinProvider.loadCoinsAndHints(forceRefresh: true);
-            await avatarProvider.load();
-            if (targetProvider != null) {
-              await targetProvider.refreshFromFragmentProgress();
+            // SERVER_REFRESHED: backend claim succeeded, so core reward-visible
+            // state must be reloaded from providers before local closeout.
+            try {
+              await _refreshAuthoritativeRewardState(
+                transactionId: transactionId,
+                authProvider: authProvider,
+                progressProvider: progressProvider,
+                coinProvider: coinProvider,
+                avatarProvider: avatarProvider,
+                targetProvider: targetProvider,
+              );
+            } on _DailyRunRewardRefreshException catch (error) {
+              debugPrint(
+                '[DailyRun] WARNING: post-claim authoritative refresh failed '
+                'for transactionId=$transactionId: $error',
+              );
+              if (rootScaffoldMessenger.mounted) {
+                rootScaffoldMessenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Nagrada je potvrđena, ali stanje nije osveženo. Pokušaj ponovo.',
+                    ),
+                  ),
+                );
+              }
+              throw Exception('Daily Run reward state refresh failed.');
             }
 
             // Post-chest effects are part of the same transaction and must
@@ -738,6 +812,8 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
           },
           onViewCollection: openCollectionFromSheet,
           onApplyXp: (_) async {
+            // SERVER_REFRESHED: XP was claimed server-side and refreshed above;
+            // this step is transaction bookkeeping only.
             await dailyRun.applyRewardStep(
               expectedTransactionId: transactionId,
               step: DailyChestRewardStep.xp,
@@ -745,6 +821,8 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
             );
           },
           onApplyCoins: (_) async {
+            // SERVER_REFRESHED: coins were claimed server-side and refreshed
+            // above; this step is transaction bookkeeping only.
             await dailyRun.applyRewardStep(
               expectedTransactionId: transactionId,
               step: DailyChestRewardStep.coins,
@@ -762,6 +840,90 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(t.learningMapTomorrowChestTeaser)));
+  }
+
+  Future<void> _refreshAuthoritativeRewardState({
+    required String transactionId,
+    required AuthProvider authProvider,
+    required ProgressProvider progressProvider,
+    required CoinProvider coinProvider,
+    required AvatarProvider avatarProvider,
+    CosmeticTargetProvider? targetProvider,
+  }) async {
+    final isRealAuthenticatedUser =
+        authProvider.isAuthenticated && !authProvider.isDemoMode;
+
+    try {
+      // SERVER_REFRESHED: authoritative XP/progress state after claim.
+      await progressProvider.loadProgress(forceRefresh: true);
+    } catch (error) {
+      throw _DailyRunRewardRefreshException('progress refresh threw: $error');
+    }
+    if (progressProvider.progressUnavailable) {
+      throw const _DailyRunRewardRefreshException(
+        'progress refresh completed with progressUnavailable=true',
+      );
+    }
+    if (isRealAuthenticatedUser &&
+        (progressProvider.lastProgressLoadUsedFallback ||
+            progressProvider.lastProgressLoadError != null)) {
+      throw _DailyRunRewardRefreshException(
+        'progress refresh did not confirm authoritative state; '
+        'fallback=${progressProvider.lastProgressLoadUsedFallback} '
+        'error=${progressProvider.lastProgressLoadError}',
+      );
+    }
+
+    try {
+      // SERVER_REFRESHED: authoritative coin/hint state after claim.
+      await coinProvider.loadCoinsAndHints(forceRefresh: true);
+    } catch (error) {
+      throw _DailyRunRewardRefreshException('coin refresh threw: $error');
+    }
+    final coinFallbackDetected =
+        coinProvider.coins == 10 && coinProvider.dailyHints?.userId == 'demo';
+    if (isRealAuthenticatedUser && coinFallbackDetected) {
+      throw _DailyRunRewardRefreshException(
+        'coin refresh used fallback/default state; '
+        'coins=${coinProvider.coins} hintsUserId=${coinProvider.dailyHints?.userId}',
+      );
+    }
+
+    try {
+      // SERVER_REFRESHED: avatar inventory/config needed to show claimed cosmetics.
+      await avatarProvider.load();
+    } catch (error) {
+      throw _DailyRunRewardRefreshException('avatar refresh threw: $error');
+    }
+    if (avatarProvider.isLoading) {
+      throw const _DailyRunRewardRefreshException(
+        'avatar refresh did not complete',
+      );
+    }
+    if (avatarProvider.error != null) {
+      throw _DailyRunRewardRefreshException(
+        'avatar refresh reported error: ${avatarProvider.error}',
+      );
+    }
+    if (avatarProvider.catalog.isEmpty || avatarProvider.avatarConfig == null) {
+      throw _DailyRunRewardRefreshException(
+        'avatar refresh missing reward display state; '
+        'catalogCount=${avatarProvider.catalog.length} '
+        'avatarConfigPresent=${avatarProvider.avatarConfig != null}',
+      );
+    }
+
+    if (targetProvider == null) return;
+    try {
+      // LOCAL_AUTHORITY_TODO: target card reconciliation is cosmetic-only and
+      // still follows local fragment progress until backend target progress exists.
+      await targetProvider.refreshFromFragmentProgress();
+    } catch (error) {
+      debugPrint(
+        '[DailyRun] WARNING: cosmetic target refresh failed for '
+        'transactionId=$transactionId; continuing after core refresh: $error',
+      );
+    }
   }
 
   T? _maybeRead<T>(BuildContext context) {
@@ -869,6 +1031,15 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
       bonusFragmentEarned: bonusEarned,
     );
   }
+}
+
+class _DailyRunRewardRefreshException implements Exception {
+  const _DailyRunRewardRefreshException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 class _CoinHudChip extends StatelessWidget {

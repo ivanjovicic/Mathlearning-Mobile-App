@@ -81,11 +81,11 @@ class DioFactory {
 
   static Future<String?> _readLanguageCode() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Prefer language code (new explicit format) if present.
     final languageCode = prefs.getString(_languageCodeKey);
     if (languageCode != null && languageCode.isNotEmpty) {
-      return languageCode;
+      return _normalizeSelectableLanguageCode(languageCode);
     }
 
     // Fallback to old index format for backward compatibility.
@@ -96,11 +96,25 @@ class DioFactory {
       case 1: // serbian
         return 'sr';
       case 2: // german
-        return 'de';
+        return 'en';
       case 3: // spanish
-        return 'es';
+        return 'en';
       default:
         return null;
+    }
+  }
+
+  static String _normalizeSelectableLanguageCode(String languageCode) {
+    switch (languageCode.trim().toLowerCase()) {
+      case 'sr':
+        return 'sr';
+      case 'en':
+        return 'en';
+      case 'de':
+      case 'es':
+        return 'en';
+      default:
+        return languageCode;
     }
   }
 }

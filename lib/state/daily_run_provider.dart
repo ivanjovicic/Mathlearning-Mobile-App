@@ -92,13 +92,14 @@ class DailyRunProvider extends ChangeNotifier {
   int _correctStreak = 0;
   bool _isCompleted = false;
 
-  // Transactional chest flags (persisted).
+  // LOCAL_AUTHORITY_TODO: transactional chest flags are client-side
+  // resume/idempotency bookkeeping; backend claim remains reward authority.
   bool _chestOpeningInProgress = false;
   bool _rewardsApplied = false;
   bool _chestPermanentlyOpened = false;
   String? _activeRewardTransactionId;
   DateTime? _activeRewardTransactionCreatedAt;
-  // Stored reward is preview payload until backend claim succeeds.
+  // UI_PREVIEW_ONLY: stored reward is preview payload until backend claim succeeds.
   DailyChestReward? _activeRewardTransactionReward;
   Set<DailyChestRewardStep> _appliedRewardSteps = {};
 
@@ -116,6 +117,11 @@ class DailyRunProvider extends ChangeNotifier {
   String? get activeRewardTransactionId => _activeRewardTransactionId;
   DailyChestReward? get activeRewardTransactionReward =>
       _activeRewardTransactionReward;
+  DateTime? get activeRewardTransactionDay {
+    final createdAt = _activeRewardTransactionCreatedAt;
+    if (createdAt == null) return null;
+    return DateTime(createdAt.year, createdAt.month, createdAt.day);
+  }
 
   /// Backward-compatible alias for older callers/tests.
   bool get chestOpened => _chestPermanentlyOpened;
@@ -147,7 +153,14 @@ class DailyRunProvider extends ChangeNotifier {
     final storage = await SharedPreferences.getInstance();
     final key = _storageKey(scopedUserId, now);
     final legacyKey = _legacyStorageKey(scopedUserId, now);
-    final raw = storage.getString(key) ?? storage.getString(legacyKey);
+    final raw =
+        storage.getString(key) ??
+        storage.getString(legacyKey) ??
+        _pendingTransactionRawForDay(
+          storage: storage,
+          userId: scopedUserId,
+          day: now.subtract(const Duration(days: 1)),
+        );
     if (raw == null) {
       _resetForNewDay(notify: false);
       notifyListeners();
@@ -243,7 +256,8 @@ class DailyRunProvider extends ChangeNotifier {
       return null;
     }
 
-    // Resume unfinished transaction (crash-safe path).
+    // LOCAL_AUTHORITY_TODO: resume uses client-persisted transaction flags only;
+    // claim retry remains backend-idempotent by transactionId.
     if (_activeRewardTransactionId != null) {
       _chestOpeningInProgress = true;
       _activeRewardTransactionReward ??= _buildDailyReward();
@@ -253,7 +267,7 @@ class DailyRunProvider extends ChangeNotifier {
       return _activeRewardTransactionReward;
     }
 
-    // Create fresh transaction.
+    // UI_PREVIEW_ONLY: create a local preview transaction before backend claim.
     final reward = _buildDailyReward();
     _activeRewardTransactionId = _createRewardTransactionId();
     _activeRewardTransactionCreatedAt = DateTime.now();
@@ -266,8 +280,8 @@ class DailyRunProvider extends ChangeNotifier {
     return reward;
   }
 
-  /// Used after external modifiers are resolved (featured/daily-return) so
-  /// resume uses the exact same reward payload.
+  /// UI_PREVIEW_ONLY: used after external modifiers are resolved
+  /// (featured/daily-return) so resume uses the exact same preview payload.
   Future<void> setTransactionReward({
     required DailyChestReward reward,
     String? expectedTransactionId,
@@ -296,6 +310,8 @@ class DailyRunProvider extends ChangeNotifier {
   /// Applies one transactional reward step exactly once.
   ///
   /// If the same step is retried (restart/re-entry), this method becomes a no-op.
+  /// LOCAL_AUTHORITY_TODO: reward-step flags are local transaction bookkeeping,
+  /// not proof of backend reward settlement.
   Future<void> applyRewardStep({
     required DailyChestRewardStep step,
     required Future<void> Function() action,
@@ -313,6 +329,8 @@ class DailyRunProvider extends ChangeNotifier {
   }
 
   /// Result-bearing variant of [applyRewardStep].
+  /// LOCAL_AUTHORITY_TODO: result-bearing steps are local transaction
+  /// bookkeeping for preview/cosmetic callbacks.
   Future<T?> applyRewardStepWithResult<T>({
     required DailyChestRewardStep step,
     required Future<T> Function() action,
@@ -332,6 +350,8 @@ class DailyRunProvider extends ChangeNotifier {
 
   /// Finalization gate: chest is considered opened only after all transactional
   /// reward steps are confirmed as applied.
+  /// LOCAL_AUTHORITY_TODO: permanent-open is client-local closeout after a
+  /// successful backend claim plus refresh.
   Future<void> markChestPermanentlyOpened({
     String? expectedTransactionId,
   }) async {
@@ -453,7 +473,8 @@ class DailyRunProvider extends ChangeNotifier {
     await storage.setString(_storageKey(userId, now), jsonEncode(payload));
   }
 
-  // This is a deterministic local preview for animation/resume only. Backend claim response is authoritative.
+  // UI_PREVIEW_ONLY: deterministic local preview for animation/resume only.
+  // Backend claim response is authoritative.
   DailyChestReward _buildDailyReward() {
     final userId = _userId ?? '';
     final now = DateTime.now();
@@ -550,6 +571,36 @@ class DailyRunProvider extends ChangeNotifier {
     final month = day.month.toString().padLeft(2, '0');
     final date = day.day.toString().padLeft(2, '0');
     return '$_legacyStoragePrefix$userId.${day.year}-$month-$date';
+  }
+
+  String? _pendingTransactionRawForDay({
+    required SharedPreferences storage,
+    required String userId,
+    required DateTime day,
+  }) {
+    final raw =
+        storage.getString(_storageKey(userId, day)) ??
+        storage.getString(_legacyStorageKey(userId, day));
+    if (raw == null || !_hasPendingRewardTransaction(raw)) {
+      return null;
+    }
+    return raw;
+  }
+
+  bool _hasPendingRewardTransaction(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return false;
+      final map = Map<String, dynamic>.from(decoded);
+      final transactionId = map['activeRewardTransactionId']?.toString();
+      final permanentlyOpened =
+          map['chestPermanentlyOpened'] == true || map['chestOpened'] == true;
+      return !permanentlyOpened &&
+          transactionId != null &&
+          transactionId.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   DateTime _dateOnly(DateTime value) {

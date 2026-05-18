@@ -15,6 +15,7 @@ import 'package:mathlearning/services/api_service.dart';
 import 'package:mathlearning/state/auth_provider.dart';
 import 'package:mathlearning/state/daily_run_provider.dart';
 import 'package:mathlearning/state/progress_provider.dart';
+import 'package:mathlearning/state/settings_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../helpers/test_fakes.dart';
@@ -129,6 +130,9 @@ Widget _buildTestShell({
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<AuthProvider>(create: (_) => TestAuthProvider()),
+      ChangeNotifierProvider<SettingsProvider>(
+        create: (_) => SettingsProvider(),
+      ),
       ChangeNotifierProvider<ProgressProvider>(
         create: (_) => ProgressProvider(),
       ),
@@ -137,14 +141,19 @@ Widget _buildTestShell({
       ),
       ChangeNotifierProvider<LearningMapProvider>.value(value: provider),
     ],
-    child: MaterialApp(home: child),
+    child: MaterialApp(
+      theme: ThemeData(splashFactory: NoSplash.splashFactory),
+      home: child,
+    ),
   );
 }
 
 void main() {
   setUp(() {
     TestWidgetsFlutterBinding.ensureInitialized();
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      'settings_language_code': 'en',
+    });
   });
 
   testWidgets('LearningMapScreen shows skeleton then nodes', (tester) async {
@@ -221,6 +230,9 @@ void main() {
           ChangeNotifierProvider<AuthProvider>(
             create: (_) => TestAuthProvider(),
           ),
+          ChangeNotifierProvider<SettingsProvider>(
+            create: (_) => SettingsProvider(),
+          ),
           ChangeNotifierProvider<ProgressProvider>(
             create: (_) => ProgressProvider(),
           ),
@@ -229,7 +241,10 @@ void main() {
           ),
           ChangeNotifierProvider<LearningMapProvider>.value(value: provider),
         ],
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(
+          theme: ThemeData(splashFactory: NoSplash.splashFactory),
+          routerConfig: router,
+        ),
       ),
     );
 

@@ -33,7 +33,7 @@ class ProviderNavigationState extends ChangeNotifier
   final OnboardingProvider _onboardingProvider;
 
   @override
-  bool get isAuthResolved => !_authProvider.isLoading;
+  bool get isAuthResolved => _authProvider.isResolved;
 
   @override
   bool get isAuthenticated => _authProvider.isAuthenticated;

@@ -214,6 +214,71 @@ void main() {
     expect(harness.leaderboard.recordedToken, 'token-b');
     expect(harness.leaderboard.recordedIsDemoMode, isTrue);
   });
+
+  test(
+    'user switch clears progress and force-refreshes before daily return load',
+    () async {
+      final auth = FakeAuthProvider(
+        authenticated: true,
+        token: 'token-a',
+        userId: 'user-a',
+        isDemoMode: false,
+      );
+      final harness = TestHarness();
+      final coordinator = SessionCoordinator();
+
+      await coordinator.synchronize(
+        auth: auth,
+        progress: harness.progress,
+        quiz: harness.quiz,
+        leaderboard: harness.leaderboard,
+        userProfile: harness.userProfile,
+        settings: harness.settings,
+        avatar: harness.avatar,
+        cosmeticTarget: harness.cosmeticTarget,
+        cosmeticPreview: harness.cosmeticPreview,
+        weeklyFeatured: harness.weeklyFeatured,
+        dailyReturn: harness.dailyReturn,
+        season: harness.season,
+        chaseRace: harness.chaseRace,
+        playerIdentity: harness.playerIdentity,
+        streakFreeze: harness.streakFreeze,
+      );
+
+      harness.progress.resetRecording();
+      harness.dailyReturn.resetRecording();
+
+      auth.setSession(
+        authenticated: true,
+        token: 'token-b',
+        userId: 'user-b',
+        isDemoMode: false,
+      );
+
+      await coordinator.synchronize(
+        auth: auth,
+        progress: harness.progress,
+        quiz: harness.quiz,
+        leaderboard: harness.leaderboard,
+        userProfile: harness.userProfile,
+        settings: harness.settings,
+        avatar: harness.avatar,
+        cosmeticTarget: harness.cosmeticTarget,
+        cosmeticPreview: harness.cosmeticPreview,
+        weeklyFeatured: harness.weeklyFeatured,
+        dailyReturn: harness.dailyReturn,
+        season: harness.season,
+        chaseRace: harness.chaseRace,
+        playerIdentity: harness.playerIdentity,
+        streakFreeze: harness.streakFreeze,
+      );
+
+      expect(harness.progress.clearForUserSwitchCalls, 1);
+      expect(harness.progress.loadProgressCalls, 1);
+      expect(harness.progress.loadProgressForceRefreshArgs, [true]);
+      expect(harness.dailyReturn.progressLoadCallsAtLastLoad, 1);
+    },
+  );
 }
 
 class FakeAuthProvider extends AuthProvider {
@@ -222,10 +287,10 @@ class FakeAuthProvider extends AuthProvider {
     required String? token,
     required String? userId,
     required bool isDemoMode,
-  })  : _authenticated = authenticated,
-        _token = token,
-        _userId = userId,
-        _isDemoMode = isDemoMode;
+  }) : _authenticated = authenticated,
+       _token = token,
+       _userId = userId,
+       _isDemoMode = isDemoMode;
 
   bool _authenticated;
   String? _token;
@@ -263,6 +328,9 @@ class RecordingProgressProvider extends ProgressProvider {
   String? recordedToken;
   String? recordedUserId;
   bool? recordedIsDemoMode;
+  int clearForUserSwitchCalls = 0;
+  int loadProgressCalls = 0;
+  final List<bool> loadProgressForceRefreshArgs = [];
 
   @override
   void updateAuthContext({
@@ -273,6 +341,23 @@ class RecordingProgressProvider extends ProgressProvider {
     recordedToken = token;
     recordedUserId = userId;
     recordedIsDemoMode = isDemoMode;
+  }
+
+  @override
+  void clearForUserSwitch() {
+    clearForUserSwitchCalls += 1;
+  }
+
+  @override
+  Future<void> loadProgress({bool forceRefresh = false}) async {
+    loadProgressCalls += 1;
+    loadProgressForceRefreshArgs.add(forceRefresh);
+  }
+
+  void resetRecording() {
+    clearForUserSwitchCalls = 0;
+    loadProgressCalls = 0;
+    loadProgressForceRefreshArgs.clear();
   }
 }
 
@@ -379,6 +464,7 @@ class RecordingWeeklyFeaturedProvider extends WeeklyFeaturedProvider {
 class RecordingDailyReturnProvider extends DailyReturnProvider {
   String? lastConfiguredUser;
   int loadCalls = 0;
+  int? progressLoadCallsAtLastLoad;
 
   @override
   void configureUser(String? userId, {bool autoLoad = true}) {
@@ -395,6 +481,14 @@ class RecordingDailyReturnProvider extends DailyReturnProvider {
   }) async {
     lastConfiguredUser = userId;
     loadCalls += 1;
+    if (progress is RecordingProgressProvider) {
+      progressLoadCallsAtLastLoad = progress.loadProgressCalls;
+    }
+  }
+
+  void resetRecording() {
+    loadCalls = 0;
+    progressLoadCallsAtLastLoad = null;
   }
 }
 

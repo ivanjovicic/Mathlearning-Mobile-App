@@ -26,7 +26,63 @@ class SessionCoordinator {
   String? _lastScopedUserId;
   int _revision = 0;
 
+  /// Async mutex: every call to [synchronize] chains onto this future so that
+  /// two calls can never execute concurrently.  The argument snapshot is
+  /// captured in the closure, so the latest auth state always wins once the
+  /// preceding call completes.
+  Future<void>? _syncInFlight;
+
+  /// Serializes concurrent [synchronize] invocations.
+  /// Callers await the returned future; the body runs only after any
+  /// previously-started sync finishes.
   Future<void> synchronize({
+    required AuthProvider auth,
+    required ProgressProvider progress,
+    required QuizProvider quiz,
+    required LeaderboardProvider leaderboard,
+    required UserProfileProvider userProfile,
+    required SettingsProvider settings,
+    required AvatarProvider avatar,
+    required CosmeticTargetProvider cosmeticTarget,
+    required CosmeticPreviewProvider cosmeticPreview,
+    required WeeklyFeaturedProvider weeklyFeatured,
+    required DailyReturnProvider dailyReturn,
+    required SeasonProvider season,
+    required ChaseRaceProvider chaseRace,
+    required PlayerIdentityProvider playerIdentity,
+    required StreakFreezeProvider streakFreeze,
+    AdaptiveProvider? adaptive,
+  }) {
+    final next = (_syncInFlight ?? Future<void>.value()).then(
+      (_) => _synchronizeOnce(
+        auth: auth,
+        progress: progress,
+        quiz: quiz,
+        leaderboard: leaderboard,
+        userProfile: userProfile,
+        settings: settings,
+        avatar: avatar,
+        cosmeticTarget: cosmeticTarget,
+        cosmeticPreview: cosmeticPreview,
+        weeklyFeatured: weeklyFeatured,
+        dailyReturn: dailyReturn,
+        season: season,
+        chaseRace: chaseRace,
+        playerIdentity: playerIdentity,
+        streakFreeze: streakFreeze,
+        adaptive: adaptive,
+      ),
+    );
+    _syncInFlight = next;
+    // Release the chain reference once this link completes so the Future can
+    // be garbage-collected when no other call is pending.
+    next.whenComplete(() {
+      if (_syncInFlight == next) _syncInFlight = null;
+    });
+    return next;
+  }
+
+  Future<void> _synchronizeOnce({
     required AuthProvider auth,
     required ProgressProvider progress,
     required QuizProvider quiz,
@@ -104,6 +160,7 @@ class SessionCoordinator {
     playerIdentity.configureUser(scopedUserId);
 
     if (userChanged) {
+      progress.clearForUserSwitch();
       userProfile.lastUserId = scopedUserId;
       userProfile.clear();
       avatar.clear();
@@ -127,6 +184,9 @@ class SessionCoordinator {
       if (isStale()) return;
 
       await season.reload();
+      if (isStale()) return;
+
+      await progress.loadProgress(forceRefresh: userChanged);
       if (isStale()) return;
 
       await dailyReturn.load(

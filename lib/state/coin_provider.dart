@@ -42,6 +42,7 @@ class CoinProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // SERVER_REFRESHED: coin balance/hint state is read from backend.
       final responses = await Future.wait<dynamic>([
         _api.getUserCoins(),
         _api.getDailyHintUsage(),
@@ -49,11 +50,15 @@ class CoinProvider extends ChangeNotifier {
       final coinsData = responses[0] as int?;
       final hintsData = responses[1] as Map<String, dynamic>?;
 
-      _coins = coinsData ?? 10;
-
-      _dailyHints = hintsData != null
-          ? UserDailyHints.fromJson(hintsData)
-          : UserDailyHints(userId: 'local', date: DateTime.now());
+      if (coinsData == null) {
+        _coins = 10;
+        _dailyHints = UserDailyHints(userId: 'demo', date: DateTime.now());
+      } else {
+        _coins = coinsData;
+        _dailyHints = hintsData != null
+            ? UserDailyHints.fromJson(hintsData)
+            : UserDailyHints(userId: 'local', date: DateTime.now());
+      }
       _lastLoadedAt = DateTime.now();
     } catch (e) {
       debugPrint('Error loading coins and hints: $e');
@@ -104,6 +109,8 @@ class CoinProvider extends ChangeNotifier {
     return true;
   }
 
+  // LOCAL_AUTHORITY_TODO: free-hint usage is mutated locally until backend
+  // spend/usage confirmation is available.
   void _useFreeHint(String hintType) {
     if (_dailyHints == null) return;
     final nextRemaining = _dailyHints!.remainingToday != null
