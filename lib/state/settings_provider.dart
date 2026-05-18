@@ -25,6 +25,12 @@ extension AppLanguageX on AppLanguage {
 }
 
 class SettingsProvider extends ChangeNotifier {
+  /// Selectable languages in the UI.
+  /// German and Spanish are enum-reserved but hidden until translations are complete.
+  static const List<AppLanguage> selectableLanguages = [
+    AppLanguage.serbian,
+    AppLanguage.english,
+  ];
   static const int totalGoals = 5;
 
   static const _hintsEnabledKey = 'settings_hints_enabled';
@@ -36,6 +42,7 @@ class SettingsProvider extends ChangeNotifier {
   static const _dailyReminderEnabledKey = 'settings_daily_reminder_enabled';
   static const _dailyReminderMinutesKey = 'settings_daily_reminder_minutes';
   static const _languageKey = 'settings_language';
+  static const _languageCodeKey = 'settings_language_code';
   static const _profileConfiguredKey = 'settings_profile_configured';
   static const _notificationsConfiguredKey =
       'settings_notifications_configured';
@@ -152,6 +159,11 @@ class SettingsProvider extends ChangeNotifier {
 
         if (settings.languageCode != null) {
           _language = _languageFromCode(settings.languageCode, _language);
+          // German/Spanish are enum-reserved but hidden until translations are complete.
+          // Normalize unsupported languages from backend to English.
+          if (_language == AppLanguage.german || _language == AppLanguage.spanish) {
+            _language = AppLanguage.english;
+          }
         }
 
         notifyListeners();
@@ -324,9 +336,20 @@ class SettingsProvider extends ChangeNotifier {
           prefs.getInt(_dailyReminderMinutesKey) ?? (18 * 60);
       _dailyReminderTime = _timeFromMinutes(reminderMinutes);
 
-      final languageIndex = prefs.getInt(_languageKey) ?? _language.index;
-      if (languageIndex >= 0 && languageIndex < AppLanguage.values.length) {
-        _language = AppLanguage.values[languageIndex];
+      // Prefer language code (new format) if present, fallback to old index format.
+      final languageCode = prefs.getString(_languageCodeKey);
+      if (languageCode != null && languageCode.isNotEmpty) {
+        _language = _languageFromCode(languageCode, _language);
+      } else {
+        final languageIndex = prefs.getInt(_languageKey) ?? _language.index;
+        if (languageIndex >= 0 && languageIndex < AppLanguage.values.length) {
+          _language = AppLanguage.values[languageIndex];
+        }
+      }
+      // German/Spanish are enum-reserved but hidden until translations are complete.
+      // Normalize unsupported languages to English.
+      if (_language == AppLanguage.german || _language == AppLanguage.spanish) {
+        _language = AppLanguage.english;
       }
 
       _profileConfigured = prefs.getBool(_profileConfiguredKey) ?? false;
@@ -371,7 +394,9 @@ class SettingsProvider extends ChangeNotifier {
         _dailyReminderMinutesKey,
         _dailyReminderTime.hour * 60 + _dailyReminderTime.minute,
       );
+      // Save both index (backward compatibility) and language code (explicit).
       await prefs.setInt(_languageKey, _language.index);
+      await prefs.setString(_languageCodeKey, _languageCode(_language));
       await prefs.setBool(_profileConfiguredKey, _profileConfigured);
       await prefs.setBool(
         _notificationsConfiguredKey,

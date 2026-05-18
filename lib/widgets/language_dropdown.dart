@@ -25,7 +25,7 @@ class LanguageDropdown extends StatelessWidget {
                   border: InputBorder.none,
                   labelText: 'Language',
                 ),
-                items: AppLanguage.values
+                items: SettingsProvider.selectableLanguages
                     .map(
                       (lang) => DropdownMenuItem<AppLanguage>(
                         value: lang,

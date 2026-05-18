@@ -8,6 +8,7 @@ import '../auth/token_storage.dart';
 class DioFactory {
   static final TokenStorage _tokenStorage = TokenStorage();
   static const String _languageKey = 'settings_language';
+  static const String _languageCodeKey = 'settings_language_code';
 
   static Dio create({bool withAuth = true}) {
     final dio = Dio(
@@ -80,16 +81,23 @@ class DioFactory {
 
   static Future<String?> _readLanguageCode() async {
     final prefs = await SharedPreferences.getInstance();
-    final languageIndex = prefs.getInt(_languageKey);
+    
+    // Prefer language code (new explicit format) if present.
+    final languageCode = prefs.getString(_languageCodeKey);
+    if (languageCode != null && languageCode.isNotEmpty) {
+      return languageCode;
+    }
 
+    // Fallback to old index format for backward compatibility.
+    final languageIndex = prefs.getInt(_languageKey);
     switch (languageIndex) {
-      case 1:
-        return 'sr';
-      case 0:
+      case 0: // english
         return 'en';
-      case 2:
+      case 1: // serbian
+        return 'sr';
+      case 2: // german
         return 'de';
-      case 3:
+      case 3: // spanish
         return 'es';
       default:
         return null;

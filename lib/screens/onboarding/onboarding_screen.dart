@@ -162,7 +162,7 @@ class _LanguagePicker extends StatelessWidget {
       spacing: 12,
       runSpacing: 12,
       alignment: WrapAlignment.center,
-      children: AppLanguage.values.map((lang) {
+      children: SettingsProvider.selectableLanguages.map((lang) {
         final isSelected = lang == selected;
         return ChoiceChip(
           label: Text(
