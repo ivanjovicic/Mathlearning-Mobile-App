@@ -88,7 +88,7 @@ class CoinProvider extends ChangeNotifier {
     return '$cost zlatnika';
   }
 
-  // TODO(server-authoritative-rewards): this local mutation should be replaced by backend claim/refresh.
+  // LOCAL_AUTHORITY_TODO: this local coin mutation should be replaced by backend-confirmed reward spend/refresh.
   void _spendCoins(int amount) {
     _coins = (_coins - amount).clamp(0, double.infinity).toInt();
     notifyListeners();

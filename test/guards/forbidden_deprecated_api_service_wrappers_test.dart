@@ -8,17 +8,17 @@ void main() {
     () async {
       final libDir = Directory('lib');
       final matches = <String, List<String>>{};
-      final forbiddenWrapperNames = <String>[
-        'getAdaptivePath',
-        'getAdaptivePathResult',
-        'getAdaptiveReview',
-        'getAdaptiveReviewResult',
-        'getAdaptiveRecommendations',
-        'getAdaptiveRecommendationsResult',
-        'fetchLeaderboardRivals',
-        'fetchSchoolLeaderboard',
-        'fetchSchoolLeaderboardDetail',
-        'fetchSchoolLeaderboardHistory',
+      final forbiddenWrapperCalls = <String>[
+        'getAdaptivePath(',
+        'getAdaptivePathResult(',
+        'getAdaptiveReview(',
+        'getAdaptiveReviewResult(',
+        'getAdaptiveRecommendations(',
+        'getAdaptiveRecommendationsResult(',
+        'fetchLeaderboardRivals(',
+        'fetchSchoolLeaderboard(',
+        'fetchSchoolLeaderboardDetail(',
+        'fetchSchoolLeaderboardHistory(',
       ];
 
       final apiServiceVars = RegExp(
@@ -52,12 +52,13 @@ void main() {
               .whereType<String>(),
         };
 
-        for (final method in forbiddenWrapperNames) {
+        for (final call in forbiddenWrapperCalls) {
+          final method = call.substring(0, call.length - 1);
           final directCall = RegExp(
             '\\bApiService\\s*\\(\\s*\\)\\s*\\.\\s*$method\\s*\\(',
           );
           if (directCall.hasMatch(content)) {
-            matches.putIfAbsent(normalizedPath, () => []).add('$method(');
+            matches.putIfAbsent(normalizedPath, () => []).add(call);
           }
 
           for (final receiver in candidateReceivers) {
@@ -65,7 +66,7 @@ void main() {
               '\\b$receiver\\s*\\.\\s*$method\\s*\\(',
             );
             if (receiverCall.hasMatch(content)) {
-              matches.putIfAbsent(normalizedPath, () => []).add('$method(');
+              matches.putIfAbsent(normalizedPath, () => []).add(call);
             }
           }
         }

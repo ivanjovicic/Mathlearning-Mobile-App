@@ -24,3 +24,6 @@ This document defines runtime mobile endpoints currently supported by the app.
 - `/api/adaptive/session/answer`
 - `/api/analytics/mastery`
 - `/api/chase/`
+
+## Note
+This manual contract should later be replaced by backend OpenAPI/codegen.

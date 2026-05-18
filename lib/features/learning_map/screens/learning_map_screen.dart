@@ -704,6 +704,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
               expectedTransactionId: transactionId,
               step: DailyChestRewardStep.seasonRewards,
               action: () async {
+                // LOCAL_AUTHORITY_TODO: season XP mutation is still local until backend season-claim is authoritative.
                 if (seasonProvider != null) {
                   await seasonProvider.awardDailyRunXp(multiplier);
                 }
@@ -713,6 +714,7 @@ class _LearningMapScreenState extends State<LearningMapScreen> {
               expectedTransactionId: transactionId,
               step: DailyChestRewardStep.dailyReturnRewards,
               action: () async {
+                // LOCAL_AUTHORITY_TODO: comeback chest bookkeeping is still local until backend-confirmed reward history exists.
                 await dailyReturn?.markChestOpened(
                   wasComebackChest: reward.isComebackChest,
                   progress: progressProvider,
